@@ -5,13 +5,13 @@
 @section('content')
 @include('master._header', ['icon'=>'geo-alt', 'title'=>'Lokasi & Gudang', 'description'=>'Kelola lokasi penyimpanan dan distribusi stok barang.'])
 <div class="d-flex justify-content-end mb-3">
-    <a href="{{ route('master.locations.create') }}" class="btn btn-primary btn-sm">
+    @if(auth()->user()->canAccessRoute('master.locations.create')) <a href="{{ route('master.locations.create') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-circle me-1"></i> Tambah Lokasi
-    </a>
+    </a> @endif
 </div>
 
 <div class="card table-card">
-    <div class="card-body p-0">
+    <div class="card-body p-0 table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
@@ -37,17 +37,17 @@
                         </span>
                     </td>
                     <td class="text-center">
-                        <a href="{{ route('master.locations.edit', $location) }}"
+                        @if(auth()->user()->canAccessRoute('master.locations.edit')) <a href="{{ route('master.locations.edit', $location) }}"
                            class="btn btn-sm btn-outline-warning py-0 px-2">
                             <i class="bi bi-pencil"></i>
-                        </a>
-                        <form method="POST" action="{{ route('master.locations.destroy', $location) }}"
-                              class="d-inline" onsubmit="return confirm('Hapus lokasi ini?')">
+                        </a> @endif
+                        @if(auth()->user()->canAccessRoute('master.locations.destroy')) <form method="POST" action="{{ route('master.locations.destroy', $location) }}"
+                              class="d-inline" data-confirm="Hapus lokasi ini?">
                             @csrf @method('DELETE')
                             <button class="btn btn-sm btn-outline-danger py-0 px-2">
                                 <i class="bi bi-trash"></i>
                             </button>
-                        </form>
+                        </form> @endif
                     </td>
                 </tr>
                 @empty

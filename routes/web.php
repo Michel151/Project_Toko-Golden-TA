@@ -39,6 +39,10 @@ Route::middleware('auth')->group(function () {
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/permissions', [\App\Http\Controllers\RolePermissionController::class, 'index'])
+        ->middleware('role:owner')->name('permissions.index');
+    Route::put('/permissions/{role}', [\App\Http\Controllers\RolePermissionController::class, 'update'])
+        ->middleware('role:owner')->name('permissions.update');
     Route::get('/audit-logs', [AuditLogController::class, 'index'])
          ->middleware('role:owner')->name('audit-logs.index');
 
@@ -46,36 +50,74 @@ Route::middleware('auth')->group(function () {
         ->middleware('role:owner')->group(function () {
             Route::get('/', [DatabaseBackupController::class, 'index'])->name('index');
             Route::post('/', [DatabaseBackupController::class, 'store'])->name('store');
+            Route::get('export-sql', [DatabaseBackupController::class, 'exportSql'])->name('export-sql');
+            Route::post('import-sql', [DatabaseBackupController::class, 'importSql'])
+                ->middleware('throttle:3,10')->name('import-sql');
+            Route::get('sql/{filename}/download', [DatabaseBackupController::class, 'downloadSql'])->name('sql-download');
+            Route::post('sql/{filename}/restore', [DatabaseBackupController::class, 'restoreSql'])
+                ->middleware('throttle:3,10')->name('sql-restore');
+            Route::delete('sql/{filename}', [DatabaseBackupController::class, 'destroySql'])->name('sql-destroy');
             Route::get('{filename}/download', [DatabaseBackupController::class, 'download'])->name('download');
-            Route::post('{filename}/restore', [DatabaseBackupController::class, 'restore'])->name('restore');
+            Route::post('restore-upload', [DatabaseBackupController::class, 'restoreUpload'])
+                ->middleware('throttle:3,10')->name('restore-upload');
+            Route::post('{filename}/restore', [DatabaseBackupController::class, 'restore'])
+                ->middleware('throttle:3,10')->name('restore');
             Route::delete('{filename}', [DatabaseBackupController::class, 'destroy'])->name('destroy');
         });
 
     // ── Master Data (owner only) ───────────────────────────────────────────────
-    Route::prefix('master')->name('master.')->middleware('role:owner')->group(function () {
-        Route::resource('categories', CategoryController::class)->except(['show']);
-        Route::resource('units',      UnitController::class)->except(['show']);
-        Route::resource('locations',  LocationController::class)->except(['show']);
-        Route::resource('suppliers',  SupplierController::class);
-        Route::resource('users',      UserController::class)->except(['show']);
+    Route::prefix('master')->name('master.')->group(function () {
+        Route::resource('categories', CategoryController::class)->except(['show'])->middleware('permission:master.categories');
+        Route::resource('units',      UnitController::class)->except(['show'])->middleware('permission:master.units');
+        Route::resource('locations',  LocationController::class)->except(['show'])->middleware('permission:master.locations');
+        Route::get('suppliers/import', [\App\Http\Controllers\MasterData\SupplierImportTrialController::class, 'create'])->middleware('permission:master.suppliers')->name('suppliers.import');
+        Route::get('suppliers/import/template', [\App\Http\Controllers\MasterData\SupplierImportTrialController::class, 'template'])->middleware('permission:master.suppliers')->name('suppliers.import.template');
+        Route::post('suppliers/import', [\App\Http\Controllers\MasterData\SupplierImportTrialController::class, 'preview'])->middleware('permission:master.suppliers')->name('suppliers.import.preview');
+        Route::resource('suppliers',  SupplierController::class)->middleware('permission:master.suppliers');
+        Route::resource('users',      UserController::class)->except(['show'])->middleware('role:owner');
+        Route::get('products/import', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'create'])->middleware('permission:master.products')->name('products.import');
+        Route::get('products/import-trial', fn (\Illuminate\Http\Request $request) => redirect()->route('master.products.import', $request->only('preview')))->middleware('permission:master.products')->name('products.import-trial');
+        Route::get('products/import-trial/template', fn () => redirect()->route('master.products.import.template'))->middleware('permission:master.products')->name('products.import-trial.template');
+        Route::post('products/import-trial', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'preview'])->middleware('permission:master.products')->name('products.import-trial.preview');
+        Route::post('products/import-trial/store', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'store'])->middleware('permission:master.products')->name('products.import-trial.store');
+        Route::get('products/import/template', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'template'])->middleware('permission:master.products')->name('products.import.template');
+        Route::post('products/import', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'preview'])->middleware('permission:master.products')->name('products.import.preview');
+        Route::post('products/import/store', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'store'])->middleware('permission:master.products')->name('products.import.store');
         Route::get('products/{product}/label', [ProductController::class, 'printLabel'])
-             ->name('products.label');
-        Route::resource('products',   ProductController::class);
+             ->middleware('permission:master.products')->name('products.label');
+        Route::resource('products',   ProductController::class)->middleware('permission:master.products');
     });
 
     // ── Pembelian (owner only) ─────────────────────────────────────────────────
-    Route::prefix('purchase')->name('purchase.')->middleware('role:owner')->group(function () {
+    Route::prefix('purchase')->name('purchase.')->middleware('permission:purchase.orders')->group(function () {
         Route::get('orders/suppliers/{supplier}/products', [PurchaseOrderController::class, 'productsBySupplier'])
              ->name('orders.supplier-products');
         Route::resource('orders',   PurchaseOrderController::class);
         Route::get('orders/{order}/pdf', [PurchaseOrderController::class, 'generatePdf'])
              ->name('orders.pdf');
+        Route::get('orders/{order}/excel', [PurchaseOrderController::class, 'generateExcel'])
+             ->name('orders.excel');
+    });
 
-        Route::resource('receipts', PurchaseReceiptController::class);
+    Route::prefix('purchase')->name('purchase.')->middleware('permission:purchase.receipts')->group(function () {
+        Route::get('receipts/orders/{order}/items', [PurchaseReceiptController::class, 'getOrderItems'])
+             ->name('receipts.order-items');
+        Route::resource('receipts', PurchaseReceiptController::class)->only(['index', 'create', 'store', 'show']);
     });
 
     // ── Penjualan (owner & kasir) ──────────────────────────────────────────────
-    Route::prefix('sale')->name('sale.')->middleware('role:owner,kasir')->group(function () {
+    Route::prefix('purchase')->name('purchase.')->middleware('permission:purchase.returns')->group(function () {
+        Route::post('returns/{return}/approve', [\App\Http\Controllers\Purchase\PurchaseReturnController::class, 'approve'])->name('returns.approve');
+        Route::post('returns/{return}/reject', [\App\Http\Controllers\Purchase\PurchaseReturnController::class, 'reject'])->name('returns.reject');
+        Route::post('returns/{return}/dispatch', [\App\Http\Controllers\Purchase\PurchaseReturnController::class, 'dispatch'])->name('returns.dispatch');
+        Route::resource('returns', \App\Http\Controllers\Purchase\PurchaseReturnController::class)->only(['index', 'create', 'store', 'show']);
+    });
+
+    Route::get('sale/drafts', [\App\Http\Controllers\Sale\SaleDraftController::class, 'index'])->middleware('permission:sale.sales')->name('sale.drafts.index');
+    Route::put('sale/drafts/{id}', [\App\Http\Controllers\Sale\SaleDraftController::class, 'update'])->middleware('permission:sale.sales')->name('sale.drafts.update');
+    Route::prefix('sale')->name('sale.')->middleware('permission:sale.sales')->group(function () {
+        Route::post('sales/{sale}/complete', [SaleController::class, 'complete'])->name('sales.complete');
+        Route::post('sales/{sale}/cancel', [SaleController::class, 'cancel'])->name('sales.cancel');
         Route::resource('sales', SaleController::class);
         Route::get('sales/{sale}/print', [SaleController::class, 'printNota'])
              ->name('sales.print');
@@ -86,37 +128,41 @@ Route::middleware('auth')->group(function () {
     });
 
     // ── Inventori (owner & staf_gudang) ───────────────────────────────────────
-    Route::prefix('inventory')->name('inventory.')->middleware('role:owner,staf_gudang')->group(function () {
+    Route::prefix('inventory')->name('inventory.')->middleware('permission:inventory.stock')->group(function () {
         Route::get('stock', [StockController::class, 'index'])->name('stock.index');
         Route::get('stock-card/{product}', [StockCardController::class, 'show'])->name('stock-card.show');
         Route::get('stock-card/{product}/pdf', [StockCardController::class, 'pdf'])->name('stock-card.pdf');
+    });
 
-        Route::resource('transfers', TransferController::class);
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        Route::get('transfers/availability', [TransferController::class, 'availability'])
+             ->middleware('permission:inventory.transfers')->name('transfers.availability');
+        Route::resource('transfers', TransferController::class)->middleware('permission:inventory.transfers');
         Route::get('opnames/movements', [StockMovementController::class, 'index'])
-             ->name('opnames.movements');
-        Route::resource('opnames',   OpnameController::class);
+             ->middleware('permission:inventory.opnames')->name('opnames.movements');
+        Route::resource('opnames',   OpnameController::class)->middleware('permission:inventory.opnames');
         Route::post('opnames/{opname}/complete', [OpnameController::class, 'complete'])
-             ->name('opnames.complete');
+             ->middleware('permission:inventory.opnames')->name('opnames.complete');
     });
 
     // ── Laporan (owner only) ───────────────────────────────────────────────────
-    Route::prefix('report')->name('report.')->middleware('role:owner')->group(function () {
-        Route::get('stock',    [StockReportController::class,    'index'])->name('stock');
-        Route::get('purchase', [PurchaseReportController::class, 'index'])->name('purchase');
-        Route::get('sale',     [SaleReportController::class,     'index'])->name('sale');
-        Route::get('transfer', [TransferReportController::class, 'index'])->name('transfer');
-        Route::get('gross-profit', [GrossProfitReportController::class, 'index'])->name('gross-profit');
+    Route::prefix('report')->name('report.')->group(function () {
+        Route::get('gross-profit', [GrossProfitReportController::class, 'index'])->middleware('permission:report.gross-profit')->name('gross-profit');
+        Route::get('gross-profit/pdf', [GrossProfitReportController::class, 'pdf'])->middleware('permission:report.gross-profit')->name('gross-profit.pdf');
+        Route::get('gross-profit/excel', [GrossProfitReportController::class, 'excel'])->middleware('permission:report.gross-profit')->name('gross-profit.excel');
+        Route::get('stock',    [StockReportController::class,    'index'])->middleware('permission:report.stock')->name('stock');
+        Route::get('purchase', [PurchaseReportController::class, 'index'])->middleware('permission:report.purchase')->name('purchase');
+        Route::get('sale',     [SaleReportController::class,     'index'])->middleware('permission:report.sale')->name('sale');
+        Route::get('transfer', [TransferReportController::class, 'index'])->middleware('permission:report.transfer')->name('transfer');
 
         // Export PDF
-        Route::get('stock/pdf',    [StockReportController::class,    'pdf'])->name('stock.pdf');
-        Route::get('stock/excel',  [StockReportController::class,    'excel'])->name('stock.excel');
-        Route::get('purchase/pdf', [PurchaseReportController::class, 'pdf'])->name('purchase.pdf');
-        Route::get('purchase/excel', [PurchaseReportController::class, 'excel'])->name('purchase.excel');
-        Route::get('sale/pdf',     [SaleReportController::class,     'pdf'])->name('sale.pdf');
-        Route::get('sale/excel',   [SaleReportController::class,     'excel'])->name('sale.excel');
-        Route::get('transfer/pdf', [TransferReportController::class, 'pdf'])->name('transfer.pdf');
-        Route::get('transfer/excel', [TransferReportController::class, 'excel'])->name('transfer.excel');
-        Route::get('gross-profit/pdf', [GrossProfitReportController::class, 'pdf'])->name('gross-profit.pdf');
-        Route::get('gross-profit/excel', [GrossProfitReportController::class, 'excel'])->name('gross-profit.excel');
+        Route::get('stock/pdf',    [StockReportController::class,    'pdf'])->middleware('permission:report.stock')->name('stock.pdf');
+        Route::get('stock/excel',  [StockReportController::class,    'excel'])->middleware('permission:report.stock')->name('stock.excel');
+        Route::get('purchase/pdf', [PurchaseReportController::class, 'pdf'])->middleware('permission:report.purchase')->name('purchase.pdf');
+        Route::get('purchase/excel', [PurchaseReportController::class, 'excel'])->middleware('permission:report.purchase')->name('purchase.excel');
+        Route::get('sale/pdf',     [SaleReportController::class,     'pdf'])->middleware('permission:report.sale')->name('sale.pdf');
+        Route::get('sale/excel',   [SaleReportController::class,     'excel'])->middleware('permission:report.sale')->name('sale.excel');
+        Route::get('transfer/pdf', [TransferReportController::class, 'pdf'])->middleware('permission:report.transfer')->name('transfer.pdf');
+        Route::get('transfer/excel', [TransferReportController::class, 'excel'])->middleware('permission:report.transfer')->name('transfer.excel');
     });
 });

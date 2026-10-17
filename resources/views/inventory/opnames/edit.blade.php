@@ -1,200 +1,85 @@
 @extends('layouts.app')
 @section('title', 'Isi Stock Opname')
-@section('page-title', 'Isi Jumlah Fisik — ' . $opname->opname_number)
-
+@section('page-title', 'Isi Jumlah Fisik - ' . $opname->opname_number)
+@push('styles')
+<style>
+.opname-count-table{min-width:740px}.opname-count-table>tbody>tr>td{vertical-align:middle;padding:7px 10px}
+.opname-expiry-cell{background:#f8faf9;padding:6px 12px 10px!important}.opname-expiry-cell .table{min-width:680px}
+.opname-quantity{width:max-content;flex-wrap:nowrap}.opname-quantity .input-group{width:128px;min-width:128px;flex:0 0 128px}.opname-quantity .form-control{min-width:0}.opname-quantity .input-group-text{max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.expiry-list td{vertical-align:middle}.opname-difference{min-width:115px}.expiry-date{max-width:170px}
+.opname-search{max-width:320px}.expiry-toggle{display:inline-flex;align-items:center;gap:6px;padding:2px 0;border:0;background:none;color:var(--bs-success);font-size:12px}.expiry-toggle[aria-expanded="true"] .bi-chevron-right{transform:rotate(90deg)}
+.opname-count-table [hidden]{display:none!important}.opname-actions{position:sticky;bottom:0;background:var(--bs-body-bg,#fff);padding:10px 0;z-index:2}
+</style>
+@endpush
 @section('content')
-<div class="mb-3 d-flex gap-2">
-    <a href="{{ route('inventory.opnames.index') }}" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i>Kembali
-    </a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div><h5 class="fw-bold mb-1">{{ $opname->opname_number }}</h5><div class="small text-muted">{{ $opname->location->name }} | {{ $opname->opname_date->format('d/m/Y') }}</div></div>
+    <a href="{{ route('inventory.opnames.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
 </div>
-
-<div class="alert alert-info py-2 mb-3">
-    <i class="bi bi-info-circle me-2"></i>
-    Isi kolom <strong>Stok Fisik</strong> sesuai hasil hitung fisik di <strong>{{ $opname->location->name }}</strong>.
-    Klik <strong>Simpan Draft</strong> untuk menyimpan sementara, atau <strong>Selesaikan Opname</strong> untuk mengaplikasikan ke stok sistem.
-</div>
-
-<form method="POST" action="{{ route('inventory.opnames.update', $opname) }}" id="opnameForm">
+<form method="POST" action="{{ route('inventory.opnames.update', $opname) }}" data-complete-url="{{ route('inventory.opnames.complete',$opname) }}" id="opnameForm">
     @csrf @method('PUT')
-
-    <div class="card table-card">
-        <div class="card-header bg-white border-0 pt-3">
-            <h6 class="fw-bold mb-0">{{ $opname->location->name }} — {{ $opname->opname_date->format('d/m/Y') }}</h6>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Barang</th>
-                            <th class="text-end">Stok Sistem</th>
-                            <th style="width:290px">Stok Fisik</th>
-                            <th class="text-end">Selisih</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($opname->items as $item)
-                        @php
-                            $product = $item->product;
-                            $sysQty  = (float) $item->system_quantity;
-                            $physQty = (float) $item->physical_quantity;
-                            $diff    = (float) $item->difference;
-
-                            if ($product->can_retail && $product->conversion_factor > 0) {
-                                $sw = (int) floor($sysQty / $product->conversion_factor);
-                                $ss = (int) round(fmod($sysQty, $product->conversion_factor));
-                                $sysDisplay = $ss > 0
-                                    ? "{$sw} {$product->buyUnit->name} {$ss} {$product->retailUnit->name}"
-                                    : "{$sw} {$product->buyUnit->name}";
-
-                                $initDus   = (int) floor($physQty / $product->conversion_factor);
-                                $initBotol = (int) round(fmod($physQty, $product->conversion_factor));
-
-                                $absDiff = abs($diff);
-                                $dw = (int) floor($absDiff / $product->conversion_factor);
-                                $ds = (int) round(fmod($absDiff, $product->conversion_factor));
-                                $diffDisplay = ($diff >= 0 ? '+' : '-') . ($ds > 0
-                                    ? "{$dw} {$product->buyUnit->name} {$ds} {$product->retailUnit->name}"
-                                    : "{$dw} {$product->buyUnit->name}");
-                            } else {
-                                $sysDisplay  = number_format($sysQty, 2) . ' ' . $product->buyUnit->name;
-                                $diffDisplay = ($diff >= 0 ? '+' : '') . number_format($diff, 2);
-                            }
-                        @endphp
-                        <tr data-system="{{ $sysQty }}"
-                            data-can-retail="{{ $product->can_retail ? 1 : 0 }}"
-                            data-conversion="{{ $product->can_retail ? $product->conversion_factor : 0 }}"
-                            data-buy-unit="{{ $product->buyUnit->name }}"
-                            data-retail-unit="{{ optional($product->retailUnit)->name ?? '' }}">
-
-                            <td class="fw-semibold">
-                                {{ $product->name }}
-                                @if($product->can_retail && $product->conversion_factor > 0)
-                                <div class="text-muted" style="font-size:0.75rem">
-                                    1 {{ $product->buyUnit->name }} = {{ number_format($product->conversion_factor, 0) }} {{ optional($product->retailUnit)->name }}
-                                </div>
-                                @endif
-                            </td>
-
-                            <td class="text-end">{{ $sysDisplay }}</td>
-
-                            <td>
-                                <input type="hidden"
-                                       name="items[{{ $item->id }}][physical_quantity]"
-                                       class="physical-qty-hidden"
-                                       value="{{ $physQty }}">
-
-                                @if($product->can_retail && $product->conversion_factor > 0)
-                                <div class="d-flex gap-2 align-items-center">
-                                    <div class="input-group input-group-sm" style="width:130px">
-                                        <input type="number" class="form-control dus-input text-end"
-                                               value="{{ $initDus }}" min="0" step="1" placeholder="0">
-                                        <span class="input-group-text">{{ $product->buyUnit->name }}</span>
-                                    </div>
-                                    <div class="input-group input-group-sm" style="width:130px">
-                                        <input type="number" class="form-control botol-input text-end"
-                                               value="{{ $initBotol }}"
-                                               min="0" max="{{ $product->conversion_factor - 1 }}"
-                                               step="1" placeholder="0">
-                                        <span class="input-group-text">{{ optional($product->retailUnit)->name }}</span>
-                                    </div>
-                                </div>
-                                @else
-                                <div class="input-group input-group-sm">
-                                    <input type="number" class="form-control single-input text-end"
-                                           value="{{ $physQty }}" min="0" step="0.01">
-                                    <span class="input-group-text">{{ $product->buyUnit->name }}</span>
-                                </div>
-                                @endif
-                            </td>
-
-                            <td class="text-end diff-cell fw-semibold {{ $diff > 0 ? 'text-success' : ($diff < 0 ? 'text-danger' : 'text-muted') }}">
-                                {{ $diffDisplay }}
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <span class="small text-muted" id="opnameItemCount">{{ $opname->items->count() }} barang</span>
+        <input type="search" class="form-control form-control-sm opname-search" id="opnameSearch" placeholder="Cari barang..." aria-label="Cari barang opname">
     </div>
-
-    <div class="d-flex gap-2 mt-3">
-        <button type="submit" class="btn btn-primary">
-            <i class="bi bi-save me-1"></i>Simpan Draft
-        </button>
-        <button type="button" class="btn btn-success" id="btnSelesaikan">
-            <i class="bi bi-check-circle me-1"></i>Selesaikan Opname
-        </button>
+    <div class="table-responsive bg-white border rounded">
+        <table class="table table-hover mb-0 opname-count-table">
+            <thead><tr><th>Barang</th><th class="text-end">Stok Sistem</th><th style="width:310px">Stok Fisik</th><th class="text-end">Selisih</th></tr></thead>
+            <tbody>
+            @foreach($opname->items as $item)
+                @php
+                    $product=$item->product;
+                    $displayUnits=\App\Support\OpnameQuantity::units($product);
+                    $baseName=$product->baseProductUnit?->unit?->name ?? ($product->can_retail ? $product->retailUnit?->name : $product->buyUnit?->name) ?? 'Unit';
+                    $value=old("items.{$item->id}.physical_quantity",$item->physical_quantity);
+                @endphp
+                <tr data-opname-item="{{ $item->id }}" data-system="{{ $item->system_quantity }}" data-unit="{{ $baseName }}" data-display-units="{{ json_encode($displayUnits) }}">
+                    <td><strong class="opname-product-name">{{ $product->name }}</strong>@if($item->tracks_expiry)<div><button type="button" class="expiry-toggle" aria-expanded="false" aria-controls="expiry-{{ $item->id }}"><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="expiry-count">{{ $item->expiryCounts->count() }} kedaluwarsa</span></button></div>@endif</td>
+                    <td class="text-end">{{ \App\Support\OpnameQuantity::format((float)$item->system_quantity,$displayUnits) }}</td>
+                    <td>
+                        @if($item->tracks_expiry)
+                            <input class="item-physical" type="hidden" name="items[{{ $item->id }}][physical_quantity]" value="{{ $value }}"><strong class="item-total">{{ \App\Support\OpnameQuantity::format((float)$value,$displayUnits) }}</strong>
+                        @else
+                            <input class="item-physical" type="hidden" value="{{ $value }}">
+                            @include('inventory.opnames.quantity-input',['field'=>"items[{$item->id}][physical_quantity]",'value'=>$value])
+                        @endif
+                    </td>
+                    <td class="text-end fw-semibold item-difference opname-difference"></td>
+                </tr>
+                @if($item->tracks_expiry)
+                    @php
+                        $expiryRows=old("items.{$item->id}.expiries",$item->expiryCounts->map(fn($entry)=>[
+                            'id'=>$entry->id,'expired_date'=>$entry->expired_date?->toDateString(),
+                            'system_quantity'=>$entry->system_quantity,'physical_quantity'=>$entry->physical_quantity,
+                        ])->all());
+                        foreach($expiryRows as &$expiryRow) {
+                            if(!empty($expiryRow['id'])) {
+                                $saved=$item->expiryCounts->firstWhere('id',$expiryRow['id']);
+                                $expiryRow['system_quantity']=$saved?->system_quantity ?? 0;
+                            }
+                        }
+                        unset($expiryRow);
+                    @endphp
+                    <tr id="expiry-{{ $item->id }}" data-expiry-item="{{ $item->id }}" data-next-index="{{ count($expiryRows) }}" hidden>
+                        <td colspan="4" class="opname-expiry-cell">
+                            <div class="d-flex justify-content-end mb-1"><button class="btn btn-sm btn-outline-success add-expiry" type="button"><i class="bi bi-plus-lg me-1"></i>Tambah Kedaluwarsa</button></div>
+                            <table class="table table-sm mb-0"><caption class="visually-hidden">Rincian Kedaluwarsa {{ $product->name }}</caption><thead><tr><th style="width:24%">Kedaluwarsa</th><th class="text-end" style="width:18%">Stok Sistem</th><th style="width:34%">Stok Fisik</th><th class="text-end" style="width:18%">Selisih</th><th style="width:6%"></th></tr></thead>
+                                <tbody class="expiry-list">@foreach($expiryRows as $index=>$row)@include('inventory.opnames.expiry-row')@endforeach</tbody>
+                            </table>
+                            <template>@include('inventory.opnames.expiry-row',['index'=>'__INDEX__','row'=>['physical_quantity'=>0]])</template>
+                        </td>
+                    </tr>
+                @endif
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+    <div id="opnameEmpty" class="text-center text-muted py-3" hidden>Barang tidak ditemukan.</div>
+    <div class="d-flex flex-wrap gap-2 mt-2 opname-actions">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan Draft</button>
+        <button type="button" class="btn btn-success" id="btnSelesaikan"><i class="bi bi-check-circle me-1"></i>Selesaikan Opname</button>
         <a href="{{ route('inventory.opnames.index') }}" class="btn btn-outline-secondary">Batal</a>
     </div>
 </form>
-
-@push('scripts')
-<script>
-function formatDiff(diff, conversion, buyUnit, retailUnit) {
-    const abs  = Math.abs(diff);
-    const sign = diff >= 0 ? '+' : '-';
-    if (conversion > 0 && retailUnit) {
-        const w = Math.floor(abs / conversion);
-        const s = Math.round(abs % conversion);
-        return sign + (s > 0 ? `${w} ${buyUnit} ${s} ${retailUnit}` : `${w} ${buyUnit}`);
-    }
-    return (diff >= 0 ? '+' : '') + diff.toFixed(2);
-}
-
-document.querySelectorAll('tbody tr').forEach(row => {
-    const sys        = parseFloat(row.dataset.system) || 0;
-    const canRetail  = row.dataset.canRetail === '1';
-    const conversion = parseFloat(row.dataset.conversion) || 0;
-    const buyUnit    = row.dataset.buyUnit;
-    const retailUnit = row.dataset.retailUnit;
-    const diffCell   = row.querySelector('.diff-cell');
-    const hiddenQty  = row.querySelector('.physical-qty-hidden');
-
-    function setDiff(total) {
-        const diff = total - sys;
-        diffCell.textContent = formatDiff(diff, conversion, buyUnit, retailUnit);
-        diffCell.className = 'text-end diff-cell fw-semibold ' +
-            (diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-muted');
-    }
-
-    if (canRetail && conversion > 0) {
-        const dusInput   = row.querySelector('.dus-input');
-        const botolInput = row.querySelector('.botol-input');
-
-        function update() {
-            const total = (parseFloat(dusInput.value) || 0) * conversion
-                        + (parseFloat(botolInput.value) || 0);
-            hiddenQty.value = total;
-            setDiff(total);
-        }
-
-        dusInput.addEventListener('input', update);
-        botolInput.addEventListener('input', update);
-
-    } else {
-        const singleInput = row.querySelector('.single-input');
-        if (!singleInput) return;
-
-        singleInput.addEventListener('input', function() {
-            const phys = parseFloat(this.value) || 0;
-            hiddenQty.value = phys;
-            setDiff(phys);
-        });
-    }
-});
-
-document.getElementById('btnSelesaikan').addEventListener('click', function() {
-    if (confirm('Selesaikan opname? Stok sistem akan disesuaikan dengan stok fisik.')) {
-        document.getElementById('opnameForm').action = '{{ route("inventory.opnames.complete", $opname) }}';
-        // Hapus _method PUT agar tidak konflik dengan POST complete
-        const methodInput = document.querySelector('input[name="_method"]');
-        if (methodInput) methodInput.remove();
-        document.getElementById('opnameForm').submit();
-    }
-});
-</script>
-@endpush
+@push('scripts')<script src="{{ asset('js/opname-counts.js') }}"></script>@endpush
 @endsection

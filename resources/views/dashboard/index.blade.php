@@ -1,225 +1,123 @@
 @extends('layouts.app')
-@section('title', 'Dashboard')
-@section('page-title', 'Dashboard')
-
+@section('title', 'Dashboard Owner')
+@section('page-title', 'Dashboard Owner')
 @push('styles')
 <style>
-    .dashboard-hero {
-        background: linear-gradient(125deg, #172039 0%, #28334f 65%, #8b6808 140%);
-        border-radius: 16px;
-        color: #fff;
-        overflow: hidden;
-        position: relative;
-    }
-    .dashboard-hero::after {
-        content: '';
-        position: absolute;
-        width: 230px; height: 230px;
-        right: -65px; top: -105px;
-        border-radius: 50%;
-        background: rgba(200,150,12,.18);
-    }
-    .insight-card { border: 0; border-radius: 14px; box-shadow: 0 3px 14px rgba(25,35,55,.07); }
-    .metric-icon { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; font-size: 1.25rem; flex: 0 0 auto; }
-    .metric-value { font-size: 1.25rem; font-weight: 750; line-height: 1.2; }
-    .trend { font-size: .72rem; font-weight: 600; }
-    .section-title { font-size: .95rem; font-weight: 700; color: #27324a; }
-    .chart-wrap { height: 270px; position: relative; }
-    .rank-number { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: #f1f3f8; color: #68738b; font-weight: 700; font-size: .75rem; }
-    .insight-list > * + * { border-top: 1px solid #edf0f5; }
-    .recent-transactions-scroll {
-        max-height: 360px;
-        overflow-y: auto;
-        scrollbar-gutter: stable;
-    }
-    .stock-alert { border-left: 3px solid var(--bs-warning); background: #fafbfc; border-radius: 0 8px 8px 0; }
-    .quick-pill { background: rgba(255,255,255,.11); border: 1px solid rgba(255,255,255,.14); color: #fff; border-radius: 10px; }
-    .quick-pill:hover { background: rgba(255,255,255,.18); color: #fff; }
+.dashboard-hero{background:#243228;color:#fff;border-radius:8px}
+.owner-section{background:#fff;border-top:2px solid var(--app-border);padding:1rem;min-width:0}
+.owner-section h6{font-weight:700;margin:0}
+.owner-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:1rem}
+.owner-metric .card-body{display:flex;gap:.75rem;align-items:flex-start}
+.owner-metric .card-body>div{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.owner-icon{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:8px;font-size:1.2rem}
+.owner-value{font-size:1.2rem;font-weight:700;overflow-wrap:anywhere}
+.owner-chart{height:260px;position:relative}
+.owner-line{display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.7rem 0;border-bottom:1px solid var(--app-border)}
+.owner-line:last-child{border-bottom:0}.owner-line>div{min-width:0;overflow-wrap:anywhere}
+.owner-action{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:.65rem;align-items:center;color:inherit;text-decoration:none;padding:.65rem 0;border-bottom:1px solid var(--app-border)}
+.owner-action:last-child{border-bottom:0}.owner-action:hover{background:#f3f7f4}
+.owner-payment{height:154px;width:154px;position:relative;flex:none;margin:auto}
+.owner-payment-center{position:absolute;inset:30%;display:flex;align-items:center;justify-content:center;flex-direction:column;pointer-events:none;font-size:.75rem}
+.owner-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:.4rem}
+.owner-empty{color:var(--app-muted);padding:1.2rem .25rem;text-align:center}
+.owner-location-bar{height:5px;background:#eef2ec;margin-top:.5rem}.owner-location-bar span{display:block;height:100%;background:#1f7a5a}
+.owner-stock-table{min-width:500px;font-size:.82rem}
+.owner-critical-scroll{max-height:340px;overflow:auto}.owner-stock-table th{position:sticky;top:0;z-index:1;background:#eef2ec}
+.owner-recent{max-height:340px;overflow:auto}
+@media(max-width:575px){.owner-metric .card-body{flex-direction:column;padding:.85rem}.owner-value{font-size:1.05rem}.owner-section{padding:.85rem}}
 </style>
 @endpush
-
 @section('content')
-<div class="dashboard-hero p-4 mb-4">
-    <div class="position-relative" style="z-index:1">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-            <div>
-                <div class="small text-white-50 mb-1">{{ now()->translatedFormat('l, d F Y') }}</div>
-                <h4 class="fw-bold mb-1">Selamat datang, {{ auth()->user()->name }}</h4>
-                <div class="text-white-50">Ringkasan kondisi  Toko Golden hari ini.</div>
-            </div>
-            <div class="d-flex gap-2">
-                @if(auth()->user()->isOwner() || auth()->user()->isKasir())
-                <a href="{{ route('sale.sales.create') }}" class="btn btn-sm quick-pill px-3"><i class="bi bi-plus-circle me-1"></i> Penjualan</a>
-                @endif
-                @if(auth()->user()->isOwner())
-                <a href="{{ route('purchase.orders.create') }}" class="btn btn-sm quick-pill px-3"><i class="bi bi-cart-plus me-1"></i> Buat PO</a>
-                @endif
-            </div>
-        </div>
+<div class="dashboard-hero p-3 mb-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div><div class="small text-white-50 mb-1">{{ now('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y') }}</div><h5 class="fw-bold mb-0">Selamat datang, {{ auth()->user()->name }}</h5></div>
+    <div class="d-flex flex-wrap gap-2">
+        @if(auth()->user()->canAccessRoute('sale.sales.create'))<a href="{{ route('sale.sales.create') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle me-1"></i>Penjualan</a>@endif
+        @if(auth()->user()->canAccessRoute('purchase.orders.create'))<a href="{{ route('purchase.orders.create') }}" class="btn btn-sm btn-outline-light"><i class="bi bi-cart-plus me-1"></i>Buat PO</a>@endif
     </div>
 </div>
-
-<div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
-        <div class="card insight-card h-100"><div class="card-body d-flex gap-3">
-            <div class="metric-icon bg-success bg-opacity-10 text-success"><i class="bi bi-cash-coin"></i></div>
-            <div class="min-w-0"><div class="text-muted small mb-1">Penjualan Hari Ini</div><div class="metric-value">Rp {{ number_format($salesToday, 0, ',', '.') }}</div>
-                <div class="trend mt-2 {{ $dailyGrowth >= 0 ? 'text-success' : 'text-danger' }}"><i class="bi bi-arrow-{{ $dailyGrowth >= 0 ? 'up' : 'down' }}-right"></i> {{ number_format(abs($dailyGrowth), 1, ',', '.') }}% dari kemarin</div>
-            </div>
-        </div></div>
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="card insight-card h-100"><div class="card-body d-flex gap-3">
-            <div class="metric-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-graph-up-arrow"></i></div>
-            <div><div class="text-muted small mb-1">Penjualan Bulan Ini</div><div class="metric-value">Rp {{ number_format($salesMonth, 0, ',', '.') }}</div>
-                <div class="trend mt-2 {{ $monthlyGrowth >= 0 ? 'text-success' : 'text-danger' }}">{{ $salesMonthCount }} transaksi · {{ $monthlyGrowth >= 0 ? '+' : '-' }}{{ number_format(abs($monthlyGrowth), 1, ',', '.') }}%</div>
-            </div>
-        </div></div>
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="card insight-card h-100"><div class="card-body d-flex gap-3">
-            <div class="metric-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-boxes"></i></div>
-            <div><div class="text-muted small mb-1">Nilai Persediaan</div><div class="metric-value">Rp {{ number_format($inventoryValue, 0, ',', '.') }}</div>
-                <div class="trend mt-2 text-muted">{{ $totalProducts }} jenis barang · {{ $outOfStockCount }} habis</div>
-            </div>
-        </div></div>
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="card insight-card h-100"><div class="card-body d-flex gap-3">
-            <div class="metric-icon bg-info bg-opacity-10 text-info"><i class="bi bi-receipt"></i></div>
-            <div><div class="text-muted small mb-1">Rata-rata Transaksi</div><div class="metric-value">Rp {{ number_format($averageTransaction, 0, ',', '.') }}</div>
-                <div class="trend mt-2 text-muted">{{ $pendingPO }} PO Â· {{ $expiringSoonCount }} batch hampir expired</div>
-            </div>
-        </div></div>
-    </div>
+<div class="row g-3 mb-3">
+    <div class="col-6 col-xl-3"><div class="card owner-metric h-100"><div class="card-body"><div class="owner-icon bg-success bg-opacity-10 text-success"><i class="bi bi-cash-coin"></i></div><div><div class="small text-muted">Penjualan Lunas Hari Ini</div><div class="owner-value">Rp {{ number_format($salesToday,0,',','.') }}</div><div class="small text-muted">{{ $salesCount }} nota lunas</div>
+        @if($dailyGrowth === null)<div class="small text-muted mt-1">Kemarin belum ada penjualan</div>@else<div class="small mt-1 text-{{ $dailyGrowth >= 0 ? 'success' : 'danger' }}">{{ $dailyGrowth > 0 ? '+' : '' }}{{ number_format($dailyGrowth,1,',','.') }}% dari kemarin</div>@endif
+    </div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card owner-metric h-100"><div class="card-body"><div class="owner-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-graph-up-arrow"></i></div><div><div class="small text-muted">Penjualan Lunas Bulan Ini</div><div class="owner-value">Rp {{ number_format($salesMonth,0,',','.') }}</div><div class="small text-muted">{{ $salesMonthCount }} nota lunas</div>
+        @if($monthlyGrowth === null)<div class="small text-muted mt-1">Periode pembanding belum ada penjualan</div>@else<div class="small mt-1 text-{{ $monthlyGrowth >= 0 ? 'success' : 'danger' }}">{{ $monthlyGrowth > 0 ? '+' : '' }}{{ number_format($monthlyGrowth,1,',','.') }}% dibanding tanggal setara bulan lalu</div>@endif
+    </div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card owner-metric h-100"><div class="card-body"><div class="owner-icon bg-info bg-opacity-10 text-info"><i class="bi bi-calculator"></i></div><div><div class="small text-muted">Laba Kotor Bulan Ini</div><div class="owner-value">{{ ($missingCostCount || $salesWithoutItemsCount) ? 'Belum lengkap' : 'Rp '.number_format($grossProfit,0,',','.') }}</div><div class="small text-muted">{{ $salesWithoutItemsCount ? $salesWithoutItemsCount.' nota tanpa rincian item' : ($missingCostCount ? $missingCostCount.' item tanpa HPP positif' : 'Penjualan lunas dikurangi HPP tercatat') }}</div><div class="small text-muted mt-1">Belum dikurangi biaya operasional</div></div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card owner-metric h-100"><div class="card-body"><div class="owner-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-hourglass-split"></i></div><div><div class="small text-muted">Nota Belum Dibayar</div><div class="owner-value">Rp {{ number_format($pendingSalesAmount,0,',','.') }}</div><a class="small text-decoration-none" href="{{ route('sale.sales.index',['status'=>'pending']) }}">{{ $pendingSalesCount }} nota menunggu pembayaran <i class="bi bi-arrow-right"></i></a></div></div></div></div>
 </div>
-
-<div class="row g-3 mb-4">
-    <div class="col-xl-8">
-        <div class="card insight-card h-100">
-            <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center pt-3 px-3">
-                <div><div class="section-title">Tren Penjualan 7 Hari</div><small class="text-muted">Pergerakan omzet harian</small></div>
-                <span class="badge bg-primary bg-opacity-10 text-primary">Rp {{ number_format($salesChart->sum('total'), 0, ',', '.') }}</span>
-            </div>
-            <div class="card-body"><div class="chart-wrap"><canvas id="salesTrendChart"></canvas></div></div>
-        </div>
-    </div>
-    <div class="col-xl-4">
-        <div class="card insight-card h-100">
-            <div class="card-header bg-white border-0 pt-3 px-3"><div class="section-title">Metode Pembayaran</div><small class="text-muted">Komposisi transaksi bulan ini</small></div>
-            <div class="card-body"><div class="chart-wrap"><canvas id="paymentChart"></canvas></div></div>
-        </div>
-    </div>
+<div class="row g-3 mb-3">
+    <div class="col-xl-8"><section class="owner-section h-100" aria-labelledby="trendHeading">
+        <div class="owner-heading"><div><h6 id="trendHeading">Penjualan Lunas Harian</h6><div class="small text-muted">Total periode: <strong id="trendTotal"></strong></div></div><div class="btn-group btn-group-sm" role="group" aria-label="Periode penjualan"><button type="button" class="btn btn-outline-success active" data-trend-days="7" aria-pressed="true">7 hari</button><button type="button" class="btn btn-outline-success" data-trend-days="30" aria-pressed="false">30 hari</button></div></div>
+        <div class="owner-chart"><canvas id="salesTrendChart" role="img" aria-label="Grafik penjualan lunas harian"></canvas></div>
+        <div class="small text-muted mt-2">Rata-rata nota lunas bulan ini: <strong>Rp {{ number_format($averageTransaction,0,',','.') }}</strong></div>
+    </section></div>
+    <div class="col-xl-4"><section class="owner-section h-100" id="notifications" aria-labelledby="actionHeading">
+        <div class="owner-heading"><h6 id="actionHeading">Perlu Tindakan</h6><i class="bi bi-list-check text-muted"></i></div>
+        @php $actions=[['Nota belum dibayar',$pendingSalesCount,'nota','hourglass-split','warning',route('sale.sales.index',['status'=>'pending'])],['Penerimaan belum lengkap',$pendingPO,'PO','box-arrow-in-down','primary',route('purchase.orders.index')],['Sudah Kedaluwarsa',$expiredBatchCount,'rincian','exclamation-octagon','danger',route('inventory.stock.index',['expiry_status'=>'expired'])],['Kedaluwarsa dalam 30 hari',$expiringSoonCount,'rincian','calendar-event','warning',route('inventory.stock.index',['expiry_status'=>'expiring'])]]; @endphp
+        @foreach($actions as [$label,$count,$unit,$icon,$color,$url])<a class="owner-action" href="{{ $url }}"><i class="bi bi-{{ $icon }} text-{{ $color }} fs-5"></i><span>{{ $label }}<small class="d-block text-muted">{{ $count }} {{ $unit }}</small></span><i class="bi bi-arrow-up-right text-muted"></i></a>@endforeach
+        <a class="owner-action" href="#criticalHeading"><i class="bi bi-box2 text-danger fs-5"></i><span>Stok layak jual habis<small class="d-block text-muted">{{ $outOfStockCount }} jenis barang aktif</small></span><i class="bi bi-arrow-down text-muted"></i></a>
+    </section></div>
 </div>
-
-<div class="row g-3 mb-4">
-    <div class="col-lg-4">
-        <div class="card insight-card h-100">
-            <div class="card-header bg-white border-0 pt-3"><div class="section-title"><i class="bi bi-trophy text-warning me-2"></i>Produk Terlaris</div><small class="text-muted">Berdasarkan omzet 30 hari terakhir</small></div>
-            <div class="card-body pt-2 insight-list">
-                @forelse($topProducts as $index => $item)
-                <div class="d-flex align-items-center gap-3 py-2">
-                    <div class="rank-number">{{ $index + 1 }}</div><div class="flex-grow-1 min-w-0"><div class="fw-semibold text-truncate">{{ $item->name }}</div><small class="text-muted">Rp {{ number_format($item->revenue, 0, ',', '.') }}</small></div>
-                    @if($index === 0)<i class="bi bi-star-fill text-warning"></i>@endif
-                </div>
-                @empty
-                <div class="text-center text-muted py-4"><i class="bi bi-bar-chart d-block fs-2 mb-2"></i>Belum ada data penjualan</div>
-                @endforelse
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card insight-card h-100">
-            <div class="card-header bg-white border-0 pt-3"><div class="section-title"><i class="bi bi-geo-alt text-primary me-2"></i>Nilai Stok per Lokasi</div><small class="text-muted">Estimasi berdasarkan harga beli</small></div>
-            <div class="card-body pt-2 insight-list">
-                @php $maxLocationValue = max(1, (float) ($locationValues->max('value') ?? 1)); @endphp
-                @foreach($locationValues as $location)
-                <div class="py-3"><div class="d-flex justify-content-between mb-2"><span class="fw-semibold">{{ $location->name }}</span><span class="small">Rp {{ number_format($location->value, 0, ',', '.') }}</span></div>
-                    <div class="progress" style="height:6px"><div class="progress-bar" style="width:{{ ((float)$location->value / $maxLocationValue) * 100 }}%; background:#c8960c"></div></div>
-                </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card insight-card h-100">
-            <div class="card-header bg-white border-0 pt-3"><div class="section-title"><i class="bi bi-clock-history text-success me-2"></i>Transaksi Terbaru</div><small class="text-muted">Aktivitas penjualan terkini</small></div>
-            <div class="card-body pt-2 insight-list recent-transactions-scroll">
-                @forelse($recentSales as $sale)
-                <div class="d-flex justify-content-between align-items-center gap-2 py-2"><div class="min-w-0"><div class="fw-semibold text-truncate">{{ $sale->sale_number }}</div><small class="text-muted">{{ $sale->sale_date->format('d/m/Y') }} · {{ $sale->createdBy->name ?? '-' }}</small></div><div class="fw-semibold text-success text-nowrap">Rp {{ number_format($sale->total_amount, 0, ',', '.') }}</div></div>
-                @empty
-                <div class="text-center text-muted py-4">Belum ada transaksi</div>
-                @endforelse
-            </div>
-        </div>
-    </div>
+<div class="row g-3 mb-3">
+    <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="paymentHeading"><div class="owner-heading"><div><h6 id="paymentHeading">Pembayaran Bulan Ini</h6><div class="small text-muted">Berdasarkan nilai penjualan lunas</div></div></div>
+        <div class="owner-payment"><canvas id="paymentChart" role="img" aria-label="Komposisi nominal penjualan lunas per metode pembayaran"></canvas><div class="owner-payment-center"><strong>{{ $salesMonthCount }}</strong><span>nota lunas</span></div></div>
+        @foreach(['tunai'=>['Tunai','#1f7a5a'],'transfer'=>['Transfer','#3b82f6']] as $key=>[$label,$color])<div class="owner-line"><span><span class="owner-swatch" style="background:{{ $color }}"></span>{{ $label }}</span><div class="text-end"><strong>Rp {{ number_format($paymentMethods[$key] ?? 0,0,',','.') }}</strong><div class="small text-muted">{{ $salesMonth ? number_format(($paymentMethods[$key] ?? 0)/$salesMonth*100,1,',','.') : '0,0' }}%</div></div></div>@endforeach
+        @if($salesMonthCount === 0)<div class="small text-muted mt-2">Belum ada penjualan lunas bulan ini.</div>@endif
+    </section></div>
+    <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="productHeading"><div class="owner-heading"><div><h6 id="productHeading">Produk Terlaris</h6><div class="small text-muted">Penjualan lunas 30 hari terakhir</div></div><select id="rankingMode" class="form-select form-select-sm w-auto" aria-label="Urutan produk terlaris"><option value="revenue">Omzet</option><option value="quantity">Jumlah</option></select></div>
+        <div data-ranking="revenue">
+        @forelse($topProducts as $index=>$item)<div class="owner-line"><span class="small text-muted">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">Rp {{ number_format($item->revenue,0,',','.') }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan lunas.</div>@endforelse
+        </div><div data-ranking="quantity" hidden>@forelse($topQuantityProducts as $index=>$item)<div class="owner-line"><span class="small text-muted">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">{{ number_format($item->base_quantity,2,',','.') }} {{ $item->base_unit }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan bersatuan.</div>@endforelse</div>
+    </section></div>
+    <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="locationHeading"><div class="owner-heading"><div><h6 id="locationHeading">Persediaan per Lokasi</h6><div class="small text-muted">Estimasi stok fisik × harga beli saat ini</div></div></div><div class="owner-value mb-1">Rp {{ number_format($inventoryValue,0,',','.') }}</div><div class="small text-muted mb-2">{{ $totalProducts }} jenis barang aktif</div>
+        @php $maxLocationValue=max(1,(float)($locationValues->max('value') ?? 0)); @endphp
+        @forelse($locationValues as $location)<div class="py-2"><div class="d-flex flex-wrap justify-content-between gap-1"><a href="{{ route('inventory.stock.index',['location_id'=>$location->id]) }}" class="text-decoration-none">{{ $location->name }}</a><span class="small">Rp {{ number_format($location->value,0,',','.') }}</span></div><div class="owner-location-bar"><span style="width:{{ max(0,(float)$location->value)/$maxLocationValue*100 }}%"></span></div></div>@empty<div class="owner-empty">Belum ada lokasi.</div>@endforelse
+    </section></div>
 </div>
-
-<div class="row g-3" id="notifications">
-    <div class="col-lg-5">
-        <div class="card insight-card h-100"><div class="card-header bg-white border-0 pt-3 d-flex justify-content-between"><div class="section-title"><i class="bi bi-bell-fill text-warning me-2"></i>Perlu Perhatian</div>@if(count($notifications))<span class="badge bg-danger">{{ count($notifications) }}</span>@endif</div>
-            <div class="card-body pt-2" style="max-height:360px;overflow:auto">
-                @forelse($notifications as $notif)
-                <div class="stock-alert p-3 mb-2"><div class="d-flex justify-content-between"><div><div class="fw-semibold">{{ $notif['product_name'] }}</div><small class="text-muted">{{ $notif['location_name'] }}</small></div><span class="badge bg-{{ $notif['type'] === 'order' ? 'danger' : 'warning text-dark' }} align-self-start">{{ $notif['type'] === 'order' ? 'Order' : 'Transfer' }}</span></div><div class="small mt-2">{{ $notif['message'] }}</div></div>
-                @empty
-                <div class="text-center text-muted py-4"><i class="bi bi-shield-check fs-2 d-block text-success mb-2"></i>Semua stok dalam kondisi aman</div>
-                @endforelse
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-7">
-        <div class="card insight-card h-100"><div class="card-header bg-white border-0 pt-3 d-flex justify-content-between"><div class="section-title"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Stok Kritis</div>@if(auth()->user()->isOwner())<a href="{{ route('report.stock') }}" class="small text-decoration-none">Lihat laporan <i class="bi bi-arrow-right"></i></a>@endif</div>
-            <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Barang</th><th class="text-end">Stok</th><th class="text-end">Minimum</th><th></th></tr></thead><tbody>
-                @forelse($lowStockProducts as $product)
-                @php $total = (float)$product->stocks->sum('quantity'); @endphp
-                <tr><td><div class="fw-semibold">{{ $product->name }}</div><small class="text-muted">{{ $product->category->name ?? '-' }}</small></td><td class="text-end text-danger fw-semibold">{{ $product->displayStock($total) }}</td><td class="text-end text-muted">{{ $product->displayStock((float)$product->min_stock_total) }}</td><td>@if(auth()->user()->isOwner())<a href="{{ route('purchase.orders.create') }}" class="btn btn-sm btn-outline-warning">Order</a>@endif</td></tr>
-                @empty
-                <tr><td colspan="4" class="text-center text-muted py-4"><i class="bi bi-check-circle text-success me-1"></i> Semua stok aman</td></tr>
-                @endforelse
-            </tbody></table></div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3 mt-1">
-    <div class="col-12">
-        <div class="card insight-card">
-            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between">
-                <div class="section-title"><i class="bi bi-calendar2-week text-warning me-2"></i>Batch Kadaluarsa</div>
-                <span class="badge bg-danger">{{ $expiredBatchCount }} sudah kadaluarsa</span>
-            </div>
-            <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Barang</th><th>Lokasi</th><th class="text-end">Sisa</th><th>Kadaluarsa</th><th class="text-center">Status</th></tr></thead><tbody>
-                @forelse($expiringBatches as $batch)
-                @php $expired=$batch->expired_date->lt(today()); @endphp
-                <tr><td class="fw-semibold">{{ $batch->product->name }}</td><td>{{ $batch->location->name }}</td><td class="text-end">{{ $batch->product->displayStock((float)$batch->quantity_remaining) }}</td><td>{{ $batch->expired_date->format('d/m/Y') }}</td><td class="text-center"><span class="badge bg-{{ $expired ? 'danger' : 'warning text-dark' }}">{{ $expired ? 'Kadaluarsa' : 'Hampir Kadaluarsa' }}</span></td></tr>
-                @empty
-                <tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-check-circle text-success me-1"></i> Tidak ada batch yang perlu ditindaklanjuti.</td></tr>
-                @endforelse
-            </tbody></table></div>
-        </div>
-    </div>
+<div class="row g-3">
+    <div class="col-xl-8"><section class="owner-section h-100" aria-labelledby="criticalHeading"><div class="owner-heading"><div><h6 id="criticalHeading">Stok Layak Jual Kritis</h6><div class="small text-muted">Barang aktif · stok kedaluwarsa tidak dihitung</div></div><a href="{{ route('inventory.stock.index') }}" class="small text-decoration-none">Monitoring Stok <i class="bi bi-arrow-right"></i></a></div>
+        <div class="table-responsive owner-critical-scroll" tabindex="0" aria-label="Daftar stok layak jual kritis"><table class="table table-hover align-middle owner-stock-table mb-0"><thead><tr><th>Barang</th><th class="text-end">Layak Jual</th><th class="text-end">Minimum</th><th></th></tr></thead><tbody>
+        @forelse($lowStockProducts as $product)<tr><td><div class="fw-semibold">{{ $product->name }}</div><div class="small text-muted">{{ $product->category?->name ?? '-' }}</div></td><td class="text-end fw-semibold text-danger">{{ $product->displayStock($sellableStock[$product->id]) }}</td><td class="text-end text-muted">{{ $product->displayStock((float)$product->min_stock_total) }}</td><td class="text-end"><a href="{{ route('inventory.stock.index',['search'=>$product->name]) }}" class="btn btn-sm btn-outline-secondary" title="Periksa stok {{ $product->name }}" aria-label="Periksa stok {{ $product->name }}"><i class="bi bi-arrow-up-right"></i></a></td></tr>@empty<tr><td colspan="4" class="owner-empty">Tidak ada stok kritis.</td></tr>@endforelse
+        </tbody></table></div>
+    </section></div>
+    <div class="col-xl-4"><section class="owner-section h-100" aria-labelledby="recentHeading"><div class="owner-heading"><h6 id="recentHeading">Transaksi Terbaru</h6><a href="{{ route('sale.sales.index') }}" class="small text-decoration-none">Lihat Semua <i class="bi bi-arrow-right"></i></a></div><div class="owner-recent" tabindex="0" aria-label="Daftar transaksi terbaru">
+        @forelse($recentSales as $sale)<div class="owner-line"><div><a class="fw-semibold text-decoration-none" href="{{ route('sale.sales.show',$sale) }}">{{ $sale->sale_number }}</a><div class="small text-muted">{{ $sale->customer_name ?: 'Pelanggan Umum' }}</div><div class="small text-muted">{{ $sale->sale_date->format('d/m/Y') }} · {{ $sale->transaction_time_label }} · {{ $sale->createdBy?->name ?? '-' }}</div></div><div class="text-end"><div class="fw-semibold">Rp {{ number_format($sale->total_amount,0,',','.') }}</div><span class="badge bg-{{ $sale->status==='paid' ? 'success' : ($sale->status==='pending' ? 'warning text-dark' : 'secondary') }}">{{ $sale->status==='paid' ? 'Lunas' : ($sale->status==='pending' ? 'Menunggu' : 'Dibatalkan') }}</span></div></div>@empty<div class="owner-empty">Belum ada transaksi.</div>@endforelse
+    </div></section></div>
 </div>
 @endsection
-
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
-    const currency = value => 'Rp ' + new Intl.NumberFormat('id-ID').format(value);
-    const chartGrid = { color: 'rgba(120,130,150,.12)', drawBorder: false };
-
-    new Chart(document.getElementById('salesTrendChart'), {
-        type: 'line',
-        data: {
-            labels: @json($salesChart->pluck('label')),
-            datasets: [{ data: @json($salesChart->pluck('total')), borderColor: '#c8960c', backgroundColor: 'rgba(200,150,12,.12)', fill: true, tension: .38, pointRadius: 4, pointBackgroundColor: '#c8960c', pointBorderColor: '#fff', pointBorderWidth: 2 }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => currency(context.raw) } } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: chartGrid, ticks: { callback: value => value >= 1000000 ? 'Rp ' + (value / 1000000) + ' jt' : 'Rp ' + (value / 1000) + ' rb' } } } }
+(() => {
+    document.getElementById('rankingMode').addEventListener('change',event=>document.querySelectorAll('[data-ranking]').forEach(list=>list.hidden=list.dataset.ranking!==event.target.value));
+    const currency=value=>'Rp '+new Intl.NumberFormat('id-ID').format(value);
+    const rows=@json($salesChart);
+    const controls=[...document.querySelectorAll('[data-trend-days]')];
+    const periodRows=days=>rows.slice(-days);
+    const updateTotal=days=>document.getElementById('trendTotal').textContent=currency(periodRows(days).reduce((sum,row)=>sum+row.total,0));
+    updateTotal(7);
+    if(typeof Chart==='undefined'){
+        document.getElementById('salesTrendChart').replaceWith(Object.assign(document.createElement('p'),{className:'owner-empty',textContent:'Grafik belum dapat dimuat. Total periode tetap tersedia.'}));
+        document.getElementById('paymentChart').hidden=true;
+        controls.forEach(button=>button.addEventListener('click',()=>updateTotal(Number(button.dataset.trendDays))));
+        return;
+    }
+    const initial=periodRows(7);
+    const trend=new Chart(document.getElementById('salesTrendChart'),{
+        type:'bar',data:{labels:initial.map(row=>row.label),datasets:[{data:initial.map(row=>row.total),backgroundColor:'#1f7a5a',hoverBackgroundColor:'#15573f',borderRadius:3,maxBarThickness:38}]},
+        options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:context=>currency(context.raw)}}},scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:10}},y:{beginAtZero:true,grid:{color:'#e8edeb'},ticks:{callback:value=>currency(value)}}}}
     });
-
-    new Chart(document.getElementById('paymentChart'), {
-        type: 'doughnut',
-        data: { labels: ['Tunai', 'Transfer'], datasets: [{ data: [{{ (int)($paymentMethods['tunai'] ?? 0) }}, {{ (int)($paymentMethods['transfer'] ?? 0) }}], backgroundColor: ['#c8960c', '#3b82f6'], borderWidth: 0, hoverOffset: 5 }] },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } } } }
+    controls.forEach(button=>button.addEventListener('click',()=>{
+        const days=Number(button.dataset.trendDays), selected=periodRows(days);
+        controls.forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});
+        trend.data.labels=selected.map(row=>row.label);trend.data.datasets[0].data=selected.map(row=>row.total);trend.update();updateTotal(days);
+    }));
+    const amounts=[{{ (float)($paymentMethods['tunai'] ?? 0) }},{{ (float)($paymentMethods['transfer'] ?? 0) }}];
+    const total=amounts.reduce((sum,value)=>sum+value,0);
+    new Chart(document.getElementById('paymentChart'),{
+        type:'doughnut',data:{labels:total ? ['Tunai','Transfer'] : ['Belum ada penjualan'],datasets:[{data:total ? amounts : [1],backgroundColor:total ? ['#1f7a5a','#3b82f6'] : ['#e8edeb'],borderWidth:0,hoverOffset:total ? 4 : 0}]},
+        options:{responsive:true,maintainAspectRatio:false,animation:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:total>0,callbacks:{label:context=>currency(context.raw)+' ('+new Intl.NumberFormat('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1}).format(context.raw/total*100)+'%)'}}}}
     });
+})();
 </script>
 @endpush

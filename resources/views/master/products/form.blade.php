@@ -57,9 +57,18 @@
                                 <input type="hidden" name="is_expirable" value="0">
                                 <input class="form-check-input" type="checkbox" role="switch" name="is_expirable" value="1"
                                        id="isExpirable" @checked(old('is_expirable', $product->is_expirable ?? false))>
-                                <label class="form-check-label fw-semibold" for="isExpirable">Memiliki Kadaluarsa</label>
+                                <label class="form-check-label fw-semibold" for="isExpirable">Memiliki Kedaluwarsa</label>
                             </div>
-                            <div class="form-text">Aktifkan untuk barang yang tanggal kadaluarsanya harus dicatat saat penerimaan.</div>
+                            <div class="form-text">Aktifkan untuk barang yang tanggal kedaluwarsanya harus dicatat saat penerimaan.</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input type="hidden" name="is_active" value="0">
+                                <input class="form-check-input" type="checkbox" role="switch" name="is_active" value="1"
+                                       id="isActive" @checked(old('is_active', $product->is_active ?? true))>
+                                <label class="form-check-label fw-semibold" for="isActive">Barang Aktif</label>
+                            </div>
+                            <div class="form-text">Barang nonaktif tetap tersimpan, tetapi tidak dipilih untuk transaksi baru.</div>
                         </div>
                     </div>
                 </div>
@@ -293,8 +302,8 @@
                                     <td>
                                         <div class="input-group">
                                             <span class="input-group-text">Rp</span>
-                                            <input type="text" name="product_units[{{ $i }}][buy_price]" class="form-control js-currency-input"
-                                                   value="{{ number_format((float) ($unitRow['buy_price'] ?? 0), 0, ',', '.') }}" inputmode="numeric">
+                                            <input type="text" name="product_units[{{ $i }}][buy_price]" class="form-control buy-price-input"
+                                                   value="{{ number_format((float) ($unitRow['buy_price'] ?? 0), 2, ',', '.') }}" inputmode="decimal">
                                         </div>
                                     </td>
                                     <td>
@@ -380,6 +389,11 @@ let productUnitIndex = {{ count($existingProductUnits) }};
 
 function refreshProductUnitRows() {
     const rows = [...document.querySelectorAll('.product-unit-row')];
+    const newIndexes = new Map(rows.map((row, index) => [row.querySelector('.base-radio').value, index]));
+    const childIndexes = rows.map(row => {
+        const oldIndex = row.querySelector('.contains-unit-select').value;
+        return oldIndex === '' ? '' : (newIndexes.get(oldIndex) ?? '');
+    });
     rows.forEach((row, index) => {
         row.querySelectorAll('[name]').forEach(input => {
             input.name = input.name.replace(/product_units\[\d+\]/, `product_units[${index}]`);
@@ -390,7 +404,7 @@ function refreshProductUnitRows() {
     });
 
     rows.forEach((row, index) => {
-        const currentValue = row.querySelector('.contains-unit-select').value;
+        const currentValue = childIndexes[index];
         row.querySelector('.contains-unit-select').innerHTML = '<option value="">Dasar</option>' + rows
             .map((targetRow, targetIndex) => {
                 if (targetIndex === index) return '';
@@ -445,6 +459,7 @@ function updateUnitPreview() {
 
     const byIndex = new Map(rows.map(row => [row.index, row]));
     const resolving = new Set();
+    const baseIndex = Number(document.getElementById('baseUnitIndex').value);
 
     function resolve(index) {
         const row = byIndex.get(index);
@@ -452,7 +467,8 @@ function updateUnitPreview() {
         if (resolving.has(index)) return 0;
         if (row.conversion > 0) return row.conversion;
         resolving.add(index);
-        row.conversion = row.childIndex === '' ? 1 : row.qty * resolve(Number(row.childIndex));
+        row.conversion = index === baseIndex ? 1
+            : row.childIndex === '' ? 0 : row.qty * resolve(Number(row.childIndex));
         resolving.delete(index);
         return row.conversion;
     }
@@ -473,6 +489,37 @@ function updateUnitPreview() {
     document.getElementById('unitPreview').textContent = rows.length
         ? sortedRows.map(row => `${row.unit} = ${new Intl.NumberFormat('id-ID').format(row.conversion)} ${base}`).join(' | ')
         : '';
+    updateBuyPrices(domRows, rows);
+}
+
+function parseBuyPrice(value) {
+    const cleaned = String(value ?? '').replace(/[^\d,.]/g, '');
+    if (cleaned.includes(',')) return Number(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
+    if (/^\d+\.\d{1,2}$/.test(cleaned)) return Number(cleaned);
+    return Number(cleaned.replace(/\./g, '')) || 0;
+}
+
+function formatBuyPrice(value) {
+    return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value);
+}
+
+function updateBuyPrices(domRows, rows) {
+    const purchaseIndex = Number(document.getElementById('purchaseUnitIndex').value);
+    const purchaseRow = domRows[purchaseIndex];
+    if (!purchaseRow) return;
+    const purchasePrice = parseBuyPrice(purchaseRow.querySelector('.buy-price-input').value);
+    const purchaseConversion = rows.find(row => row.index === purchaseIndex)?.conversion || 0;
+
+    domRows.forEach((row, index) => {
+        const input = row.querySelector('.buy-price-input');
+        input.readOnly = index !== purchaseIndex;
+        input.classList.toggle('bg-body-secondary', input.readOnly);
+        if (!input.readOnly) return;
+        const conversion = rows.find(unit => unit.index === index)?.conversion || 0;
+        input.value = purchaseConversion > 0 && conversion > 0
+            ? formatBuyPrice(Math.round((purchasePrice * conversion / purchaseConversion + Number.EPSILON) * 100) / 100)
+            : '';
+    });
 }
 
 function addProductUnitRow() {
@@ -484,7 +531,7 @@ function addProductUnitRow() {
         <td><input type="number" name="product_units[${productUnitIndex}][contains_quantity]" class="form-control contains-qty-input" value="1" min="0.0001" step="0.0001" required><input type="hidden" name="product_units[${productUnitIndex}][conversion_to_base]" class="conversion-input" value="1"></td>
         <td><select name="product_units[${productUnitIndex}][contains_unit_index]" class="form-select contains-unit-select"><option value="">Dasar</option></select></td>
         <td><input type="text" class="form-control conversion-preview" value="1" readonly></td>
-        <td><div class="input-group"><span class="input-group-text">Rp</span><input type="text" name="product_units[${productUnitIndex}][buy_price]" class="form-control js-currency-input" value="0" inputmode="numeric"></div></td>
+        <td><div class="input-group"><span class="input-group-text">Rp</span><input type="text" name="product_units[${productUnitIndex}][buy_price]" class="form-control buy-price-input" value="0" inputmode="decimal"></div></td>
         <td><div class="input-group"><span class="input-group-text">Rp</span><input type="text" name="product_units[${productUnitIndex}][sell_price]" class="form-control js-currency-input" value="0" inputmode="numeric" required></div></td>
         <td class="text-center"><input type="radio" class="form-check-input base-radio" name="base_unit_radio" value="${productUnitIndex}"></td>
         <td class="text-center"><input type="radio" class="form-check-input purchase-radio" name="purchase_unit_radio" value="${productUnitIndex}"></td>
@@ -497,7 +544,14 @@ function addProductUnitRow() {
 }
 
 document.getElementById('addProductUnit').addEventListener('click', addProductUnitRow);
-document.getElementById('productUnitsTable').addEventListener('input', updateUnitPreview);
+document.getElementById('productUnitsTable').addEventListener('input', function(event) {
+    if (event.target.matches('.buy-price-input')) {
+        const [whole, decimal] = event.target.value.replace(/[^\d,]/g, '').split(',');
+        event.target.value = (whole ? formatBuyPrice(Number(whole)) : '')
+            + (decimal !== undefined ? ',' + decimal.slice(0, 2) : '');
+    }
+    updateUnitPreview();
+});
 document.getElementById('productUnitsTable').addEventListener('change', function(event) {
     if (event.target.matches('.unit-select')) {
         refreshProductUnitRows();
@@ -517,6 +571,9 @@ document.getElementById('productUnitsTable').addEventListener('click', function(
     if (document.querySelectorAll('.product-unit-row').length <= 1) return;
     button.closest('tr').remove();
     refreshProductUnitRows();
+});
+document.querySelectorAll('.buy-price-input').forEach(input => {
+    input.value = formatBuyPrice(parseBuyPrice(input.value));
 });
 refreshProductUnitRows();
 

@@ -1,85 +1,48 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8">
+@extends('report.pdf.layout')
+@section('report-title', $order->root_purchase_order_id ? 'PO RETUR' : 'PURCHASE ORDER')
+@section('report-period', 'Kota Weda, Halmahera Tengah')
+@section('report-body')
 <style>
-    body { font-family: Arial, sans-serif; font-size: 12px; color: #333; }
-    .header { text-align: center; border-bottom: 2px solid #c8960c; padding-bottom: 10px; margin-bottom: 20px; }
-    .header h2 { margin: 0; color: #c8960c; }
-    .info-table { width: 100%; margin-bottom: 20px; }
-    .info-table td { padding: 3px 8px; }
-    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    .items-table th { background: #1a2035; color: white; padding: 8px; text-align: left; }
-    .items-table td { padding: 7px 8px; border-bottom: 1px solid #eee; }
-    .items-table .text-right { text-align: right; }
-    .total-row { font-weight: bold; background: #f8f9fa; }
-    .footer { margin-top: 40px; display: flex; justify-content: space-between; }
-    .sign-box { text-align: center; width: 200px; }
-    .sign-line { border-top: 1px solid #333; margin-top: 60px; }
+    .order-info { width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:16px; }
+    .order-info td { vertical-align:top; padding:3px 0; word-wrap:break-word; }
+    .order-info .label-cell { width:15%; color:#555555; }
+    .order-info .value-cell { width:35%; padding-right:16px; }
+    .signatures { width:100%; table-layout:fixed; border-collapse:collapse; margin-top:28px; page-break-inside:avoid; }
+    .signatures td { width:50%; text-align:center; vertical-align:top; padding:0 24px; }
+    .signature-space { height:52px; }
+    .signature-name { border-top:1px solid #777777; padding-top:5px; }
 </style>
-</head>
-<body>
-<div class="header">
-    <h2>TOKO GOLDEN</h2>
-    <div>Kota Weda, Halmahera Tengah</div>
-    <h3 style="margin:10px 0 0">PURCHASE ORDER</h3>
-</div>
-
-<table class="info-table">
-    <tr>
-        <td width="50%">
-            <strong>No. PO:</strong> {{ $order->po_number }}<br>
-            <strong>Tanggal:</strong> {{ $order->order_date?->translatedFormat('d F Y') ?? '-' }}<br>
-            <strong>Status:</strong> {{ ucfirst($order->status) }}
-        </td>
-        <td width="50%">
-            <strong>Supplier:</strong> {{ $order->supplier?->name ?? '-' }}<br>
-            <strong>Telepon:</strong> {{ $order->supplier?->phone ?? '-' }}<br>
-            <strong>Alamat:</strong> {{ $order->supplier?->address ?? '-' }}
-        </td>
-    </tr>
+<table class="order-info">
+    <tr><td class="label-cell">Nomor PO</td><td class="value-cell"><strong>{{ $order->po_number }}</strong></td><td class="label-cell">Supplier</td><td class="value-cell"><strong>{{ $order->supplier?->name ?? '-' }}</strong></td></tr>
+    <tr><td class="label-cell">Tanggal PO</td><td class="value-cell">{{ $order->order_date?->format('d/m/Y') ?? '-' }}</td><td class="label-cell">Telepon</td><td class="value-cell">{{ $order->supplier?->phone ?: '-' }}</td></tr>
+    <tr><td class="label-cell">Dibuat oleh</td><td class="value-cell">{{ $order->createdBy?->name ?? '-' }}</td><td class="label-cell">Alamat</td><td class="value-cell">{{ $order->supplier?->address ?: '-' }}</td></tr>
 </table>
-
-<table class="items-table">
-    <thead>
-        <tr>
-            <th width="5%">#</th>
-            <th width="40%">Nama Barang</th>
-            <th width="15%">Satuan</th>
-            <th width="15%" class="text-right">Jumlah</th>
-            <th width="25%" class="text-right">Harga Satuan</th>
-            <th width="25%" class="text-right">Subtotal</th>
-        </tr>
-    </thead>
+@if($order->root_purchase_order_id)
+<div class="notice"><strong>PO RETUR - TANPA TAGIHAN TAMBAHAN</strong><br>PO Asal: {{ $order->rootOrder?->po_number ?? '-' }}</div>
+@endif
+<table class="data compact">
+    <thead><tr>
+        <th style="width:5%">No.</th><th style="width:35%">Nama Barang</th><th style="width:10%">Satuan</th>
+        <th style="width:12%" class="right">Jumlah</th><th style="width:18%" class="right">Harga Satuan</th><th style="width:20%" class="right">Subtotal</th>
+    </tr></thead>
     <tbody>
-        @php $total = 0; @endphp
-        @foreach($order->items as $i => $item)
-        @php $subtotal = $item->quantity_ordered * $item->buy_price; $total += $subtotal; @endphp
-        <tr>
-            <td>{{ $i + 1 }}</td>
-            <td>{{ $item->product->name }}</td>
-            <td>{{ $item->productUnit->unit->name ?? $item->product->buyUnit->name }}</td>
-            <td class="text-right">{{ number_format($item->quantity_ordered, 2) }}</td>
-            <td class="text-right">Rp {{ number_format($item->buy_price, 0, ',', '.') }}</td>
-            <td class="text-right">Rp {{ number_format($subtotal, 0, ',', '.') }}</td>
-        </tr>
-        @endforeach
-        <tr class="total-row">
-            <td colspan="5" class="text-right">TOTAL</td>
-            <td class="text-right">Rp {{ number_format($total, 0, ',', '.') }}</td>
-        </tr>
+    @forelse($order->items as $item)
+        @php
+            $price = $order->root_purchase_order_id ? 0 : (float) $item->buy_price;
+            $quantity = rtrim(rtrim(number_format($item->quantity_ordered, 4, ',', '.'), '0'), ',');
+        @endphp
+        <tr><td>{{ $loop->iteration }}</td><td>{{ $item->product->name }}</td>
+            <td>{{ $item->productUnit?->unit?->name ?? $item->product->buyUnit?->name ?? '-' }}</td>
+            <td class="right">{{ $quantity }}</td><td class="right">Rp {{ number_format($price, 0, ',', '.') }}</td>
+            <td class="right">Rp {{ number_format($item->quantity_ordered * $price, 0, ',', '.') }}</td></tr>
+    @empty
+        <tr><td colspan="6" class="center">Tidak ada barang pada dokumen ini.</td></tr>
+    @endforelse
     </tbody>
+    <tfoot><tr><td colspan="5" class="right">TOTAL NILAI PESANAN</td><td class="right">Rp {{ number_format($order->totalValue(), 0, ',', '.') }}</td></tr></tfoot>
 </table>
-
-<div class="footer">
-    <div class="sign-box">
-        <div>Hormat Kami,</div>
-        <div class="sign-line">{{ $order->createdBy->name ?? 'Owner' }}</div>
-    </div>
-    <div class="sign-box">
-        <div>Diterima Oleh,</div>
-        <div class="sign-line">( ........................ )</div>
-    </div>
-</div>
-</body>
-</html>
+<table class="signatures"><tr>
+    <td><div>Dibuat oleh,</div><div class="signature-space"></div><div class="signature-name">{{ $order->createdBy?->name ?? 'Toko Golden' }}</div><div class="muted">Toko Golden</div></td>
+    <td><div>Diterima oleh,</div><div class="signature-space"></div><div class="signature-name">Nama dan tanda tangan</div><div class="muted">Supplier</div></td>
+</tr></table>
+@endsection

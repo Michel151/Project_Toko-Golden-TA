@@ -4,14 +4,15 @@
 
 @section('content')
 @include('master._header', ['icon'=>'truck', 'title'=>'Data Supplier', 'description'=>'Kelola pemasok dan informasi kontak untuk proses pembelian.'])
-<div class="d-flex justify-content-end mb-3">
-    <a href="{{ route('master.suppliers.create') }}" class="btn btn-primary btn-sm">
+<div class="d-flex flex-wrap gap-2 justify-content-end mb-3">
+    @if(auth()->user()->canAccessRoute('master.suppliers.import'))<a href="{{ route('master.suppliers.import') }}" class="btn btn-outline-success btn-sm"><i class="bi bi-upload me-1"></i>Import Supplier</a>@endif
+    @if(auth()->user()->canAccessRoute('master.suppliers.create')) <a href="{{ route('master.suppliers.create') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-circle me-1"></i> Tambah Supplier
-    </a>
+    </a> @endif
 </div>
 
 <div class="card table-card">
-    <div class="card-body p-0">
+    <div class="card-body p-0 table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
@@ -38,17 +39,17 @@
                            class="btn btn-sm btn-outline-info py-0 px-2" title="Riwayat PO">
                             <i class="bi bi-clock-history"></i>
                         </a>
-                        <a href="{{ route('master.suppliers.edit', $supplier) }}"
+                        @if(auth()->user()->canAccessRoute('master.suppliers.edit')) <a href="{{ route('master.suppliers.edit', $supplier) }}"
                            class="btn btn-sm btn-outline-warning py-0 px-2">
                             <i class="bi bi-pencil"></i>
-                        </a>
-                        <form method="POST" action="{{ route('master.suppliers.destroy', $supplier) }}"
-                              class="d-inline" onsubmit="return confirm('Hapus supplier ini?')">
+                        </a> @endif
+                        @if(auth()->user()->canAccessRoute('master.suppliers.destroy')) <form method="POST" action="{{ route('master.suppliers.destroy', $supplier) }}"
+                              class="d-inline" data-confirm="Hapus supplier ini?">
                             @csrf @method('DELETE')
                             <button class="btn btn-sm btn-outline-danger py-0 px-2">
                                 <i class="bi bi-trash"></i>
                             </button>
-                        </form>
+                        </form> @endif
                     </td>
                 </tr>
                 @empty

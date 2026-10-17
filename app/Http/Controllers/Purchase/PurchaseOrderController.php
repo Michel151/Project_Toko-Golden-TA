@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
+use App\Exports\PurchaseOrderExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PurchaseOrderController extends Controller
 {
@@ -48,7 +50,7 @@ class PurchaseOrderController extends Controller
         $suppliers = Supplier::orderBy('name')->get();
         $selectedSupplierId = old('supplier_id');
         $products = $selectedSupplierId
-            ? Supplier::with(['products.buyUnit', 'products.productUnits.unit'])->find($selectedSupplierId)?->products ?? collect()
+            ? Supplier::with(['products' => fn ($query) => $query->where('products.is_active', true)->with(['buyUnit', 'productUnits.unit'])])->find($selectedSupplierId)?->products ?? collect()
             : collect();
         $supplierProductsJson = $this->supplierProductsJson();
 
@@ -63,7 +65,7 @@ class PurchaseOrderController extends Controller
             'supplier_id' => 'required|exists:suppliers,id',
             'order_date'  => 'required|date',
             'items'       => 'required|array|min:1',
-            'items.*.product_id'       => 'required|exists:products,id',
+            'items.*.product_id'       => 'required|exists:products,id,is_active,1',
             'items.*.product_unit_id'  => 'required|exists:product_units,id',
             'items.*.quantity_ordered' => 'required|numeric|min:0.01',
             'items.*.buy_price'        => 'required|numeric|min:0',
@@ -114,19 +116,19 @@ class PurchaseOrderController extends Controller
 
     public function show(PurchaseOrder $order)
     {
-        $order->load(['supplier', 'createdBy', 'items.product.buyUnit', 'items.productUnit.unit', 'receipts.items.location', 'receipts.receivedBy']);
+        $order->load(['supplier', 'createdBy', 'items.product.buyUnit', 'items.productUnit.unit', 'receipts.items.location', 'receipts.receivedBy', 'replacementOrders', 'rootOrder']);
         return view('purchase.orders.show', compact('order'));
     }
 
     public function edit(PurchaseOrder $order)
     {
-        if ($order->status !== 'pending') {
+        if (! $order->canModify()) {
             return back()->with('error', 'PO yang sudah diproses tidak bisa diedit.');
         }
         $order->load('items.product.productUnits.unit');
         $suppliers = Supplier::orderBy('name')->get();
         $selectedSupplierId = old('supplier_id', $order->supplier_id);
-        $products = Supplier::with(['products.buyUnit', 'products.productUnits.unit'])->find($selectedSupplierId)?->products ?? collect();
+        $products = Supplier::with(['products' => fn ($query) => $query->where('products.is_active', true)->with(['buyUnit', 'productUnits.unit'])])->find($selectedSupplierId)?->products ?? collect();
         $supplierProductsJson = $this->supplierProductsJson();
 
         return view('purchase.orders.form', compact('order', 'suppliers', 'products', 'supplierProductsJson'));
@@ -134,7 +136,7 @@ class PurchaseOrderController extends Controller
 
     public function update(Request $request, PurchaseOrder $order)
     {
-        if ($order->status !== 'pending') {
+        if (! $order->canModify()) {
             return back()->with('error', 'PO yang sudah diproses tidak bisa diedit.');
         }
 
@@ -144,7 +146,7 @@ class PurchaseOrderController extends Controller
             'supplier_id' => 'required|exists:suppliers,id',
             'order_date'  => 'required|date',
             'items'       => 'required|array|min:1',
-            'items.*.product_id'       => 'required|exists:products,id',
+            'items.*.product_id'       => 'required|exists:products,id,is_active,1',
             'items.*.product_unit_id'  => 'required|exists:product_units,id',
             'items.*.quantity_ordered' => 'required|numeric|min:0.01',
             'items.*.buy_price'        => 'required|numeric|min:0',
@@ -163,6 +165,8 @@ class PurchaseOrderController extends Controller
         }
 
         DB::transaction(function () use ($validated, $order) {
+            $order = PurchaseOrder::lockForUpdate()->findOrFail($order->id);
+            abort_unless($order->canModify(), 409, 'PO sudah diproses dan tidak dapat diubah.');
             $order->update([
                 'supplier_id' => $validated['supplier_id'],
                 'order_date'  => $validated['order_date'],
@@ -194,25 +198,40 @@ class PurchaseOrderController extends Controller
 
     public function destroy(PurchaseOrder $order)
     {
-        if ($order->status !== 'pending') {
+        if (! $order->canModify()) {
             return back()->with('error', 'Hanya PO berstatus pending yang bisa dihapus.');
         }
-        $order->delete();
+        DB::transaction(function () use ($order) {
+            $order = PurchaseOrder::lockForUpdate()->findOrFail($order->id);
+            abort_unless($order->canModify(), 409, 'PO sudah diproses dan tidak dapat dihapus.');
+            $order->delete();
+        });
         return redirect()->route('purchase.orders.index')
                          ->with('success', 'Purchase Order berhasil dihapus.');
     }
 
     public function generatePdf(PurchaseOrder $order)
     {
-        $order->load(['supplier', 'createdBy', 'items.product.buyUnit', 'items.productUnit.unit']);
+        $order->load(['supplier', 'createdBy', 'rootOrder', 'items.product.buyUnit', 'items.productUnit.unit']);
         $pdf = Pdf::loadView('purchase.orders.pdf', compact('order'))
                   ->setPaper('a4', 'portrait');
-        return $pdf->stream("PO-{$order->po_number}.pdf");
+        return $pdf->stream(str_replace('/', '-', $order->po_number).'.pdf');
+    }
+
+    public function generateExcel(PurchaseOrder $order)
+    {
+        $order->load(['supplier', 'createdBy', 'rootOrder', 'items.product.buyUnit', 'items.productUnit.unit']);
+
+        return Excel::download(
+            new PurchaseOrderExport($order),
+            str_replace('/', '-', $order->po_number).'.xlsx'
+        );
     }
 
     public function productsBySupplier(Supplier $supplier)
     {
         return response()->json($supplier->products()
+            ->where('products.is_active', true)
             ->with(['buyUnit', 'productUnits.unit', 'defaultPurchaseUnit.unit'])
             ->orderBy('name')
             ->get()
@@ -237,7 +256,7 @@ class PurchaseOrderController extends Controller
 
     private function supplierProductsJson(): array
     {
-        return Supplier::with(['products.buyUnit', 'products.productUnits.unit', 'products.defaultPurchaseUnit.unit'])
+        return Supplier::with(['products' => fn ($query) => $query->where('products.is_active', true)->with(['buyUnit', 'productUnits.unit', 'defaultPurchaseUnit.unit'])])
             ->get()
             ->mapWithKeys(fn ($supplier) => [
                 $supplier->id => $supplier->products

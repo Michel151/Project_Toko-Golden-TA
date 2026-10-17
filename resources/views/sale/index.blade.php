@@ -3,40 +3,48 @@
 @section('page-title', 'Transaksi Penjualan')
 
 @section('content')
+<div class="inventory-heading"><h5><i class="bi bi-cart-check me-2"></i>Transaksi Penjualan</h5></div>
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <form class="d-flex gap-2 flex-wrap" method="GET">
-        <input type="date" name="from" class="form-control form-control-sm" style="width:140px" value="{{ request('from') }}">
-        <input type="date" name="to"   class="form-control form-control-sm" style="width:140px" value="{{ request('to') }}">
-        <select name="payment_method" class="form-select form-select-sm" style="width:130px">
+    <form class="d-flex gap-2 flex-wrap align-items-end" method="GET">
+        @include('components.date-range',['prefix'=>'saleList'])
+        <div class="app-filter-field"><label for="salePayment">Pembayaran</label><select id="salePayment" name="payment_method" class="form-select form-select-sm">
             <option value="">Semua Pembayaran</option>
             <option value="tunai"    {{ request('payment_method') == 'tunai'    ? 'selected' : '' }}>Tunai</option>
             <option value="transfer" {{ request('payment_method') == 'transfer' ? 'selected' : '' }}>Transfer</option>
-        </select>
-        <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i></button>
-        @if(request()->hasAny(['from','to','payment_method']))
-        <a href="{{ route('sale.sales.index') }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></a>
+        </select></div>
+        <div class="app-filter-field"><label for="saleStatus">Status</label><select id="saleStatus" name="status" class="form-select form-select-sm">
+            <option value="">Semua Status</option>
+            <option value="pending" @selected(request('status') === 'pending')>Menunggu Pembayaran</option>
+            <option value="paid" @selected(request('status') === 'paid')>Lunas</option>
+            <option value="cancelled" @selected(request('status') === 'cancelled')>Dibatalkan</option>
+            <option value="cancelled_auto" @selected(request('status') === 'cancelled_auto')>Dibatalkan Otomatis</option>
+        </select></div>
+        <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
+        @if(request()->hasAny(['from','to','payment_method','status']))
+        <a href="{{ route('sale.sales.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</a>
         @endif
     </form>
-    <a href="{{ route('sale.sales.create') }}" class="btn btn-success btn-sm">
+    @if(auth()->user()->canAccessRoute('sale.sales.create')) <a href="{{ route('sale.sales.create') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-circle me-1"></i> Transaksi Baru
-    </a>
+    </a> @endif
 </div>
 
-@if(request()->hasAny(['from','to','payment_method']))
+@if(request()->hasAny(['from','to','payment_method','status']))
 <div class="alert alert-info py-2 mb-3">
     Total penjualan periode ini: <strong>Rp {{ number_format($totalAmount, 0, ',', '.') }}</strong>
 </div>
 @endif
 
 <div class="card table-card">
-    <div class="card-body p-0">
+    <div class="card-body p-0 table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
                     <th>No. Invoice</th>
                     <th>Pelanggan</th>
-                    <th>Tanggal</th>
+                    <th>Tanggal / Waktu</th>
                     <th class="text-center">Pembayaran</th>
+                    <th>Status</th>
                     <th class="text-end">Total</th>
                     <th>Kasir</th>
                     <th class="text-center">Aksi</th>
@@ -46,22 +54,34 @@
                 @forelse($sales as $sale)
                 <tr>
                     <td class="fw-semibold">{{ $sale->sale_number }}</td>
-                    <td>{{ $sale->customer_name ?? '<span class="text-muted">Umum</span>' }}</td>
-                    <td>{{ $sale->sale_date->format('d/m/Y') }}</td>
+                    <td>
+                        @if(filled($sale->customer_name))
+                            {{ $sale->customer_name }}
+                        @else
+                            <span class="text-muted">Umum</span>
+                        @endif
+                    </td>
+                    <td>{{ $sale->sale_date->format('d/m/Y') }}<div class="small text-muted">{{ $sale->transaction_time_label }}</div></td>
                     <td class="text-center">
                         <span class="badge bg-{{ $sale->payment_method === 'tunai' ? 'success' : 'info' }}">
                             {{ ucfirst($sale->payment_method) }}
                         </span>
                     </td>
+                    <td><span class="badge bg-{{ match($sale->status) { 'paid' => 'success', 'pending' => 'warning text-dark', default => 'secondary' } }}">{{ match($sale->status) { 'paid' => 'Lunas', 'pending' => 'Menunggu Pembayaran', 'cancelled_auto' => 'Dibatalkan Otomatis', default => 'Dibatalkan' } }}</span></td>
                     <td class="text-end fw-semibold">Rp {{ number_format($sale->total_amount, 0, ',', '.') }}</td>
                     <td class="text-muted small">{{ $sale->createdBy->name ?? '-' }}</td>
                     <td class="text-center">
                         <a href="{{ route('sale.sales.show', $sale) }}" class="btn btn-sm btn-outline-info py-0 px-2"><i class="bi bi-eye"></i></a>
-                        <a href="{{ route('sale.sales.print', ['sale' => $sale, 'popup' => 1]) }}" class="btn btn-sm btn-outline-secondary py-0 px-2 js-print-popup" title="Cetak Nota"><i class="bi bi-printer"></i></a>
+                        @if($sale->status === 'pending')
+                            @if(auth()->user()->canAccessRoute('sale.sales.edit')) <a href="{{ route('sale.sales.edit', $sale) }}" class="btn btn-sm btn-outline-warning py-0 px-2" title="Edit transaksi"><i class="bi bi-pencil"></i></a> @endif
+                        @endif
+                        @if($sale->status === 'paid')
+                            <a href="{{ route('sale.sales.print', ['sale' => $sale, 'popup' => 1]) }}" class="btn btn-sm btn-outline-secondary py-0 px-2 js-print-popup" title="Cetak Nota"><i class="bi bi-printer"></i></a>
+                        @endif
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="7" class="text-center text-muted py-4">Belum ada transaksi penjualan</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-4">Belum ada transaksi penjualan</td></tr>
                 @endforelse
             </tbody>
         </table>

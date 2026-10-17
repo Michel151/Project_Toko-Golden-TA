@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class StockOpname extends Model
@@ -33,15 +34,13 @@ class StockOpname extends Model
         return $this->hasMany(StockOpnameItem::class);
     }
 
-    // Generate opname number: OPN-2024-000001
-    public static function generateOpnameNumber(): string
+    public static function generateOpnameNumber(?\DateTimeInterface $issuedAt = null): string
     {
-        $year   = date('Y');
-        $prefix = "OPN-{$year}-";
-        $last   = static::where('opname_number', 'like', "{$prefix}%")
-                        ->orderByDesc('id')
-                        ->value('opname_number');
-        $seq = $last ? (int) substr($last, -6) + 1 : 1;
+        $date = $issuedAt ? Carbon::instance($issuedAt)->setTimezone('Asia/Jakarta') : now('Asia/Jakarta');
+        $prefix = 'OPN/'.$date->format('Y/m').'/';
+        $last = static::where('opname_number', 'like', "{$prefix}%")
+            ->selectRaw('MAX(CAST(SUBSTR(opname_number, 13) AS DECIMAL(20,0))) AS sequence')->value('sequence');
+        $seq = (int) $last + 1;
         return $prefix . str_pad($seq, 6, '0', STR_PAD_LEFT);
     }
 }

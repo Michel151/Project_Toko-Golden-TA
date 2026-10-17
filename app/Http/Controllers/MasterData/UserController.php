@@ -58,6 +58,11 @@ class UserController extends Controller
 
         $request->validate($rules);
 
+        if ($user->isOwner() && $request->role !== 'owner'
+            && ($user->id === auth()->id() || User::where('role', 'owner')->count() <= 1)) {
+            return back()->withErrors(['role' => 'Role akun sendiri dan owner terakhir tidak dapat diturunkan.'])->withInput();
+        }
+
         $data = $request->only('name', 'email', 'role');
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
@@ -71,6 +76,9 @@ class UserController extends Controller
     {
         if ($user->id === auth()->id()) {
             return back()->with('error', 'Anda tidak bisa menghapus akun sendiri.');
+        }
+        if ($user->isOwner() && User::where('role', 'owner')->count() <= 1) {
+            return back()->with('error', 'Owner terakhir tidak dapat dihapus.');
         }
         $user->delete();
         return redirect()->route('master.users.index')->with('success', 'Pengguna berhasil dihapus.');

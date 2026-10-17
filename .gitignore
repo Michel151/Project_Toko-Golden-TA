@@ -12,7 +12,7 @@
 /.vscode
 /.zed
 /auth.json
-/node_modules
+node_modules/
 /public/build
 /public/hot
 /public/storage
@@ -22,3 +22,11 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Local test previews and generated exports; keep the test scripts.
+/tools/**/*.png
+/tools/**/*.jpg
+/tools/**/*.jpeg
+/tools/**/*.pdf
+/tools/**/*.xlsx
+/tools/**/*.html

@@ -18,27 +18,35 @@ class TransferReportController extends Controller
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());
 
-        $transfers = StockTransfer::with(['product.buyUnit', 'product.retailUnit', 'fromLocation', 'toLocation', 'createdBy'])
-            ->whereBetween('transfer_date', [$from, $to])
+        $transfers = StockTransfer::with(['items.product.buyUnit', 'items.product.retailUnit', 'items.product.productUnits.unit', 'fromLocation', 'toLocation', 'createdBy'])
+            ->whereDate('transfer_date', '>=', $from)
+            ->whereDate('transfer_date', '<=', $to)
             ->latest('transfer_date')
             ->get();
 
         $locations = Location::orderBy('name')->get();
         $products  = Product::orderBy('name')->get();
+        $transferSummary = [
+            'documents'=>$transfers->count(),
+            'products'=>$transfers->flatMap(fn ($transfer) => $transfer->items->pluck('product_id'))->unique()->count(),
+            'origins'=>$transfers->pluck('from_location_id')->unique()->count(),
+            'destinations'=>$transfers->pluck('to_location_id')->unique()->count(),
+        ];
 
-        return view('report.transfer', compact('transfers', 'from', 'to', 'locations', 'products'));
+        return view('report.transfer', compact('transfers', 'from', 'to', 'locations', 'products', 'transferSummary'));
     }
 
     public function pdf(Request $request)
     {
         $from      = $request->get('from', now()->startOfMonth()->toDateString());
         $to        = $request->get('to', now()->toDateString());
-        $transfers = StockTransfer::with(['product.buyUnit', 'product.retailUnit', 'fromLocation', 'toLocation', 'createdBy'])
-            ->whereBetween('transfer_date', [$from, $to])
+        $transfers = StockTransfer::with(['items.product.buyUnit', 'items.product.retailUnit', 'items.product.productUnits.unit', 'fromLocation', 'toLocation', 'createdBy'])
+            ->whereDate('transfer_date', '>=', $from)
+            ->whereDate('transfer_date', '<=', $to)
             ->latest()->get();
 
         $pdf = Pdf::loadView('report.pdf.transfer', compact('transfers', 'from', 'to'))
-                  ->setPaper('a4', 'portrait');
+                  ->setPaper('a4', 'landscape');
         return $pdf->stream("Laporan-Transfer-{$from}-sd-{$to}.pdf");
     }
 
@@ -46,15 +54,16 @@ class TransferReportController extends Controller
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
-        $transfers = StockTransfer::with(['product.buyUnit', 'product.retailUnit', 'fromLocation', 'toLocation', 'createdBy'])
-            ->whereBetween('transfer_date', [$from, $to])->latest('transfer_date')->get();
-        $rows = $transfers->map(fn ($transfer) => [
-            $transfer->transfer_number, $transfer->transfer_date->format('d/m/Y'), $transfer->product->name,
+        $transfers = StockTransfer::with(['items.product.buyUnit', 'items.product.retailUnit', 'items.product.productUnits.unit', 'fromLocation', 'toLocation', 'createdBy'])
+            ->whereDate('transfer_date', '>=', $from)
+            ->whereDate('transfer_date', '<=', $to)->latest('transfer_date')->get();
+        $rows = $transfers->flatMap(fn ($transfer) => $transfer->items->map(fn ($item) => [
+            $transfer->transfer_number, $transfer->transfer_date->format('d/m/Y'), $item->product->name,
             $transfer->fromLocation->name, $transfer->toLocation->name,
-            (float) $transfer->quantity,
-            $transfer->product->can_retail ? ($transfer->product->retailUnit->name ?? $transfer->product->buyUnit->name) : $transfer->product->buyUnit->name,
+            (float) $item->quantity,
+            $item->product->baseProductUnit?->unit?->name ?? ($item->product->can_retail ? ($item->product->retailUnit->name ?? $item->product->buyUnit->name) : $item->product->buyUnit->name),
             $transfer->createdBy->name ?? '-', $transfer->notes ?? '-',
-        ])->all();
+        ]))->all();
 
         return Excel::download(
             new ReportExport("Laporan Transfer {$from} s.d. {$to}", ['No. Transfer', 'Tanggal', 'Barang', 'Dari', 'Ke', 'Jumlah', 'Satuan Stok', 'Petugas', 'Catatan'], $rows, [], [6], 'Transfer'),

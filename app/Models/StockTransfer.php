@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class StockTransfer extends Model
@@ -28,6 +29,11 @@ class StockTransfer extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function items()
+    {
+        return $this->hasMany(StockTransferItem::class);
+    }
+
     public function productUnit()
     {
         return $this->belongsTo(ProductUnit::class);
@@ -48,15 +54,13 @@ class StockTransfer extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    // Generate transfer number: TRF-2024-000001
-    public static function generateTransferNumber(): string
+    public static function generateTransferNumber(?\DateTimeInterface $issuedAt = null): string
     {
-        $year   = date('Y');
-        $prefix = "TRF-{$year}-";
-        $last   = static::where('transfer_number', 'like', "{$prefix}%")
-                        ->orderByDesc('id')
-                        ->value('transfer_number');
-        $seq = $last ? (int) substr($last, -6) + 1 : 1;
+        $date = $issuedAt ? Carbon::instance($issuedAt)->setTimezone('Asia/Jakarta') : now('Asia/Jakarta');
+        $prefix = 'TRF/'.$date->format('Y/m').'/';
+        $last = static::where('transfer_number', 'like', "{$prefix}%")
+            ->selectRaw('MAX(CAST(SUBSTR(transfer_number, 13) AS DECIMAL(20,0))) AS sequence')->value('sequence');
+        $seq = (int) $last + 1;
         return $prefix . str_pad($seq, 6, '0', STR_PAD_LEFT);
     }
 }

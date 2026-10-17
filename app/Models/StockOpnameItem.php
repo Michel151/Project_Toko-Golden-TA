@@ -12,12 +12,14 @@ class StockOpnameItem extends Model
         'system_quantity',
         'physical_quantity',
         'difference',
+        'tracks_expiry',
     ];
 
     protected $casts = [
         'system_quantity'   => 'decimal:4',
         'physical_quantity' => 'decimal:4',
         'difference'        => 'decimal:4',
+        'tracks_expiry'     => 'boolean',
     ];
 
     public function stockOpname()
@@ -28,5 +30,10 @@ class StockOpnameItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function expiryCounts()
+    {
+        return $this->hasMany(StockOpnameExpiry::class)->orderByRaw('expired_date IS NULL')->orderBy('expired_date')->orderBy('id');
     }
 }

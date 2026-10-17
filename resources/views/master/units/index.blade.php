@@ -5,13 +5,13 @@
 @section('content')
 @include('master._header', ['icon'=>'rulers', 'title'=>'Satuan Barang', 'description'=>'Atur satuan pembelian, penjualan grosir, dan penjualan eceran.'])
 <div class="d-flex justify-content-end mb-3">
-    <a href="{{ route('master.units.create') }}" class="btn btn-primary btn-sm">
+    @if(auth()->user()->canAccessRoute('master.units.create')) <a href="{{ route('master.units.create') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-circle me-1"></i> Tambah Satuan
-    </a>
+    </a> @endif
 </div>
 
 <div class="card table-card">
-    <div class="card-body p-0">
+    <div class="card-body p-0 table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
@@ -34,17 +34,17 @@
                         <span class="badge bg-success bg-opacity-10 text-success">{{ $unit->retail_unit_count }}</span>
                     </td>
                     <td class="text-center">
-                        <a href="{{ route('master.units.edit', $unit) }}"
+                        @if(auth()->user()->canAccessRoute('master.units.edit')) <a href="{{ route('master.units.edit', $unit) }}"
                            class="btn btn-sm btn-outline-warning py-0 px-2">
                             <i class="bi bi-pencil"></i>
-                        </a>
-                        <form method="POST" action="{{ route('master.units.destroy', $unit) }}"
-                              class="d-inline" onsubmit="return confirm('Hapus satuan ini?')">
+                        </a> @endif
+                        @if(auth()->user()->canAccessRoute('master.units.destroy')) <form method="POST" action="{{ route('master.units.destroy', $unit) }}"
+                              class="d-inline" data-confirm="Hapus satuan ini?">
                             @csrf @method('DELETE')
                             <button class="btn btn-sm btn-outline-danger py-0 px-2">
                                 <i class="bi bi-trash"></i>
                             </button>
-                        </form>
+                        </form> @endif
                     </td>
                 </tr>
                 @empty

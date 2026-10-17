@@ -9,11 +9,26 @@ use App\Models\PurchaseReceiptItem;
 use App\Models\Stock;
 use App\Models\StockBatch;
 use App\Models\StockMovement;
+use App\Models\Sale;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class StockService
 {
+    public function initializeImportedStock(Product $product, Location $location, float $baseQuantity, Model $reference, ?string $expiry = null, ?string $batchCode = null): void
+    {
+        $balanceBefore = $this->increaseAggregateStock($product, $location, $baseQuantity);
+        if ($product->is_expirable && $baseQuantity > 0) {
+            StockBatch::create([
+                'product_id'=>$product->id, 'location_id'=>$location->id,
+                'received_date'=>now('Asia/Jakarta')->toDateString(), 'expired_date'=>$expiry,
+                'batch_code'=>$batchCode, 'quantity_initial'=>$baseQuantity, 'quantity_remaining'=>$baseQuantity,
+            ]);
+        }
+        if ($baseQuantity > 0) $this->recordMovement($product,$location,'initial_import',$baseQuantity,$balanceBefore,$reference,
+            now('Asia/Jakarta')->toDateString(),'IMPORT-MULTI-'.$reference->getKey(),$batchCode ? 'Batch '.$batchCode : null);
+    }
+
     /**
      * Tambah stok saat penerimaan barang.
      * quantity dalam satuan BELI.
@@ -42,7 +57,7 @@ class StockService
      * Kurangi stok saat penjualan.
      * quantity dalam satuan sesuai sale_type (grosir/ecer).
      */
-    public function deductStock(Product $product, Location $location, float $quantity, string $saleType, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): void
+    public function deductStock(Product $product, Location $location, float $quantity, string $saleType, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): array
     {
         $stockQty = ($saleType === 'grosir' && $product->can_retail)
             ? $quantity * $product->conversion_factor
@@ -65,15 +80,55 @@ class StockService
             throw new \Exception("Stok tidak mencukupi di lokasi {$location->name} untuk produk {$product->name}.");
         }
 
-        if ($product->is_expirable) {
-            $this->deductSellableBatches($product, $location, $stockQty);
-        }
+        $batchDeductions = $product->is_expirable
+            ? $this->deductSellableBatches($product, $location, $stockQty)
+            : [];
 
         $balanceBefore = (float) $stock->quantity;
         $stock->quantity = $stock->quantity - $stockQty;
         $stock->save();
 
         $this->recordMovement($product, $location, 'sale', -$stockQty, $balanceBefore, $reference, $movementDate, $referenceNumber);
+
+        return $batchDeductions;
+    }
+
+    public function restoreHeldSale(Sale $sale, string $movementType = 'sale_cancelled'): void
+    {
+        $sale->load(['items.productUnit', 'items.product', 'items.sources']);
+        app(SaleStockSnapshotService::class)->recoverLegacySources($sale);
+
+        foreach ($sale->items as $item) {
+            foreach ($item->sources as $source) {
+                $quantity = (float) $source->base_quantity;
+                $stock = Stock::where('product_id', $item->product_id)
+                    ->where('location_id', $source->location_id)
+                    ->lockForUpdate()->firstOrFail();
+                $before = (float) $stock->quantity;
+                $stock->quantity = $before + $quantity;
+                $stock->save();
+
+                if ($source->stock_batch_id) {
+                    $batch = StockBatch::whereKey($source->stock_batch_id)->lockForUpdate()->firstOrFail();
+                    $batch->quantity_remaining = (float) $batch->quantity_remaining + $quantity;
+                    $batch->save();
+                }
+
+                StockMovement::create([
+                    'product_id' => $item->product_id,
+                    'location_id' => $source->location_id,
+                    'movement_type' => $movementType,
+                    'quantity' => $quantity,
+                    'balance_before' => $before,
+                    'balance_after' => $before + $quantity,
+                    'movement_date' => today(),
+                    'reference_type' => $sale->getMorphClass(),
+                    'reference_id' => $sale->id,
+                    'reference_number' => $sale->sale_number,
+                    'created_by' => auth()->id(),
+                ]);
+            }
+        }
     }
 
     /**
@@ -140,9 +195,29 @@ class StockService
         );
 
         $difference = $physicalQty - $balanceBefore;
+        if ($product->is_expirable && abs($difference) > 0.00001) {
+            $this->syncBatchesToPhysicalQuantity($product, $location, $physicalQty, $movementDate);
+        }
+
         if (abs($difference) > 0.00001) {
             $this->recordMovement($product, $location, 'opname_adjustment', $difference, $balanceBefore, $reference, $movementDate, $referenceNumber);
         }
+    }
+
+    public function sellableStockAt(Product $product, Location|int $location): float
+    {
+        $locationId = $location instanceof Location ? $location->id : $location;
+
+        if (! $product->is_expirable) {
+            return (float) Stock::where('product_id', $product->id)
+                ->where('location_id', $locationId)
+                ->value('quantity');
+        }
+
+        return (float) StockBatch::where('product_id', $product->id)
+            ->where('location_id', $locationId)
+            ->sellable()
+            ->sum('quantity_remaining');
     }
 
     private function recordMovement(
@@ -211,9 +286,10 @@ class StockService
         ]);
     }
 
-    private function deductSellableBatches(Product $product, Location $location, float $stockQty): void
+    private function deductSellableBatches(Product $product, Location $location, float $stockQty): array
     {
         $remaining = $stockQty;
+        $deductions = [];
 
         $batches = StockBatch::where('product_id', $product->id)
             ->where('location_id', $location->id)
@@ -234,12 +310,18 @@ class StockService
             $used = min($available, $remaining);
             $batch->quantity_remaining = $available - $used;
             $batch->save();
+            $deductions[] = [
+                'stock_batch_id' => $batch->id,
+                'quantity' => $used,
+            ];
             $remaining -= $used;
         }
 
         if ($remaining > 0.00001) {
-            throw new \Exception("Stok layak jual tidak mencukupi di lokasi {$location->name} untuk produk {$product->name}. Periksa barang kadaluarsa atau batch stok.");
+            throw new \Exception("Stok layak jual tidak mencukupi di lokasi {$location->name} untuk produk {$product->name}. Periksa barang kedaluwarsa atau batch stok.");
         }
+
+        return $deductions;
     }
 
     private function transferBatches(Product $product, Location $from, Location $to, float $quantity, $movementDate): void
@@ -272,6 +354,7 @@ class StockService
                 'purchase_receipt_item_id' => $batch->purchase_receipt_item_id,
                 'received_date' => $movementDate ?? today(),
                 'expired_date' => $batch->expired_date,
+                'batch_code' => $batch->batch_code,
                 'quantity_initial' => $used,
                 'quantity_remaining' => $used,
             ]);
@@ -280,7 +363,7 @@ class StockService
         }
 
         if ($remaining > 0.00001) {
-            throw new \Exception("Stok layak transfer tidak mencukupi di {$from->name} untuk produk {$product->name}. Periksa barang kadaluarsa atau batch stok.");
+            throw new \Exception("Stok layak transfer tidak mencukupi di {$from->name} untuk produk {$product->name}. Periksa barang kedaluwarsa atau batch stok.");
         }
     }
 
@@ -316,5 +399,53 @@ class StockService
             return $retailQty / $product->conversion_factor;
         }
         return $retailQty;
+    }
+
+    private function syncBatchesToPhysicalQuantity(Product $product, Location $location, float $physicalQty, $movementDate): void
+    {
+        $currentBatchQty = (float) StockBatch::where('product_id', $product->id)
+            ->where('location_id', $location->id)
+            ->lockForUpdate()
+            ->sum('quantity_remaining');
+
+        $difference = $physicalQty - $currentBatchQty;
+        if (abs($difference) <= 0.00001) {
+            return;
+        }
+
+        if ($difference > 0) {
+            StockBatch::create([
+                'product_id' => $product->id,
+                'location_id' => $location->id,
+                'received_date' => $movementDate ?? today(),
+                'expired_date' => null,
+                'quantity_initial' => $difference,
+                'quantity_remaining' => $difference,
+            ]);
+            return;
+        }
+
+        $remainingReduction = abs($difference);
+        $batches = StockBatch::where('product_id', $product->id)
+            ->where('location_id', $location->id)
+            ->where('quantity_remaining', '>', 0)
+            ->lockForUpdate()
+            ->orderByRaw('expired_date IS NULL')
+            ->orderByDesc('expired_date')
+            ->orderByDesc('received_date')
+            ->orderByDesc('id')
+            ->get();
+
+        foreach ($batches as $batch) {
+            if ($remainingReduction <= 0.00001) {
+                break;
+            }
+
+            $available = (float) $batch->quantity_remaining;
+            $reduced = min($available, $remainingReduction);
+            $batch->quantity_remaining = $available - $reduced;
+            $batch->save();
+            $remainingReduction -= $reduced;
+        }
     }
 }

@@ -1,14 +1,15 @@
 @extends('layouts.app')
 @section('title', 'Riwayat Mutasi Stok')
-@section('page-title', 'Riwayat Barang Masuk & Keluar')
+@section('page-title', 'Stock Opname')
 
 @section('content')
+<div class="inventory-heading"><h5><i class="bi bi-clipboard-check me-2"></i>Stock Opname</h5></div>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div class="btn-group btn-group-sm">
         <a href="{{ route('inventory.opnames.index') }}" class="btn btn-outline-secondary">
             <i class="bi bi-clipboard-check me-1"></i>Riwayat Opname
         </a>
-        <a href="{{ route('inventory.opnames.movements') }}" class="btn btn-primary active">
+        <a href="{{ route('inventory.opnames.movements') }}" class="btn btn-primary active" aria-current="page">
             <i class="bi bi-clock-history me-1"></i>Mutasi Barang
         </a>
     </div>

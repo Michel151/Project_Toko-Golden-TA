@@ -1,240 +1,116 @@
 @extends('layouts.app')
 @section('title', 'Catat Penerimaan Barang')
 @section('page-title', 'Catat Penerimaan Barang')
-
 @push('styles')
 <style>
-    .receipt-item-toggle { background:#fff; border:0; padding:12px 16px; width:100%; text-align:left; }
-    .receipt-item-toggle:hover { background:#f8f9fb; }
-    .receipt-item-toggle .toggle-icon { transition:transform .2s; }
-    .receipt-item-toggle[aria-expanded="true"] .toggle-icon { transform:rotate(180deg); }
-    .receipt-item-detail { background:#fafbfc; border-top:1px solid #edf0f4; }
+.receiving-table { min-width:1050px; }
+.receiving-table th { white-space:nowrap; }
+.receiving-table .quantity { width:105px; min-width:90px; }
+.receiving-details { background:#f7f9f7; }
+.receiving-details .row { display:grid; grid-template-columns:repeat(3,minmax(180px,1fr)); }
+.receiving-details .batch-panel + .row { grid-template-columns:repeat(2,minmax(180px,1fr)); }
+.receiving-details .row > div { width:auto; }
+.receiving-summary { min-width:160px; }
+.receipt-batch-grid { display:grid; grid-template-columns:160px 190px minmax(180px,1fr) 36px; gap:8px; align-items:center; }
+.receipt-batch-grid + .receipt-batch-grid { margin-top:8px; }
+.receipt-batch-grid .input-group-text { max-width:65px; overflow:hidden; }
+.batch-delete { width:32px; height:32px; padding:0; }
 </style>
 @endpush
-
 @section('content')
-<div class="procurement-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="heading-icon"><i class="bi bi-box-arrow-in-down"></i></div><div><h5 class="fw-bold mb-1">Catat Penerimaan Barang</h5><div class="small text-white-50">Distribusikan barang yang datang ke satu atau beberapa lokasi</div></div></div>@if(isset($selectedOrder))<span class="badge bg-warning text-dark font-monospace">{{ $selectedOrder->po_number }}</span>@endif</div>
-<form method="POST" action="{{ route('purchase.receipts.store') }}">
-    @csrf
+<div class="procurement-heading mb-3 d-flex justify-content-between align-items-center">
+    <h5 class="fw-bold mb-0"><i class="bi bi-box-arrow-in-down me-2"></i>Pemeriksaan Penerimaan</h5>
+    @if($selectedOrder)<span class="badge bg-warning text-dark">{{ $selectedOrder->po_number }}</span>@endif
+</div>
+<form method="POST" action="{{ route('purchase.receipts.store') }}" id="receivingForm">
+@csrf
+<input type="hidden" name="submission_token" value="{{ old('submission_token', (string) Str::uuid()) }}">
+<div class="bg-white border-bottom p-3 mb-3">
     <div class="row g-3">
-        <div class="col-md-5">
-            <div class="card table-card">
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Purchase Order <span class="text-danger">*</span></label>
-                        <select name="purchase_order_id" id="poSelect" class="form-select" required>
-                            <option value="">-- Pilih PO --</option>
-                            @foreach($pendingOrders as $po)
-                            <option value="{{ $po->id }}" {{ (isset($selectedOrder) && $selectedOrder->id == $po->id) || old('purchase_order_id') == $po->id ? 'selected' : '' }}>
-                                {{ $po->po_number }} — {{ $po->supplier->name }}
-                            </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Tanggal Terima <span class="text-danger">*</span></label>
-                        <input type="date" name="receipt_date" class="form-control" value="{{ old('receipt_date', date('Y-m-d')) }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Catatan</label>
-                        <textarea name="notes" class="form-control" rows="2">{{ old('notes') }}</textarea>
-                    </div>
-                </div>
-            </div>
+        <div class="col-lg-5"><label class="form-label" for="poSelect">Purchase Order</label>
+            <select name="purchase_order_id" id="poSelect" class="form-select" required>
+                <option value="">Pilih PO</option>
+                @foreach($pendingOrders as $po)<option value="{{ $po->id }}" @selected($selectedOrder?->id == $po->id)>{{ $po->po_number }} - {{ $po->supplier->name }}</option>@endforeach
+            </select>
         </div>
-
-        <div class="col-md-7">
-            <div class="card table-card">
-                <div class="card-header bg-white border-0 py-3">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                        <div><h6 class="fw-bold mb-0">Barang yang Diterima</h6><div class="text-muted small">Buka barang yang ingin diatur penerimaannya</div></div>
-                        @if(isset($selectedOrder))
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-success bg-opacity-10 text-success allocation-progress">0 selesai</span>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="expandAll">Buka Semua</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="collapseAll">Tutup Semua</button>
-                        </div>
-                        @endif
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div id="itemsContainer">
-                        @if(isset($selectedOrder))
-                            @php $visibleItemIndex = 0; @endphp
-                            @foreach($selectedOrder->items as $item)
-                            @if($item->remainingQuantity() > 0)
-                            <div class="border-bottom receipt-item">
-                                <input type="hidden" name="items[{{ $loop->index }}][purchase_order_item_id]" value="{{ $item->id }}">
-                                <input type="hidden" name="items[{{ $loop->index }}][product_id]" value="{{ $item->product_id }}">
-                                <input type="hidden" name="items[{{ $loop->index }}][product_unit_id]" value="{{ $item->product_unit_id }}">
-                                <input type="hidden" class="item-expirable" value="{{ $item->product->is_expirable ? 1 : 0 }}">
-                                @php $unitName = $item->productUnit->unit->name ?? $item->product->buyUnit->name; @endphp
-                                <button type="button" class="receipt-item-toggle d-flex justify-content-between align-items-center gap-2"
-                                        data-bs-toggle="collapse" data-bs-target="#receiptItem{{ $loop->index }}"
-                                        aria-expanded="{{ $visibleItemIndex === 0 ? 'true' : 'false' }}">
-                                    <span><span class="fw-semibold">{{ $item->product->name }}</span><span class="text-muted small ms-1">({{ $unitName }})</span></span>
-                                    <span class="d-flex align-items-center gap-2"><span class="badge bg-light text-secondary">Sisa {{ number_format($item->remainingQuantity(), 2) }}</span><span class="badge item-allocation-badge bg-success">Siap</span><i class="bi bi-chevron-down toggle-icon text-muted"></i></span>
-                                </button>
-                                <div id="receiptItem{{ $loop->index }}" class="collapse {{ $visibleItemIndex === 0 ? 'show' : '' }} receipt-item-detail">
-                                <div class="p-3">
-                                <div class="row g-2 mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label small">Sisa PO</label>
-                                        <input type="text" class="form-control form-control-sm" value="{{ number_format($item->remainingQuantity(), 2) }}" readonly>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small">Diterima <span class="text-danger">*</span></label>
-                                        <div class="input-group input-group-sm">
-                                        <input type="number" name="items[{{ $loop->index }}][quantity_received]" class="form-control received-qty"
-                                               max="{{ $item->remainingQuantity() }}" min="0" step="0.01" value="{{ $item->remainingQuantity() }}">
-                                        <span class="input-group-text">{{ $unitName }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small">Tanggal Kadaluarsa @if($item->product->is_expirable)<span class="text-danger">*</span>@endif</label>
-                                        <input type="date" name="items[{{ $loop->index }}][expired_date]"
-                                               class="form-control form-control-sm"
-                                               value="{{ old("items.{$loop->index}.expired_date") }}"
-                                               @required($item->product->is_expirable)
-                                               @disabled(!$item->product->is_expirable)>
-                                        @if(!$item->product->is_expirable)
-                                        <div class="form-text">Tidak diperlukan untuk barang ini.</div>
-                                        @endif
-                                    </div>
-                                </div>
-                                <div class="allocation-section" data-item-index="{{ $loop->index }}" data-unit="{{ $unitName }}">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <label class="form-label small fw-semibold mb-0"><i class="bi bi-geo-alt me-1"></i>Alokasi Lokasi</label>
-                                        <button type="button" class="btn btn-sm btn-outline-primary py-0 add-allocation"><i class="bi bi-plus-circle me-1"></i>Tambah Lokasi</button>
-                                    </div>
-                                    <div class="allocation-rows">
-                                        <div class="row g-2 align-items-center allocation-row mb-2">
-                                            <div class="col-7">
-                                                <select name="items[{{ $loop->index }}][allocations][0][location_id]" class="form-select form-select-sm allocation-location" required>
-                                            @foreach($locations as $loc)
-                                            <option value="{{ $loc->id }}">{{ $loc->name }}</option>
-                                            @endforeach
-                                                </select>
-                                            </div>
-                                            <div class="col-4"><div class="input-group input-group-sm"><input type="number" name="items[{{ $loop->index }}][allocations][0][quantity]" class="form-control allocation-qty" min="0" step="0.01" value="{{ $item->remainingQuantity() }}" required><span class="input-group-text">{{ $unitName }}</span></div></div>
-                                            <div class="col-1"><button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 remove-allocation" disabled><i class="bi bi-trash"></i></button></div>
-                                        </div>
-                                    </div>
-                                    <div class="small allocation-summary text-success">Teralokasi: {{ number_format($item->remainingQuantity(), 2) }} dari {{ number_format($item->remainingQuantity(), 2) }} {{ $unitName }}</div>
-                                </div>
-                                </div>
-                                </div>
-                            </div>
-                            @php $visibleItemIndex++; @endphp
-                            @endif
-                            @endforeach
-                        @else
-                        <div class="text-center text-muted py-4" id="noPoMessage">
-                            <i class="bi bi-arrow-left-circle fs-3 d-block mb-2"></i>
-                            Pilih Purchase Order terlebih dahulu
-                        </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 d-flex gap-2">
-            <button type="submit" class="btn btn-success">
-                <i class="bi bi-check-circle me-1"></i>Simpan Penerimaan
-            </button>
-            <a href="{{ route('purchase.receipts.index') }}" class="btn btn-outline-secondary">Batal</a>
-        </div>
+        <div class="col-lg-3"><label class="form-label" for="receiptDate">Tanggal Terima</label><input type="date" id="receiptDate" name="receipt_date" class="form-control" value="{{ old('receipt_date', today()->toDateString()) }}" required></div>
+        <div class="col-lg-4"><label class="form-label" for="receiptNotes">Catatan Penerimaan</label><input id="receiptNotes" name="notes" class="form-control" maxlength="5000" value="{{ old('notes') }}"></div>
     </div>
+</div>
+@if($selectedOrder?->root_purchase_order_id)
+<div class="alert alert-info">PO Retur dari {{ $selectedOrder->rootOrder->po_number }}. Tidak menambah tagihan pembelian.</div>
+@endif
+@if($selectedOrder)
+<div class="bg-white border-bottom mb-3">
+    <div class="p-3 d-flex flex-wrap gap-2 justify-content-between align-items-center"><h6 class="fw-bold mb-0">Hasil Pemeriksaan Barang</h6><div class="d-flex flex-wrap gap-3 align-items-center"><span id="inspectionCount" class="small text-muted" aria-live="polite">0 barang diperiksa</span><button class="btn btn-sm btn-outline-secondary" type="button" id="fillGood"><i class="bi bi-check2-all me-1"></i>Isi Sisa Barang Baik</button></div></div>
+    <div class="table-responsive">
+    <table class="table align-middle receiving-table mb-0">
+        <thead><tr><th>Barang / Satuan</th><th class="text-end">Sisa Penerimaan</th><th>Baik</th><th>Rusak</th><th>Tidak Sesuai</th><th>Kurang</th><th>Hasil</th></tr></thead>
+        <tbody>
+        @foreach($selectedOrder->items as $item)
+        @if($item->receivableQuantity() > 0)
+        @php $i = $loop->index; $unit = $item->productUnit?->unit?->name ?? $item->product->buyUnit->name; @endphp
+        <tr class="inspection-row" data-max="{{ $item->receivableQuantity() }}" data-details="inspection-{{ $i }}">
+            <td>
+                <div class="fw-semibold">{{ $item->product->name }}</div><small class="text-muted">{{ $unit }}</small>
+                <input type="hidden" name="items[{{ $i }}][purchase_order_item_id]" value="{{ $item->id }}">
+                <input type="hidden" name="items[{{ $i }}][product_id]" value="{{ $item->product_id }}">
+                <input type="hidden" name="items[{{ $i }}][product_unit_id]" value="{{ $item->product_unit_id }}">
+                @if(!$item->product->is_expirable)<input type="hidden" class="allocation-qty" name="items[{{ $i }}][allocations][0][quantity]" value="{{ old("items.$i.quantity_received", 0) }}">@endif
+            </td>
+            <td class="text-end">{{ number_format($item->receivableQuantity(), 4, ',', '.') }}<br><small class="text-muted">{{ $unit }}</small></td>
+            @foreach(['received' => 'Baik', 'damaged' => 'Rusak', 'wrong' => 'Tidak sesuai', 'missing' => 'Kurang'] as $field => $label)
+            <td class="quantity"><input type="number" aria-label="{{ $label }} {{ $item->product->name }}" class="form-control form-control-sm inspection-qty {{ $field === 'received' ? 'good-qty' : 'exception-qty' }}" name="items[{{ $i }}][quantity_{{ $field }}]" value="{{ old("items.$i.quantity_$field", 0) }}" min="0" max="{{ $item->receivableQuantity() }}" step="0.0001" required></td>
+            @endforeach
+            <td class="receiving-summary small" aria-live="polite"></td>
+        </tr>
+        <tr id="inspection-{{ $i }}" class="receiving-details"><td colspan="7">
+            @if($item->product->is_expirable)
+            @php
+                $batchRows = array_values(old("items.$i.batches", [[
+                    'quantity' => old("items.$i.quantity_received", 0),
+                    'location_id' => $locations->first()?->id,
+                    'expired_date' => old("items.$i.expired_date"),
+                ]]));
+                if (!$batchRows) $batchRows = [['quantity' => 0]];
+            @endphp
+            <div class="batch-panel mb-3" data-item-index="{{ $i }}" data-next-index="{{ count($batchRows) }}">
+                <div class="d-flex justify-content-between align-items-center mb-2"><strong class="small">Rincian Kedaluwarsa</strong><div class="d-flex gap-3 align-items-center"><span class="batch-summary small" aria-live="polite"></span><button type="button" class="btn btn-sm btn-outline-primary batch-add"><i class="bi bi-plus-lg me-1"></i>Tambah Kedaluwarsa</button></div></div>
+                <div class="receipt-batch-grid small text-muted mb-1"><span>Jumlah ({{ $unit }})</span><span>Kedaluwarsa</span><span>Lokasi</span><span></span></div>
+                <div class="batch-list">
+                @foreach($batchRows as $batchIndex => $batchValues)
+                    @include('purchase.receipts.batch-row')
+                @endforeach
+                </div>
+                <template class="batch-template">@include('purchase.receipts.batch-row', ['batchIndex' => '__BATCH__', 'batchValues' => ['quantity' => 0, 'location_id' => $locations->first()?->id]])</template>
+            </div>
+            @endif
+            <div class="row g-2">
+                @if(!$item->product->is_expirable)
+                <div class="col-md-3"><label class="form-label small" for="good-location-{{ $i }}">Lokasi Barang Baik</label><select class="form-select form-select-sm good-location" id="good-location-{{ $i }}" name="items[{{ $i }}][allocations][0][location_id]">
+                    @foreach($locations as $loc)<option value="{{ $loc->id }}" @selected(old("items.$i.allocations.0.location_id") == $loc->id)>{{ $loc->name }}</option>@endforeach
+                </select></div>
+                @endif
+                <div class="col-md-3"><label class="form-label small" for="quarantine-{{ $i }}">Lokasi Barang Retur</label><select class="form-select form-select-sm quarantine-location" id="quarantine-{{ $i }}" name="items[{{ $i }}][quarantine_location_id]"><option value="">Pilih lokasi</option>
+                    @foreach($locations as $loc)<option value="{{ $loc->id }}" @selected(old("items.$i.quarantine_location_id") == $loc->id)>{{ $loc->name }}</option>@endforeach
+                </select></div>
+                <div class="col-md-3"><label class="form-label small" for="reason-{{ $i }}">Keterangan Masalah</label><input id="reason-{{ $i }}" class="form-control form-control-sm inspection-reason" name="items[{{ $i }}][reason]" maxlength="2000" value="{{ old("items.$i.reason") }}"></div>
+            </div>
+        </td></tr>
+        @endif
+        @endforeach
+        @if(!$selectedOrder->items->contains(fn ($item) => $item->receivableQuantity() > 0))
+        <tr><td colspan="7" class="text-center text-muted p-4">Tidak ada sisa penerimaan. Sisa bermasalah dilanjutkan melalui retur/klaim dan PO Retur.</td></tr>
+        @endif
+        </tbody>
+    </table>
+    </div>
+</div>
+<button class="btn btn-primary" type="submit"><i class="bi bi-check-circle me-1"></i>Simpan Penerimaan</button>
+@endif
+<a class="btn btn-outline-secondary" href="{{ route('purchase.receipts.index') }}">Kembali</a>
 </form>
-
 @push('scripts')
-<script>
-const receiptLocations = @json($locations->map(fn($location) => ['id' => $location->id, 'name' => $location->name])->values());
-
-document.getElementById('poSelect').addEventListener('change', function() {
-    const orderId = this.value;
-    if (!orderId) return;
-    window.location.href = `{{ route('purchase.receipts.create') }}?order_id=${orderId}`;
-});
-
-function updateAllocationSummary(section) {
-    const itemBlock = section.closest('.border-bottom');
-    const received = parseFloat(itemBlock.querySelector('.received-qty').value) || 0;
-    const allocated = [...section.querySelectorAll('.allocation-qty')]
-        .reduce((total, input) => total + (parseFloat(input.value) || 0), 0);
-    const isValid = Math.abs(received - allocated) < 0.0001;
-    const summary = section.querySelector('.allocation-summary');
-    summary.textContent = `Teralokasi: ${allocated.toLocaleString('id-ID')} dari ${received.toLocaleString('id-ID')} ${section.dataset.unit}`;
-    summary.classList.toggle('text-success', isValid);
-    summary.classList.toggle('text-danger', !isValid);
-    const badge = itemBlock.querySelector('.item-allocation-badge');
-    badge.textContent = isValid ? 'Siap' : 'Belum sesuai';
-    badge.classList.toggle('bg-success', isValid);
-    badge.classList.toggle('bg-danger', !isValid);
-    updateProgress();
-    return isValid;
-}
-
-function updateProgress() {
-    const badges = [...document.querySelectorAll('.item-allocation-badge')];
-    const completed = badges.filter(badge => badge.classList.contains('bg-success')).length;
-    const progress = document.querySelector('.allocation-progress');
-    if (progress) progress.textContent = `${completed} dari ${badges.length} siap`;
-}
-
-document.querySelectorAll('.allocation-section').forEach(section => {
-    let nextIndex = section.querySelectorAll('.allocation-row').length;
-
-    section.querySelector('.add-allocation').addEventListener('click', () => {
-        const options = receiptLocations.map(location => `<option value="${location.id}">${location.name}</option>`).join('');
-        const row = document.createElement('div');
-        row.className = 'row g-2 align-items-center allocation-row mb-2';
-        row.innerHTML = `
-            <div class="col-7"><select name="items[${section.dataset.itemIndex}][allocations][${nextIndex}][location_id]" class="form-select form-select-sm allocation-location" required>${options}</select></div>
-            <div class="col-4"><div class="input-group input-group-sm"><input type="number" name="items[${section.dataset.itemIndex}][allocations][${nextIndex}][quantity]" class="form-control allocation-qty" min="0" step="0.01" value="0" required><span class="input-group-text">${section.dataset.unit}</span></div></div>
-            <div class="col-1"><button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 remove-allocation"><i class="bi bi-trash"></i></button></div>`;
-        section.querySelector('.allocation-rows').appendChild(row);
-        nextIndex++;
-        section.querySelectorAll('.remove-allocation').forEach(button => button.disabled = false);
-        updateAllocationSummary(section);
-    });
-
-    section.addEventListener('input', event => {
-        if (event.target.classList.contains('allocation-qty')) updateAllocationSummary(section);
-    });
-    section.addEventListener('click', event => {
-        const button = event.target.closest('.remove-allocation');
-        if (!button || button.disabled) return;
-        button.closest('.allocation-row').remove();
-        const buttons = section.querySelectorAll('.remove-allocation');
-        if (buttons.length === 1) buttons[0].disabled = true;
-        updateAllocationSummary(section);
-    });
-
-    section.closest('.border-bottom').querySelector('.received-qty').addEventListener('input', event => {
-        const allocationInputs = section.querySelectorAll('.allocation-qty');
-        if (allocationInputs.length === 1) allocationInputs[0].value = event.target.value;
-        updateAllocationSummary(section);
-    });
-    updateAllocationSummary(section);
-});
-
-document.getElementById('expandAll')?.addEventListener('click', () => {
-    document.querySelectorAll('.receipt-item-detail').forEach(element => bootstrap.Collapse.getOrCreateInstance(element, {toggle:false}).show());
-});
-document.getElementById('collapseAll')?.addEventListener('click', () => {
-    document.querySelectorAll('.receipt-item-detail').forEach(element => bootstrap.Collapse.getOrCreateInstance(element, {toggle:false}).hide());
-});
-
-document.querySelector('form').addEventListener('submit', event => {
-    const invalid = [...document.querySelectorAll('.allocation-section')]
-        .some(section => !updateAllocationSummary(section));
-    if (invalid) {
-        event.preventDefault();
-        alert('Total alokasi setiap barang harus sama dengan jumlah yang diterima.');
-    }
-});
-</script>
+<script src="{{ asset('js/purchase-receiving.js') }}"></script>
 @endpush
 @endsection

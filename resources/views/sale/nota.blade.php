@@ -83,6 +83,7 @@
 <table>
     <tr><td>No.</td><td>: {{ $sale->sale_number }}</td></tr>
     <tr><td>Tgl.</td><td>: {{ $sale->sale_date->format('d/m/Y') }}</td></tr>
+    <tr><td>Jam</td><td>: {{ $sale->transaction_time_label }}</td></tr>
     <tr><td>Kasir</td><td>: {{ $sale->createdBy->name ?? '-' }}</td></tr>
     @if($sale->customer_name)
     <tr><td>Pelanggan</td><td>: {{ $sale->customer_name }}</td></tr>

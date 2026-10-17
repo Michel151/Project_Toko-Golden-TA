@@ -31,7 +31,16 @@ class StockCardController extends Controller
             'to' => 'nullable|date|after_or_equal:from',
             'location_id' => 'nullable|exists:locations,id',
         ]);
-        $product->load(['buyUnit', 'retailUnit', 'category', 'stocks']);
+        $product->load([
+            'buyUnit',
+            'retailUnit',
+            'category',
+            'stocks',
+            'productLocations.location',
+            'productUnits.unit',
+            'stockBatches.location',
+            'stockBatches.purchaseReceiptItem.purchaseReceipt.purchaseOrder',
+        ]);
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
         $locationId = $request->filled('location_id') ? (int) $request->location_id : null;

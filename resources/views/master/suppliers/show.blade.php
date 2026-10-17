@@ -3,6 +3,7 @@
 @section('page-title', 'Riwayat Supplier')
 
 @section('content')
+<div class="inventory-heading"><h5><i class="bi bi-truck me-2"></i>{{ $supplier->name }}</h5></div>
 <div class="mb-3">
     <a href="{{ route('master.suppliers.index') }}" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-arrow-left me-1"></i> Kembali
@@ -28,9 +29,9 @@
         <div class="card table-card mb-3">
             <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
                 <h6 class="fw-bold mb-0">Barang Supplier</h6>
-                <a href="{{ route('master.suppliers.edit', $supplier) }}" class="btn btn-sm btn-outline-primary">
+                @if(auth()->user()->canAccessRoute('master.suppliers.edit')) <a href="{{ route('master.suppliers.edit', $supplier) }}" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-pencil-square me-1"></i> Kelola
-                </a>
+                </a> @endif
             </div>
             <div class="card-body p-0">
                 <table class="table table-hover mb-0">
@@ -56,6 +57,7 @@
             </div>
         </div>
 
+        @if(auth()->user()->hasPermission('purchase.orders.view'))
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3">
                 <h6 class="fw-bold mb-0">Riwayat Purchase Order</h6>
@@ -84,7 +86,7 @@
                                     $colors = ['pending' => 'warning', 'partial' => 'info', 'completed' => 'success'];
                                 @endphp
                                 <span class="badge bg-{{ $colors[$po->status] ?? 'secondary' }}">
-                                    {{ ucfirst($po->status) }}
+                                    {{ $po->status_label }}
                                 </span>
                             </td>
                             <td class="text-end">Rp {{ number_format($po->totalValue(), 0, ',', '.') }}</td>
@@ -99,6 +101,7 @@
             <div class="card-footer bg-white">{{ $purchaseOrders->links() }}</div>
             @endif
         </div>
+        @endif
     </div>
 </div>
 @endsection

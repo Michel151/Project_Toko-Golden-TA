@@ -1,75 +1,49 @@
 @extends('layouts.app')
 @section('title', 'Laporan Laba Kotor')
 @section('page-title', 'Laporan Laba Kotor')
-
+@push('styles')
+<style>
+.profit-filter{display:flex;flex-wrap:wrap;gap:.6rem;align-items:end}.profit-filter>div{min-width:0}
+.profit-summary .card-body{min-width:0;overflow-wrap:anywhere}.profit-value{font-size:1.2rem;font-weight:700}
+.profit-section{background:#fff;border-top:2px solid var(--app-border)}
+.profit-section .table{min-width:880px;font-size:.85rem;margin:0}.profit-section td{vertical-align:middle}
+.profit-section .money{white-space:nowrap;text-align:right}
+.profit-section .table th{white-space:nowrap}
+@media(max-width:575px){.profit-value{font-size:1.05rem}.profit-filter>div{flex:1 1 125px}.profit-summary .card-body{padding:.85rem}}
+</style>
+@endpush
 @section('content')
-<div class="report-heading d-flex justify-content-between align-items-center mb-3">
-    <div class="d-flex align-items-center gap-3">
-        <div class="report-icon"><i class="bi bi-currency-dollar"></i></div>
-        <div><h5 class="fw-bold mb-1">Laporan Laba Kotor</h5><div class="text-white-50 small">Analisis omzet, harga pokok penjualan, margin, dan profit per barang</div></div>
-    </div>
-    <span class="badge bg-warning text-dark">{{ $product_count }} Barang</span>
-</div>
-
+<div class="report-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-calculator"></i></div><div><h5 class="fw-bold mb-1">Laporan Laba Kotor</h5><div class="text-white-50 small">Nota lunas - HPP historis - belum dikurangi biaya operasional</div></div></div><span class="badge bg-success">{{ $transactionCount }} nota lunas</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-    <form class="d-flex flex-wrap gap-2 align-items-end" method="GET">
-        <div><label class="d-block">Dari Tanggal</label><input type="date" name="from" class="form-control form-control-sm" value="{{ $from }}"></div>
-        <div><label class="d-block">Sampai Tanggal</label><input type="date" name="to" class="form-control form-control-sm" value="{{ $to }}"></div>
-        <div>
-            <label class="d-block">Kategori</label>
-            <select name="category_id" class="form-select form-select-sm" style="min-width:180px">
-                <option value="">Semua Kategori</option>
-                @foreach($categories as $category)
-                    <option value="{{ $category->id }}" @selected($categoryId == $category->id)>{{ $category->name }}</option>
-                @endforeach
-            </select>
-        </div>
-        <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        <a href="{{ route('report.gross-profit') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+    <form class="profit-filter" method="GET" action="{{ route('report.gross-profit') }}">
+        <div><label for="profitFrom" class="form-label small mb-1">Dari Tanggal</label><input id="profitFrom" name="from" type="date" class="form-control form-control-sm" value="{{ $from }}" required></div>
+        <div><label for="profitTo" class="form-label small mb-1">Sampai Tanggal</label><input id="profitTo" name="to" type="date" class="form-control form-control-sm" value="{{ $to }}" min="{{ $from }}" required></div>
+        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-funnel me-1"></i>Terapkan</button>
+        <a href="{{ route('report.gross-profit',['from'=>now('Asia/Jakarta')->toDateString(),'to'=>now('Asia/Jakarta')->toDateString()]) }}" class="btn btn-sm btn-outline-secondary">Hari Ini</a>
+        <a href="{{ route('report.gross-profit') }}" class="btn btn-sm btn-outline-secondary">Bulan Ini</a>
     </form>
-    <div class="btn-group btn-group-sm">
-        <a href="{{ route('report.gross-profit.pdf', request()->all()) }}" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-pdf me-1"></i>PDF</a>
-        <a href="{{ route('report.gross-profit.excel', request()->all()) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
-    </div>
+    <div class="btn-group btn-group-sm"><a href="{{ route('report.gross-profit.pdf',compact('from','to')) }}" class="btn btn-outline-danger" target="_blank" rel="noopener"><i class="bi bi-file-pdf me-1"></i>PDF</a><a href="{{ route('report.gross-profit.excel',compact('from','to')) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a></div>
 </div>
-
-<div class="row g-3 mb-3">
-    <div class="col-6 col-xl-3"><div class="card report-stat h-100" style="--stat-color:#0d6efd"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-cash-stack"></i></div><div><div class="text-muted small">Omzet Penjualan</div><div class="fw-bold">Rp {{ number_format($revenue, 0, ',', '.') }}</div></div></div></div></div>
-    <div class="col-6 col-xl-3"><div class="card report-stat h-100" style="--stat-color:#dc3545"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-box-arrow-in-down"></i></div><div><div class="text-muted small">Total HPP</div><div class="fw-bold">Rp {{ number_format($cost, 0, ',', '.') }}</div></div></div></div></div>
-    <div class="col-6 col-xl-3"><div class="card report-stat h-100" style="--stat-color:#198754"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-graph-up-arrow"></i></div><div><div class="text-muted small">Laba Kotor</div><div class="fw-bold {{ $gross_profit >= 0 ? 'text-success' : 'text-danger' }}">Rp {{ number_format($gross_profit, 0, ',', '.') }}</div></div></div></div></div>
-    <div class="col-6 col-xl-3"><div class="card report-stat h-100" style="--stat-color:#c8960c"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-percent"></i></div><div><div class="text-muted small">Margin Kotor</div><div class="fw-bold">{{ number_format($margin, 2, ',', '.') }}%</div><small class="text-muted">{{ $transaction_count }} transaksi</small></div></div></div></div>
+@if($incompleteCount)<div class="alert alert-warning d-flex gap-2 align-items-start" role="alert"><i class="bi bi-exclamation-triangle"></i><div><strong>{{ $incompleteCount }} nota memiliki HPP belum lengkap.</strong> Total laba dan margin belum dapat dipastikan. Nilai HPP yang tampil hanya biaya yang sudah tercatat.</div></div>@endif
+<div class="row g-3 profit-summary mb-3">
+    <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body"><div class="small text-muted"><i class="bi bi-cash-stack text-success me-1"></i>Penjualan Lunas</div><div class="profit-value">Rp {{ number_format($totalRevenue,0,',','.') }}</div><div class="small text-muted">{{ $transactionCount }} nota</div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body"><div class="small text-muted"><i class="bi bi-box-seam text-primary me-1"></i>HPP Tercatat</div><div class="profit-value">Rp {{ number_format($totalCost,0,',','.') }}</div><div class="small text-muted">Biaya pada saat transaksi</div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body"><div class="small text-muted"><i class="bi bi-calculator text-info me-1"></i>Laba Kotor</div><div class="profit-value {{ $grossProfit !== null && $grossProfit < 0 ? 'text-danger' : '' }}">{{ $grossProfit === null ? 'Belum lengkap' : 'Rp '.number_format($grossProfit,0,',','.') }}</div><div class="small text-muted">Penjualan dikurangi HPP</div></div></div></div>
+    <div class="col-6 col-xl-3"><div class="card h-100"><div class="card-body"><div class="small text-muted"><i class="bi bi-percent text-warning me-1"></i>Margin Kotor</div><div class="profit-value">{{ $grossMargin === null ? '-' : number_format($grossMargin,2,',','.').'%' }}</div><div class="small text-muted">Laba kotor / penjualan</div></div></div></div>
 </div>
-
-<div class="alert alert-info py-2 small">
-    <i class="bi bi-info-circle me-1"></i>
-    HPP menggunakan harga beli terakhir yang disimpan saat transaksi terjadi. Laba kotor = omzet − HPP dan belum dikurangi biaya operasional.
-</div>
-
-<div class="card table-card">
-    <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-1">Profitabilitas per Barang</h6><small class="text-muted">Diurutkan berdasarkan laba kotor terbesar</small></div>
-    <div class="table-responsive">
-        <table class="table table-hover report-table mb-0">
-            <thead><tr><th>Barang</th><th>Kategori</th><th class="text-end">Qty Grosir</th><th class="text-end">Qty Ecer</th><th class="text-end">Omzet</th><th class="text-end">HPP</th><th class="text-end">Laba Kotor</th><th class="text-end">Margin</th></tr></thead>
-            <tbody>
-                @forelse($products as $product)
-                <tr>
-                    <td><div class="fw-semibold">{{ $product->product_name }}</div><small class="text-muted">{{ $product->transaction_count }} transaksi</small></td>
-                    <td><span class="badge bg-light text-dark border">{{ $product->category_name }}</span></td>
-                    <td class="text-end">{{ number_format($product->wholesale_qty, 2, ',', '.') }}</td>
-                    <td class="text-end">{{ number_format($product->retail_qty, 2, ',', '.') }}</td>
-                    <td class="text-end">Rp {{ number_format($product->revenue, 0, ',', '.') }}</td>
-                    <td class="text-end text-danger">Rp {{ number_format($product->cost, 0, ',', '.') }}</td>
-                    <td class="text-end fw-bold {{ $product->gross_profit >= 0 ? 'text-success' : 'text-danger' }}">Rp {{ number_format($product->gross_profit, 0, ',', '.') }}</td>
-                    <td class="text-end"><span class="badge bg-{{ $product->margin >= 20 ? 'success' : ($product->margin >= 0 ? 'warning' : 'danger') }}">{{ number_format($product->margin, 2, ',', '.') }}%</span></td>
-                </tr>
-                @empty
-                <tr><td colspan="8" class="report-empty"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada penjualan pada periode ini</td></tr>
-                @endforelse
-            </tbody>
-            @if($products->isNotEmpty())
-            <tfoot class="table-light fw-bold"><tr><td colspan="4">TOTAL</td><td class="text-end">Rp {{ number_format($revenue, 0, ',', '.') }}</td><td class="text-end text-danger">Rp {{ number_format($cost, 0, ',', '.') }}</td><td class="text-end {{ $gross_profit >= 0 ? 'text-success' : 'text-danger' }}">Rp {{ number_format($gross_profit, 0, ',', '.') }}</td><td class="text-end">{{ number_format($margin, 2, ',', '.') }}%</td></tr></tfoot>
-            @endif
-        </table>
-    </div>
-</div>
+<section class="profit-section" aria-labelledby="profitRowsHeading">
+    <div class="p-3 d-flex flex-wrap justify-content-between gap-2"><h6 id="profitRowsHeading" class="fw-bold mb-0">Rincian per Nota</h6><span class="small text-muted">{{ \Carbon\Carbon::parse($from)->format('d/m/Y') }} s.d. {{ \Carbon\Carbon::parse($to)->format('d/m/Y') }}</span></div>
+    <div class="table-responsive" tabindex="0" aria-label="Rincian laba kotor per nota"><table class="table table-hover report-table"><thead><tr><th>Invoice</th><th>Tanggal / Waktu</th><th>Pelanggan / Kasir</th><th class="text-end">Penjualan</th><th class="text-end">HPP Tercatat</th><th class="text-end">Laba Kotor</th><th class="text-end">Margin</th></tr></thead><tbody>
+    @forelse($sales as $sale)
+        @php $revenue=(float)$sale->total_amount; $profit=$sale->incomplete_cost ? null : $revenue-(float)$sale->report_cost; @endphp
+        <tr><td>@if(auth()->user()->canAccessRoute('sale.sales.show'))<a class="text-decoration-none fw-semibold" href="{{ route('sale.sales.show',$sale) }}">{{ $sale->sale_number }}</a>@else{{ $sale->sale_number }}@endif</td><td>{{ $sale->sale_date->format('d/m/Y') }}<div class="small text-muted">{{ $sale->transaction_time_label }}</div></td><td>{{ $sale->customer_name ?: 'Umum' }}<div class="small text-muted">{{ $sale->createdBy?->name ?? '-' }}</div></td><td class="money">Rp {{ number_format($revenue,0,',','.') }}</td><td class="money">Rp {{ number_format($sale->report_cost,0,',','.') }}@if($sale->incomplete_cost)<div class="small text-warning-emphasis"><i class="bi bi-exclamation-triangle me-1"></i>HPP belum lengkap</div>@endif</td><td class="money fw-semibold {{ $profit !== null && $profit < 0 ? 'text-danger' : 'text-success' }}">{{ $profit === null ? '-' : 'Rp '.number_format($profit,0,',','.') }}</td><td class="money">{{ $profit !== null && $revenue > 0 ? number_format($profit/$revenue*100,2,',','.').'%' : '-' }}</td></tr>
+    @empty<tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox d-block fs-3 mb-2"></i>Tidak ada nota lunas pada periode ini.</td></tr>@endforelse
+    </tbody><tfoot><tr class="fw-bold"><td colspan="3">TOTAL PERIODE</td><td class="money">Rp {{ number_format($totalRevenue,0,',','.') }}</td><td class="money">Rp {{ number_format($totalCost,0,',','.') }}</td><td class="money">{{ $grossProfit === null ? '-' : 'Rp '.number_format($grossProfit,0,',','.') }}</td><td class="money">{{ $grossMargin === null ? '-' : number_format($grossMargin,2,',','.').'%' }}</td></tr></tfoot></table></div>
+    @if($sales->hasPages())<div class="p-3 border-top">{{ $sales->links() }}</div>@endif
+</section>
 @endsection
+@push('scripts')
+<script>
+document.getElementById('profitFrom').addEventListener('change',event=>document.getElementById('profitTo').min=event.target.value);
+</script>
+@endpush

@@ -5,13 +5,16 @@
 @section('content')
 @include('master._header', ['icon'=>'people', 'title'=>'Pengguna Sistem', 'description'=>'Atur akun, peran, dan akses pengguna Toko Golden.'])
 <div class="d-flex justify-content-end mb-3">
+    <a href="{{ route('permissions.index') }}" class="btn btn-outline-secondary btn-sm me-2">
+        <i class="bi bi-shield-check me-1"></i> Hak Akses
+    </a>
     <a href="{{ route('master.users.create') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-circle me-1"></i> Tambah Pengguna
     </a>
 </div>
 
 <div class="card table-card">
-    <div class="card-body p-0">
+    <div class="card-body p-0 table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
@@ -49,7 +52,7 @@
                         </a>
                         @if($user->id !== auth()->id())
                         <form method="POST" action="{{ route('master.users.destroy', $user) }}"
-                              class="d-inline" onsubmit="return confirm('Hapus pengguna ini?')">
+                              class="d-inline" data-confirm="Hapus pengguna ini?">
                             @csrf @method('DELETE')
                             <button class="btn btn-sm btn-outline-danger py-0 px-2">
                                 <i class="bi bi-trash"></i>

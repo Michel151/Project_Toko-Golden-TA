@@ -24,13 +24,17 @@
         /* Sidebar */
         #sidebar {
             width: var(--sidebar-width);
-            min-height: 100vh;
+            height: 100vh;
+            height: 100dvh;
+            min-height: 0;
             background: #1a2035;
             position: fixed;
             top: 0; left: 0;
             z-index: 1000;
-            transition: all 0.3s;
+            transition: width 0.3s, left 0.3s;
             overflow-y: auto;
+            overflow-x: hidden;
+            overscroll-behavior-y: contain;
             box-shadow: 4px 0 18px rgba(10, 15, 30, 0.18);
             scrollbar-width: thin;
             scrollbar-color: rgba(255,255,255,0.12) transparent;
@@ -242,6 +246,7 @@
         .notification-preview-item:last-child { border-bottom: 0; }
         .notification-preview-item:hover { background: #fafbfc; }
         .notification-preview-footer { display: block; padding: .75rem 1rem; text-align: center; background: #fafbfc; }
+        .bg-expired { background-color: #6f42c1 !important; color: #fff; }
 
         .page-content { padding: 1.5rem; }
 
@@ -332,6 +337,207 @@
     </style>
 
     @stack('styles')
+    <style>
+        :root {
+            --app-bg: #f6f7f4;
+            --app-surface: #ffffff;
+            --app-surface-2: #fbfcfa;
+            --app-border: #dfe5dc;
+            --app-text: #1f2933;
+            --app-muted: #687582;
+            --app-ink: #243228;
+            --app-header: #243228;
+            --app-accent: #b98405;
+            --app-accent-2: #1f7a5a;
+            --app-accent-3: #2563a8;
+        }
+        body {
+            background:
+                linear-gradient(180deg, rgba(246,247,244,.98), rgba(239,242,236,.98));
+            color: var(--app-text);
+            font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        #sidebar {
+            background: #202a24;
+            box-shadow: 0 0 0 1px rgba(255,255,255,.04), 12px 0 30px rgba(24,34,29,.14);
+        }
+        #sidebar .sidebar-brand {
+            background: #18211c;
+            border-bottom-color: rgba(255,255,255,.08);
+        }
+        #sidebar .sidebar-brand span { color: #f1c45c; letter-spacing: .01em; }
+        #sidebar .nav-link {
+            border-radius: 7px;
+            border-left: 0;
+            color: #c4ccbf;
+        }
+        #sidebar .nav-link i { color: #8fa295; }
+        #sidebar .nav-link:hover,
+        #sidebar .nav-link.active {
+            color: #fff;
+            background: rgba(255,255,255,.08);
+            border-left: 0;
+        }
+        #sidebar .nav-link.active {
+            background: #f1c45c;
+            color: #1c251f;
+            box-shadow: none;
+        }
+        #sidebar .nav-link.active i { color: #1c251f; }
+        #sidebar .nav-section { color: #9eaca3; letter-spacing: .08em; }
+        #sidebar .nav-section-toggle[aria-expanded="true"] {
+            color: #f1c45c;
+            background: rgba(241,196,92,.08);
+        }
+        #sidebar .nav-submenu { border-left-color: rgba(241,196,92,.24); }
+        #topbar {
+            background: rgba(255,255,255,.94);
+            border-bottom: 1px solid var(--app-border);
+            box-shadow: 0 1px 0 rgba(31,41,51,.03);
+            backdrop-filter: blur(10px);
+        }
+        .page-content { padding: 1.35rem; }
+        .card,
+        .table-card,
+        .stat-card,
+        .insight-card,
+        .procurement-stat,
+        .report-stat,
+        .pos-items-card,
+        .pos-checkout {
+            border: 1px solid var(--app-border) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 8px 22px rgba(31,41,51,.055) !important;
+        }
+        .card-header {
+            border-bottom: 1px solid var(--app-border) !important;
+            background: var(--app-surface) !important;
+        }
+        .btn { border-radius: 7px; font-weight: 600; }
+        .btn-primary, .btn-success {
+            --bs-btn-bg: var(--app-accent-2);
+            --bs-btn-border-color: var(--app-accent-2);
+            --bs-btn-hover-bg: #176448;
+            --bs-btn-hover-border-color: #176448;
+            --bs-btn-active-bg: #176448;
+            --bs-btn-active-border-color: #176448;
+            --bs-btn-disabled-bg: var(--app-accent-2);
+            --bs-btn-disabled-border-color: var(--app-accent-2);
+            --bs-btn-focus-shadow-rgb: 31, 122, 90;
+            background: var(--app-accent-2);
+            border-color: var(--app-accent-2);
+        }
+        .btn-primary:hover,
+        .btn-primary:focus, .btn-success:hover, .btn-success:focus {
+            background: #176448;
+            border-color: #176448;
+        }
+        .btn-outline-primary {
+            color: var(--app-accent-2);
+            border-color: #94bba9;
+        }
+        .btn-outline-primary:hover {
+            background: var(--app-accent-2);
+            border-color: var(--app-accent-2);
+        }
+        .form-control,
+        .form-select,
+        .input-group-text {
+            border-color: #d9e0d6;
+            border-radius: 7px;
+        }
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #80ad99;
+            box-shadow: 0 0 0 .18rem rgba(31,122,90,.15);
+        }
+        .table thead th {
+            background: #eef2ec;
+            border-bottom: 1px solid #d7ded5;
+            color: #58645f;
+            letter-spacing: .04em;
+        }
+        .table-hover tbody tr:hover { background-color: #fbf7ea; }
+        .alert { border-radius: 8px; border-width: 1px; }
+        .badge { border-radius: 6px; font-weight: 700; }
+        .page-content .master-heading,
+        .page-content .procurement-heading,
+        .page-content .report-heading,
+        .page-content .pos-heading,
+        .page-content .inventory-heading,
+        .page-content .stock-heading,
+        .page-content .audit-heading,
+        .page-content .backup-hero,
+        .page-content .cashier-hero,
+        .page-content .warehouse-hero {
+            background: var(--app-header);
+            color: #fff;
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            box-shadow: none;
+            border: 1px solid #18211c;
+        }
+        .page-content .product-hero { background:var(--app-header);border:1px solid #18211c;border-radius:8px;box-shadow:none; }
+        .page-content .btn-sm { min-height:32px; }
+        .page-content .app-icon-action { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;min-width:32px;padding:0!important;font-size:0;vertical-align:middle; }
+        .page-content .app-icon-action i { display:grid;place-items:center;font-size:14px;line-height:1;margin:0!important; }
+        .page-content .app-icon-action i::before { display:block;line-height:1; }
+        .page-content .app-icon-action:has(.bi-eye) { color:var(--app-accent-2);border-color:#94bba9;background:transparent; }
+        .page-content .app-icon-action:has(.bi-eye):hover { background:var(--app-accent-2);color:#fff; }
+        .app-pagination .page-link { color:var(--app-accent-2);min-width:32px;min-height:32px;display:flex;align-items:center;justify-content:center; }
+        .app-pagination .active .page-link { background:var(--app-accent-2);border-color:var(--app-accent-2);color:#fff; }
+        .app-pagination .disabled .page-link { color:#8a948e; }
+        .app-filter-field { min-width:140px; }
+        .app-filter-field label { display:block;font-size:12px;font-weight:600;color:var(--app-muted);margin-bottom:4px; }
+        .app-filter-field .form-control { width:100%; }
+        .app-table-scroll { max-height:65vh;overflow:auto; }
+        .app-table-scroll>table>thead th { position:sticky;top:0;z-index:2; }
+        .app-document-meta { display:flex;flex-wrap:wrap;gap:8px 28px;font-size:13px;color:var(--app-muted); }
+        .app-document-meta strong { color:var(--app-text);font-weight:600; }
+        .report-toolbar form, .procurement-filter form { flex-wrap:wrap; }
+        .report-toolbar, .procurement-filter, .audit-filter { background:var(--app-surface);border:1px solid var(--app-border);border-radius:8px;box-shadow:none;padding:12px 16px; }
+        .report-toolbar label, .procurement-filter label, .audit-filter label { color:var(--app-muted);font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;margin-bottom:4px; }
+        .report-kpis .card-body { min-width:0;overflow-wrap:anywhere; }
+        .report-kpi-value { font-size:1.2rem;font-variant-numeric:tabular-nums;margin:3px 0; }
+        @media(max-width:575px){.report-kpi-value{font-size:1.05rem}.report-kpis .card-body{padding:.85rem}}
+        .page-content .master-heading::after,
+        .page-content .cashier-hero::after,
+        .page-content .warehouse-hero::after { display: none; }
+        .page-content .master-heading-icon,
+        .page-content .stock-heading-icon,
+        .page-content .procurement-heading .heading-icon,
+        .page-content .report-heading .report-icon {
+            background: rgba(241,196,92,.12);
+            border-color: rgba(241,196,92,.24);
+            color: #f1c45c;
+            border-radius: 8px;
+        }
+        .page-content .master-heading .master-label { color: #f1c45c; }
+        .page-content .master-heading p { color: #c4ccbf; }
+        .page-content .pos-total {
+            background: var(--app-header);
+            color: #fff;
+        }
+        .page-content .pos-total #grandTotal { color: #f1c45c; }
+        .page-content .catalog-tabs .nav-link.active,
+        .page-content .transfer-catalog-tabs .nav-link.active {
+            background: var(--app-accent-2);
+            border-color: var(--app-accent-2);
+        }
+        .inventory-heading { margin-bottom: 1rem; }
+        .inventory-heading h5 { margin: 0; font-weight: 700; }
+        .page-content > .d-flex { flex-wrap: wrap; gap: .75rem; }
+        .page-content > .d-flex > form { flex-wrap: wrap; }
+        @media (max-width: 768px) {
+            .page-content { padding: 1rem; }
+            #topbar { padding: .75rem 1rem; flex-wrap: wrap; gap: .5rem; }
+            .page-content > .d-flex > form { width: 100%; }
+            .page-content > .d-flex > form > .form-control,
+            .page-content > .d-flex > form > .form-select,
+            .page-content > .d-flex > form > .input-group { width: 100% !important; }
+            .master-heading, .procurement-heading, .report-heading { flex-wrap: wrap; }
+        }
+    </style>
 </head>
 <body>
 
@@ -352,198 +558,7 @@
             </a>
         </li>
 
-        {{-- Master Data (owner) --}}
-        @if(auth()->user()->isOwner())
-        <li>
-            <button class="nav-section nav-section-toggle" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#masterMenu" aria-controls="masterMenu"
-                    aria-expanded="{{ request()->routeIs('master.*', 'audit-logs.*') ? 'true' : 'false' }}">
-                <span class="section-label"><i class="bi bi-grid"></i>Master Data</span><i class="bi bi-chevron-down"></i>
-            </button>
-        </li>
-        <li class="list-unstyled"><ul id="masterMenu" class="nav-submenu collapse list-unstyled {{ request()->routeIs('master.*', 'audit-logs.*') ? 'show' : '' }}">
-        <li>
-            <a href="{{ route('master.products.index') }}"
-               class="nav-link {{ request()->routeIs('master.products.*') ? 'active' : '' }}">
-                <i class="bi bi-box-seam"></i> Barang
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('master.categories.index') }}"
-               class="nav-link {{ request()->routeIs('master.categories.*') ? 'active' : '' }}">
-                <i class="bi bi-tags"></i> Kategori
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('master.units.index') }}"
-               class="nav-link {{ request()->routeIs('master.units.*') ? 'active' : '' }}">
-                <i class="bi bi-rulers"></i> Satuan
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('master.locations.index') }}"
-               class="nav-link {{ request()->routeIs('master.locations.*') ? 'active' : '' }}">
-                <i class="bi bi-geo-alt"></i> Lokasi/Gudang
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('master.suppliers.index') }}"
-               class="nav-link {{ request()->routeIs('master.suppliers.*') ? 'active' : '' }}">
-                <i class="bi bi-truck"></i> Supplier
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('master.users.index') }}"
-               class="nav-link {{ request()->routeIs('master.users.*') ? 'active' : '' }}">
-                <i class="bi bi-people"></i> Pengguna
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('audit-logs.index') }}"
-               class="nav-link {{ request()->routeIs('audit-logs.*') ? 'active' : '' }}">
-                <i class="bi bi-shield-lock"></i> Audit Log
-            </a>
-        </li>
-        </ul></li>
-        @endif
-
-        {{-- Pembelian (owner) --}}
-        @if(auth()->user()->isOwner())
-        <li>
-            <button class="nav-section nav-section-toggle" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#purchaseMenu" aria-controls="purchaseMenu"
-                    aria-expanded="{{ request()->routeIs('purchase.*') ? 'true' : 'false' }}">
-                <span class="section-label"><i class="bi bi-bag-check"></i>Pembelian</span><i class="bi bi-chevron-down"></i>
-            </button>
-        </li>
-        <li class="list-unstyled"><ul id="purchaseMenu" class="nav-submenu collapse list-unstyled {{ request()->routeIs('purchase.*') ? 'show' : '' }}">
-        <li>
-            <a href="{{ route('purchase.orders.index') }}"
-               class="nav-link {{ request()->routeIs('purchase.orders.*') ? 'active' : '' }}">
-                <i class="bi bi-cart-plus"></i> Purchase Order
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('purchase.receipts.index') }}"
-               class="nav-link {{ request()->routeIs('purchase.receipts.*') ? 'active' : '' }}">
-                <i class="bi bi-receipt"></i> Penerimaan Barang
-            </a>
-        </li>
-        </ul></li>
-        @endif
-
-        {{-- Penjualan (owner & kasir) --}}
-        @if(auth()->user()->isOwner() || auth()->user()->isKasir())
-        <li>
-            <button class="nav-section nav-section-toggle" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#salesMenu" aria-controls="salesMenu"
-                    aria-expanded="{{ request()->routeIs('sale.*') ? 'true' : 'false' }}">
-                <span class="section-label"><i class="bi bi-cash-stack"></i>Penjualan</span><i class="bi bi-chevron-down"></i>
-            </button>
-        </li>
-        <li class="list-unstyled"><ul id="salesMenu" class="nav-submenu collapse list-unstyled {{ request()->routeIs('sale.*') ? 'show' : '' }}">
-        <li>
-            <a href="{{ route('sale.sales.index') }}"
-               class="nav-link {{ request()->routeIs('sale.sales.*') ? 'active' : '' }}">
-                <i class="bi bi-cash-register"></i> Transaksi Penjualan
-            </a>
-        </li>
-        </ul></li>
-        @endif
-
-        {{-- Inventori (owner & staf_gudang) --}}
-        @if(auth()->user()->isOwner() || auth()->user()->isStafGudang())
-        <li>
-            <button class="nav-section nav-section-toggle" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#inventoryMenu" aria-controls="inventoryMenu"
-                    aria-expanded="{{ request()->routeIs('inventory.*') ? 'true' : 'false' }}">
-                <span class="section-label"><i class="bi bi-boxes"></i>Inventori</span><i class="bi bi-chevron-down"></i>
-            </button>
-        </li>
-        <li class="list-unstyled"><ul id="inventoryMenu" class="nav-submenu collapse list-unstyled {{ request()->routeIs('inventory.*') ? 'show' : '' }}">
-        <li>
-            <a href="{{ route('inventory.stock.index') }}"
-               class="nav-link {{ request()->routeIs('inventory.stock.*') ? 'active' : '' }}">
-                <i class="bi bi-clipboard-data"></i> Monitoring Stok
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('inventory.transfers.index') }}"
-               class="nav-link {{ request()->routeIs('inventory.transfers.*') ? 'active' : '' }}">
-                <i class="bi bi-arrow-left-right"></i> Transfer Stok
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('inventory.opnames.index') }}"
-               class="nav-link {{ request()->routeIs('inventory.opnames.*') ? 'active' : '' }}">
-                <i class="bi bi-clipboard-check"></i> Stock Opname
-            </a>
-        </li>
-        </ul></li>
-        @endif
-
-        {{-- Laporan (owner) --}}
-        @if(auth()->user()->isOwner())
-        <li>
-            <button class="nav-section nav-section-toggle" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#reportMenu" aria-controls="reportMenu"
-                    aria-expanded="{{ request()->routeIs('report.*') ? 'true' : 'false' }}">
-                <span class="section-label"><i class="bi bi-bar-chart-line"></i>Laporan</span><i class="bi bi-chevron-down"></i>
-            </button>
-        </li>
-        <li class="list-unstyled"><ul id="reportMenu" class="nav-submenu collapse list-unstyled {{ request()->routeIs('report.*') ? 'show' : '' }}">
-        <li>
-            <a href="{{ route('report.stock') }}"
-               class="nav-link {{ request()->routeIs('report.stock*') ? 'active' : '' }}">
-                <i class="bi bi-bar-chart"></i> Laporan Stok
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('report.sale') }}"
-               class="nav-link {{ request()->routeIs('report.sale*') ? 'active' : '' }}">
-                <i class="bi bi-graph-up"></i> Laporan Penjualan
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('report.gross-profit') }}"
-               class="nav-link {{ request()->routeIs('report.gross-profit*') ? 'active' : '' }}">
-                <i class="bi bi-currency-dollar"></i> Laba Kotor
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('report.purchase') }}"
-               class="nav-link {{ request()->routeIs('report.purchase*') ? 'active' : '' }}">
-                <i class="bi bi-file-earmark-text"></i> Laporan Pembelian
-            </a>
-        </li>
-        <li>
-            <a href="{{ route('report.transfer') }}"
-               class="nav-link {{ request()->routeIs('report.transfer*') ? 'active' : '' }}">
-                <i class="bi bi-arrow-repeat"></i> Laporan Transfer
-            </a>
-        </li>
-        </ul></li>
-        @endif
-
-        {{-- Sistem (owner) --}}
-        @if(auth()->user()->isOwner())
-        <li>
-            <button class="nav-section nav-section-toggle" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#systemMenu" aria-controls="systemMenu"
-                    aria-expanded="{{ request()->routeIs('database-backups.*') ? 'true' : 'false' }}">
-                <span class="section-label"><i class="bi bi-gear"></i>Sistem</span><i class="bi bi-chevron-down"></i>
-            </button>
-        </li>
-        <li class="list-unstyled"><ul id="systemMenu" class="nav-submenu collapse list-unstyled {{ request()->routeIs('database-backups.*') ? 'show' : '' }}">
-        <li>
-            <a href="{{ route('database-backups.index') }}"
-               class="nav-link {{ request()->routeIs('database-backups.*') ? 'active' : '' }}">
-                <i class="bi bi-database-check"></i> Backup Database
-            </a>
-        </li>
-        </ul></li>
-        @endif
-
+        @include('layouts.permission-menu')
     </ul>
 </nav>
 <div id="sidebarBackdrop" aria-hidden="true"></div>
@@ -562,22 +577,24 @@
         </div>
         <div class="d-flex align-items-center gap-3">
             {{-- Notifikasi stok --}}
-            @if(auth()->user()->isOwner() || auth()->user()->isStafGudang())
+            @if(auth()->user()->hasPermission('inventory.stock.view'))
             @php
                 $topbarNotifications = app(\App\Services\NotificationService::class)->checkAllProducts();
                 $notifCount = count($topbarNotifications);
+                $showTopbarNotificationPreview = ! request()->routeIs('inventory.stock.*');
             @endphp
             @if($notifCount > 0)
             <div class="notification-hover">
                 <a href="{{ route('dashboard') }}#notifications"
                    class="btn btn-sm btn-outline-warning position-relative"
                    aria-label="{{ $notifCount }} notifikasi stok"
-                   aria-describedby="notificationPreview">
+                   @if($showTopbarNotificationPreview) aria-describedby="notificationPreview" @endif>
                     <i class="bi bi-bell"></i>
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                         {{ $notifCount }}
                     </span>
                 </a>
+                @if($showTopbarNotificationPreview)
                 <div class="notification-preview" id="notificationPreview" role="tooltip">
                     <div class="notification-preview-header d-flex justify-content-between align-items-center">
                         <span class="fw-semibold"><i class="bi bi-bell-fill text-warning me-2"></i>Perlu Perhatian</span>
@@ -588,9 +605,11 @@
                         <div class="notification-preview-item">
                             <div class="d-flex justify-content-between gap-2 mb-1">
                                 <div class="fw-semibold text-dark text-truncate">{{ $notif['product_name'] }}</div>
-                                <span class="badge bg-{{ $notif['type'] === 'order' ? 'danger' : 'warning text-dark' }} align-self-start">
-                                    {{ $notif['type'] === 'order' ? 'Order' : 'Transfer' }}
-                                </span>
+                                <div class="d-flex flex-wrap justify-content-end gap-1 align-self-start">
+                                    @foreach($notif['badges'] as $badge)
+                                    <span class="badge bg-{{ $badge['class'] }}">{{ $badge['label'] }}</span>
+                                    @endforeach
+                                </div>
                             </div>
                             <div class="small text-muted mb-1"><i class="bi bi-geo-alt me-1"></i>{{ $notif['location_name'] }}</div>
                             <div class="small text-dark">{{ $notif['message'] }}</div>
@@ -601,6 +620,7 @@
                         Lihat semua notifikasi <i class="bi bi-arrow-right ms-1"></i>
                     </a>
                 </div>
+                @endif
             </div>
             @endif
             @endif
@@ -652,11 +672,30 @@
         </div>
         @endif
 
+        @if($errors->any())
+        <div class="alert alert-danger" role="alert" tabindex="-1" id="validationErrors">
+            <div class="fw-semibold mb-1">@yield('validation-heading','Data belum dapat disimpan.')</div>
+            <ul class="mb-0">
+                @foreach($errors->all() as $message)
+                <li>{{ $message }}</li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+
         @yield('content')
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<div class="modal" id="appDialog" tabindex="-1" aria-labelledby="appDialogTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:440px"><div class="modal-content" style="border-radius:8px">
+        <div class="modal-header"><div class="d-flex align-items-center gap-2"><i data-dialog-icon aria-hidden="true"></i><h5 class="modal-title fs-5" id="appDialogTitle"></h5></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button></div>
+        <div class="modal-body"><p data-dialog-text class="text-muted mb-0"></p><div data-dialog-details class="border-top mt-3 pt-2" hidden></div></div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-dialog-cancel data-bs-dismiss="modal">Batal</button><button type="button" class="btn btn-primary" data-dialog-confirm></button></div>
+    </div></div>
+</div>
+<script src="{{ asset('js/app-dialogs.js') }}?v=1"></script>
 <script>
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
@@ -695,6 +734,54 @@
         updateSidebarToggle();
     });
 
+    sidebar.querySelectorAll('.nav-section-toggle').forEach((button) => {
+        button.setAttribute('title', button.querySelector('.section-label').textContent.trim());
+        button.addEventListener('click', (event) => {
+            if (!desktopMedia.matches || !document.body.classList.contains('sidebar-collapsed')) return;
+            event.stopPropagation();
+            document.body.classList.remove('sidebar-collapsed');
+            localStorage.setItem('sidebar-collapsed', 'false');
+            const menu = document.querySelector(button.getAttribute('data-bs-target'));
+            bootstrap.Collapse.getOrCreateInstance(menu, { toggle: false }).show();
+            updateSidebarToggle();
+        });
+    });
+    sidebar.querySelectorAll('.nav-link').forEach((link) => {
+        link.setAttribute('title', link.textContent.trim());
+    });
+
+    const iconLabels = {
+        'bi-eye': 'Lihat detail', 'bi-pencil': 'Edit', 'bi-trash': 'Hapus', 'bi-printer': 'Cetak Nota',
+        'bi-search': 'Terapkan filter', 'bi-funnel': 'Terapkan filter',
+        'bi-arrow-counterclockwise': 'Reset filter', 'bi-x': 'Reset filter',
+        'bi-file-pdf': 'Cetak PDF', 'bi-file-earmark-excel': 'Unduh Excel',
+    };
+    function labelIconControls(root) {
+        root.querySelectorAll('button, a.btn').forEach((control) => {
+            const actionIcon = control.querySelector('.bi-eye,.bi-pencil,.bi-trash,.bi-printer');
+            if (control.matches('.btn') && control.closest('td') && actionIcon) {
+                control.classList.add('app-icon-action');
+                const actionLabel = control.getAttribute('title') || control.textContent.trim() || Object.entries(iconLabels).find(([className]) => actionIcon.classList.contains(className))?.[1];
+                if (actionLabel) { control.setAttribute('title',actionLabel);control.setAttribute('aria-label',actionLabel); }
+            }
+            if (control.textContent.trim()) return;
+            const icon = control.querySelector('i');
+            const label = control.getAttribute('title') || Object.entries(iconLabels)
+                .find(([className]) => icon?.classList.contains(className))?.[1];
+            if (label) {
+                control.setAttribute('title', label);
+                control.setAttribute('aria-label', label);
+            }
+        });
+    }
+    labelIconControls(document);
+    new MutationObserver((changes) => {
+        changes.forEach((change) => change.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) labelIconControls(node);
+        }));
+    }).observe(document.querySelector('.page-content'), { childList: true, subtree: true });
+    document.getElementById('validationErrors')?.focus();
+
     sidebarBackdrop?.addEventListener('click', closeMobileSidebar);
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && !desktopMedia.matches) closeMobileSidebar();
@@ -714,7 +801,7 @@
         if (popup) {
             popup.focus();
         } else {
-            alert('Popup cetak diblokir browser. Izinkan popup untuk mencetak nota.');
+            appDialog.notice({ title: 'Cetak Nota Terhalang', text: 'Popup cetak diblokir browser. Izinkan popup untuk mencetak nota.' });
         }
     });
 
@@ -763,5 +850,18 @@
     initializeCurrencyInputs();
 </script>
 @stack('scripts')
+@if(session('completed_sale_draft'))
+<script>
+(() => {
+    const id = @json(session('completed_sale_draft'));
+    const prefix = 'golden-sale-draft:v1:' + @json(auth()->id()) + ':';
+    try {
+        Object.keys(localStorage).filter(key => key.startsWith(prefix)).forEach(key => {
+            if (JSON.parse(localStorage.getItem(key))?.id === id) localStorage.removeItem(key);
+        });
+    } catch (_) {}
+})();
+</script>
+@endif
 </body>
 </html>

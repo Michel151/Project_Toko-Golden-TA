@@ -6,8 +6,7 @@
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-arrow-left-right"></i></div><div><h5 class="fw-bold mb-1">Laporan Transfer Stok</h5><div class="text-white-50 small">Lacak perpindahan barang antar lokasi penyimpanan</div></div></div><span class="badge bg-info text-dark">{{ $transfers->count() }} Transfer</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="d-flex gap-2 align-items-end" method="GET">
-        <div><label class="d-block">Dari Tanggal</label><input type="date" name="from" class="form-control form-control-sm" value="{{ $from }}"></div>
-        <div><label class="d-block">Sampai Tanggal</label><input type="date" name="to" class="form-control form-control-sm" value="{{ $to }}"></div>
+        @include('components.date-range',['prefix'=>'transferReport','fromValue'=>$from,'toValue'=>$to])
         <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
     </form>
     <div class="btn-group btn-group-sm">
@@ -16,18 +15,25 @@
     </div>
 </div>
 
+@include('components.report-kpis',['metrics'=>[
+    ['label'=>'Dokumen Transfer','value'=>number_format($transferSummary['documents'],0,',','.'),'hint'=>'Pada periode terpilih','icon'=>'file-earmark-text','tone'=>'primary'],
+    ['label'=>'Jenis Barang Dipindahkan','value'=>number_format($transferSummary['products'],0,',','.'),'hint'=>'Jenis barang unik','icon'=>'box-seam','tone'=>'success'],
+    ['label'=>'Lokasi Asal','value'=>number_format($transferSummary['origins'],0,',','.'),'hint'=>'Lokasi asal yang terlibat','icon'=>'box-arrow-up-right','tone'=>'warning'],
+    ['label'=>'Lokasi Tujuan','value'=>number_format($transferSummary['destinations'],0,',','.'),'hint'=>'Lokasi tujuan yang terlibat','icon'=>'box-arrow-in-down','tone'=>'info'],
+]])
+
 <div class="card table-card">
-    <div class="card-body p-0">
+    <div class="card-body p-0 table-responsive">
         <table class="table table-hover report-table mb-0">
             <thead><tr><th>No. Transfer</th><th>Barang</th><th>Dari</th><th>Ke</th><th class="text-end">Jumlah</th><th>Tanggal</th><th>Oleh</th></tr></thead>
             <tbody>
                 @forelse($transfers as $t)
                 <tr>
                     <td class="font-monospace small fw-semibold">{{ $t->transfer_number }}</td>
-                    <td class="fw-semibold">{{ $t->product->name }}</td>
+                    <td class="fw-semibold">@foreach($t->items as $item)<div>{{ $item->product->name }}</div>@endforeach</td>
                     <td><span class="badge bg-danger bg-opacity-10 text-danger">{{ $t->fromLocation->name }}</span></td>
                     <td><span class="badge bg-success bg-opacity-10 text-success">{{ $t->toLocation->name }}</span></td>
-                    <td class="text-end fw-semibold">{{ $t->product->displayStock((float)$t->quantity) }}</td>
+                    <td class="text-end fw-semibold">@foreach($t->items as $item)<div>{{ $item->product->displayStock((float)$item->quantity) }}</div>@endforeach</td>
                     <td>{{ $t->transfer_date->format('d/m/Y') }}</td>
                     <td class="text-muted small">{{ $t->createdBy->name ?? '-' }}</td>
                 </tr>

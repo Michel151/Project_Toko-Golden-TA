@@ -33,12 +33,13 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrapFive();
+        Paginator::defaultView('components.pagination');
 
         foreach ([
             Product::class, Category::class, Unit::class, Location::class,
             Supplier::class, User::class, PurchaseOrder::class,
             PurchaseReceipt::class, Sale::class, StockTransfer::class,
-            StockOpname::class,
+            StockOpname::class, \App\Models\PurchaseReturn::class,
         ] as $model) {
             $model::observe(AuditObserver::class);
         }

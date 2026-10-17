@@ -19,6 +19,7 @@ class SaleReportController extends Controller
         $to   = $request->get('to', now()->toDateString());
 
         $sales = Sale::with(['createdBy', 'items.product'])
+            ->paid()
             ->whereBetween('sale_date', [$from, $to])
             ->latest('sale_date')
             ->get();
@@ -30,7 +31,7 @@ class SaleReportController extends Controller
 
         // Produk terlaris
         $topProducts = SaleItem::select('product_id', DB::raw('SUM(quantity) as total_qty'), DB::raw('SUM(subtotal) as total_amount'))
-            ->whereHas('sale', fn($q) => $q->whereBetween('sale_date', [$from, $to]))
+            ->whereHas('sale', fn($q) => $q->paid()->whereBetween('sale_date', [$from, $to]))
             ->with('product')
             ->groupBy('product_id')
             ->orderByDesc('total_amount')
@@ -49,6 +50,7 @@ class SaleReportController extends Controller
         $from  = $request->get('from', now()->startOfMonth()->toDateString());
         $to    = $request->get('to', now()->toDateString());
         $sales = Sale::with(['items.product'])
+            ->paid()
             ->whereBetween('sale_date', [$from, $to])
             ->latest('sale_date')->get();
 
@@ -61,7 +63,7 @@ class SaleReportController extends Controller
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
-        $sales = Sale::with('createdBy')->whereBetween('sale_date', [$from, $to])->latest('sale_date')->get();
+        $sales = Sale::with('createdBy')->paid()->whereBetween('sale_date', [$from, $to])->latest('sale_date')->get();
         $rows = $sales->map(fn ($sale) => [
             $sale->sale_number, $sale->sale_date->format('d/m/Y'), $sale->customer_name ?? 'Umum',
             ucfirst($sale->payment_method), $sale->createdBy->name ?? '-', (float) $sale->total_amount,

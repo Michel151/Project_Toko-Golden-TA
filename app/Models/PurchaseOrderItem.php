@@ -13,12 +13,15 @@ class PurchaseOrderItem extends Model
         'quantity_ordered',
         'quantity_received',
         'buy_price',
+        'quantity_reserved',
+        'source_purchase_order_item_id',
     ];
 
     protected $casts = [
         'quantity_ordered'  => 'decimal:4',
         'quantity_received' => 'decimal:4',
         'buy_price'         => 'decimal:2',
+        'quantity_reserved' => 'decimal:4',
     ];
 
     public function purchaseOrder()
@@ -39,6 +42,13 @@ class PurchaseOrderItem extends Model
     public function receiptItems()
     {
         return $this->hasMany(PurchaseReceiptItem::class);
+    }
+
+    public function sourceItem() { return $this->belongsTo(self::class, 'source_purchase_order_item_id'); }
+
+    public function receivableQuantity(): float
+    {
+        return max(0, round($this->remainingQuantity() - (float) $this->quantity_reserved, 4));
     }
 
     // Sisa yang belum diterima

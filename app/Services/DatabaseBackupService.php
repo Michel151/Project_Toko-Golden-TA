@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -11,6 +12,10 @@ class DatabaseBackupService
     private const DIRECTORY = 'database-backups';
 
     private const FORMAT = 'toko-golden-backup-v1';
+
+    public const MAX_UPLOAD_KILOBYTES = 20 * 1024;
+
+    private const MAX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024;
 
     private const EXCLUDED_TABLES = [
         'cache', 'cache_locks', 'failed_jobs', 'job_batches', 'jobs', 'sessions',
@@ -74,6 +79,94 @@ class DatabaseBackupService
             ->sortByDesc('filename')
             ->values()
             ->all();
+    }
+
+    public function exportSql(): array
+    {
+        $connection = DB::connection();
+        $driver = $connection->getDriverName();
+
+        if (! in_array($driver, ['mysql', 'mariadb', 'sqlite'], true)) {
+            throw new RuntimeException("Ekspor SQL belum mendukung driver database {$driver}.");
+        }
+
+        $tables = array_values(array_diff($this->tableListing(), self::EXCLUDED_TABLES));
+        sort($tables);
+
+        $lines = [
+            '-- Toko Golden SQL Export',
+            '-- Dibuat: '.now()->toIso8601String(),
+            '-- Driver: '.$driver,
+            '',
+            $driver === 'sqlite' ? 'PRAGMA foreign_keys=OFF;' : 'SET FOREIGN_KEY_CHECKS=0;',
+            '',
+        ];
+
+        foreach ($tables as $table) {
+            $identifier = $this->quoteIdentifier($table, $driver);
+            $lines[] = '-- Tabel: '.$table;
+            $lines[] = 'DROP TABLE IF EXISTS '.$identifier.';';
+            $lines[] = $this->createTableStatement($table, $driver).';';
+            $lines[] = '';
+
+            foreach ($connection->table($table)->orderBy($connection->getSchemaBuilder()->getColumnListing($table)[0])->cursor() as $row) {
+                $values = (array) $row;
+                $columns = array_map(fn (string $column) => $this->quoteIdentifier($column, $driver), array_keys($values));
+                $serializedValues = array_map(fn (mixed $value) => $this->quoteSqlValue($value), array_values($values));
+
+                $lines[] = 'INSERT INTO '.$identifier.' ('.implode(', ', $columns).') VALUES ('.implode(', ', $serializedValues).');';
+            }
+
+            $lines[] = '';
+        }
+
+        $lines[] = $driver === 'sqlite' ? 'PRAGMA foreign_keys=ON;' : 'SET FOREIGN_KEY_CHECKS=1;';
+        $sql = implode("\n", $lines)."\n";
+        $lines[] = '-- Toko-Golden-Signature: '.hash_hmac('sha256', $sql, $this->signingKey());
+        $lines[] = '';
+
+        $compressed = gzencode(implode("\n", $lines), 9);
+
+        if ($compressed === false) {
+            throw new RuntimeException('Ekspor SQL gagal dikompresi.');
+        }
+
+        return [
+            'filename' => 'toko-golden-'.now()->format('Y-m-d_H-i-s').'.sql.gz',
+            'contents' => $compressed,
+        ];
+    }
+
+    public function import(UploadedFile $file): array
+    {
+        $originalName = strtolower($file->getClientOriginalName());
+
+        if (! str_ends_with($originalName, '.json.gz')) {
+            throw new RuntimeException('File harus menggunakan ekstensi .json.gz.');
+        }
+
+        if (! $file->isValid() || $file->getSize() === false || $file->getSize() > self::MAX_UPLOAD_KILOBYTES * 1024) {
+            throw new RuntimeException('File backup gagal diunggah atau melebihi batas 20 MB.');
+        }
+
+        $compressed = $file->get();
+
+        if ($compressed === false) {
+            throw new RuntimeException('File backup tidak dapat dibaca.');
+        }
+
+        $this->decodeDocument($compressed);
+
+        do {
+            $filename = 'backup-'.now()->format('Y-m-d_H-i-s').'-'.strtolower(str()->random(6)).'.json.gz';
+            $path = self::DIRECTORY.'/'.$filename;
+        } while (Storage::disk('local')->exists($path));
+
+        if (! Storage::disk('local')->put($path, $compressed)) {
+            throw new RuntimeException('File backup tidak dapat disimpan.');
+        }
+
+        return $this->details($filename);
     }
 
     public function restore(string $filename): void
@@ -153,11 +246,37 @@ class DatabaseBackupService
         $path = self::DIRECTORY.'/'.$filename;
         $compressed = Storage::disk('local')->get($path);
 
-        if ($compressed === null || ($json = gzdecode($compressed)) === false) {
+        if ($compressed === null) {
+            throw new RuntimeException('File backup tidak ditemukan.');
+        }
+
+        return $this->decodeDocument($compressed);
+    }
+
+    private function decodeDocument(string $compressed): array
+    {
+        if (! str_starts_with($compressed, "\x1f\x8b")) {
+            throw new RuntimeException('File bukan arsip gzip yang valid.');
+        }
+
+        if (strlen($compressed) < 4) {
             throw new RuntimeException('File backup rusak atau tidak dapat dibaca.');
         }
 
-        $document = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        $uncompressedSize = unpack('Vsize', substr($compressed, -4))['size'];
+
+        if ($uncompressedSize > self::MAX_UNCOMPRESSED_BYTES) {
+            throw new RuntimeException('Isi file backup melebihi batas keamanan 100 MB.');
+        }
+
+        $json = $this->decompressSafely($compressed);
+
+        try {
+            $document = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw new RuntimeException('Isi file backup bukan JSON yang valid.');
+        }
+
         $payload = $document['payload'] ?? null;
 
         if (! is_array($payload) || ($payload['format'] ?? null) !== self::FORMAT || ! is_array($payload['tables'] ?? null)) {
@@ -174,6 +293,36 @@ class DatabaseBackupService
         return $document;
     }
 
+    private function decompressSafely(string $compressed): string
+    {
+        $context = inflate_init(ZLIB_ENCODING_GZIP);
+
+        if ($context === false) {
+            throw new RuntimeException('File backup rusak atau tidak dapat dibaca.');
+        }
+
+        $json = '';
+        $length = strlen($compressed);
+
+        for ($offset = 0; $offset < $length; $offset += 8192) {
+            $chunk = substr($compressed, $offset, 8192);
+            $mode = $offset + strlen($chunk) >= $length ? ZLIB_FINISH : ZLIB_SYNC_FLUSH;
+            $decoded = @inflate_add($context, $chunk, $mode);
+
+            if ($decoded === false) {
+                throw new RuntimeException('File backup rusak atau tidak dapat dibaca.');
+            }
+
+            if (strlen($json) + strlen($decoded) > self::MAX_UNCOMPRESSED_BYTES) {
+                throw new RuntimeException('Isi file backup melebihi batas keamanan 100 MB.');
+            }
+
+            $json .= $decoded;
+        }
+
+        return $json;
+    }
+
     private function foreignKeyChecks(bool $enabled): void
     {
         match (DB::connection()->getDriverName()) {
@@ -181,6 +330,63 @@ class DatabaseBackupService
             'sqlite' => DB::statement('PRAGMA foreign_keys = '.($enabled ? 'ON' : 'OFF')),
             default => null,
         };
+    }
+
+    private function createTableStatement(string $table, string $driver): string
+    {
+        $connection = DB::connection();
+
+        if ($driver === 'sqlite') {
+            $schema = $connection->selectOne(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+                [$table]
+            );
+
+            if (! isset($schema->sql)) {
+                throw new RuntimeException("Skema tabel {$table} tidak ditemukan.");
+            }
+
+            return $schema->sql;
+        }
+
+        $schema = (array) $connection->selectOne('SHOW CREATE TABLE '.$this->quoteIdentifier($table, $driver));
+        $statement = array_values($schema)[1] ?? null;
+
+        if (! is_string($statement) || $statement === '') {
+            throw new RuntimeException("Skema tabel {$table} tidak ditemukan.");
+        }
+
+        return $statement;
+    }
+
+    private function quoteIdentifier(string $identifier, string $driver): string
+    {
+        return $driver === 'sqlite'
+            ? '"'.str_replace('"', '""', $identifier).'"'
+            : '`'.str_replace('`', '``', $identifier).'`';
+    }
+
+    private function quoteSqlValue(mixed $value): string
+    {
+        if ($value === null) {
+            return 'NULL';
+        }
+
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        $quoted = DB::connection()->getPdo()->quote((string) $value);
+
+        if ($quoted === false) {
+            throw new RuntimeException('Nilai database tidak dapat ditulis ke ekspor SQL.');
+        }
+
+        return $quoted;
     }
 
     private function tableListing(): array

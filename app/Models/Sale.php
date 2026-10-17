@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class Sale extends Model
@@ -10,10 +11,13 @@ class Sale extends Model
         'sale_number',
         'customer_name',
         'sale_date',
+        'sale_time',
         'total_amount',
         'payment_method',
         'amount_paid',
         'change_amount',
+        'status',
+        'hold_until',
         'created_by',
     ];
 
@@ -22,6 +26,7 @@ class Sale extends Model
         'total_amount'  => 'decimal:2',
         'amount_paid'   => 'decimal:2',
         'change_amount' => 'decimal:2',
+        'hold_until' => 'datetime',
     ];
 
     public function createdBy()
@@ -29,20 +34,29 @@ class Sale extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function getTransactionTimeLabelAttribute(): string
+    {
+        return $this->sale_time ? $this->sale_time.' WIB' : 'Jam tidak tercatat';
+    }
+
     public function items()
     {
         return $this->hasMany(SaleItem::class);
     }
 
-    // Generate sale number: INV-2024-000001
-    public static function generateSaleNumber(): string
+    public function scopePaid($query)
     {
-        $year   = date('Y');
-        $prefix = "INV-{$year}-";
-        $last   = static::where('sale_number', 'like', "{$prefix}%")
-                        ->orderByDesc('id')
-                        ->value('sale_number');
-        $seq = $last ? (int) substr($last, -6) + 1 : 1;
+        return $query->where('status', 'paid');
+    }
+
+    public static function generateSaleNumber(?\DateTimeInterface $issuedAt = null): string
+    {
+        $date = $issuedAt ? Carbon::instance($issuedAt)->setTimezone('Asia/Jakarta') : now('Asia/Jakarta');
+        $prefix = 'INV/'.$date->format('Y/m').'/';
+
+        $current = static::where('sale_number', 'like', "{$prefix}%")
+            ->selectRaw('MAX(CAST(SUBSTR(sale_number, 13) AS DECIMAL(20,0))) AS sequence')->value('sequence');
+        $seq = (int) $current + 1;
         return $prefix . str_pad($seq, 6, '0', STR_PAD_LEFT);
     }
 }

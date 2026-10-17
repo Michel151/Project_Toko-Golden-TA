@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -13,11 +14,17 @@ class PurchaseOrder extends Model
         'order_date',
         'status',
         'created_by',
+        'root_purchase_order_id',
     ];
 
     protected $casts = [
         'order_date' => 'date',
     ];
+
+    public function getStatusLabelAttribute(): string
+    {
+        return ['pending'=>'Menunggu', 'partial'=>'Diterima Sebagian', 'completed'=>'Selesai'][$this->status] ?? $this->status;
+    }
 
     public function supplier()
     {
@@ -39,15 +46,23 @@ class PurchaseOrder extends Model
         return $this->hasMany(PurchaseReceipt::class);
     }
 
-    // Generate PO Number: PO-2024-000001
-    public static function generatePoNumber(): string
+    public function rootOrder() { return $this->belongsTo(self::class, 'root_purchase_order_id'); }
+    public function replacementOrders() { return $this->hasMany(self::class, 'root_purchase_order_id'); }
+
+    public function canModify(): bool
     {
-        $year   = date('Y');
-        $prefix = "PO-{$year}-";
-        $last   = static::where('po_number', 'like', "{$prefix}%")
-                        ->orderByDesc('id')
-                        ->value('po_number');
-        $seq = $last ? (int) substr($last, -6) + 1 : 1;
+        return $this->status === 'pending' && ! $this->root_purchase_order_id
+            && ! $this->receipts()->exists() && ! $this->replacementOrders()->exists();
+    }
+
+    public static function generatePoNumber(?\DateTimeInterface $issuedAt = null): string
+    {
+        $date = $issuedAt ? Carbon::instance($issuedAt)->setTimezone('Asia/Jakarta') : now('Asia/Jakarta');
+        $prefix = 'PO/'.$date->format('Y/m').'/';
+        $last = static::whereNull('root_purchase_order_id')
+            ->where('po_number', 'like', "{$prefix}%")
+            ->selectRaw('MAX(CAST(SUBSTR(po_number, 12) AS DECIMAL(20,0))) AS sequence')->value('sequence');
+        $seq = (int) $last + 1;
         return $prefix . str_pad($seq, 6, '0', STR_PAD_LEFT);
     }
 
@@ -58,7 +73,7 @@ class PurchaseOrder extends Model
             $item->quantity_received >= $item->quantity_ordered
         );
         $anyReceived = $this->items->some(fn($item) =>
-            $item->quantity_received > 0
+            $item->quantity_received > 0 || $item->quantity_reserved > 0
         );
 
         $this->status = $allCompleted ? 'completed' : ($anyReceived ? 'partial' : 'pending');
@@ -68,6 +83,9 @@ class PurchaseOrder extends Model
     // Total nilai PO
     public function totalValue(): float
     {
+        if ($this->root_purchase_order_id) {
+            return 0;
+        }
         return (float) $this->items->sum(fn($item) =>
             $item->quantity_ordered * $item->buy_price
         );

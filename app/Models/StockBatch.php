@@ -14,6 +14,7 @@ class StockBatch extends Model
         'expired_date',
         'quantity_initial',
         'quantity_remaining',
+        'batch_code',
     ];
 
     protected $casts = [
@@ -46,18 +47,27 @@ class StockBatch extends Model
     public function getExpiryStatusAttribute(): string
     {
         if (! $this->expired_date) {
-            return 'Tidak Ada Kadaluarsa';
+            return 'Tidak Ada Kedaluwarsa';
         }
 
         if ($this->expired_date->lt(today())) {
-            return 'Kadaluarsa';
+            return 'Kedaluwarsa';
         }
 
         if ($this->expired_date->lte(today()->addDays(30))) {
-            return 'Hampir Kadaluarsa';
+            return 'Hampir Kedaluwarsa';
         }
 
         return 'Aman';
+    }
+
+    public function getExpiryCountdownAttribute(): string
+    {
+        if (! $this->expired_date) return 'Tanggal belum dicatat';
+        $days = (int) today()->diffInDays($this->expired_date->copy()->startOfDay(), false);
+        if ($days < 0) return 'Lewat '.abs($days).' hari';
+        if ($days === 0) return 'Kedaluwarsa hari ini';
+        return 'Sisa '.$days.' hari';
     }
 
     public function scopeSellable($query)

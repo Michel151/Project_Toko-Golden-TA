@@ -29,9 +29,12 @@ class StockMovement extends Model
         return match ($this->movement_type) {
             'purchase' => 'Penerimaan',
             'sale' => 'Penjualan',
+            'sale_cancelled' => 'Pembatalan Penjualan',
+            'sale_edit_restore' => 'Koreksi Penjualan',
             'transfer_in' => 'Transfer Masuk',
             'transfer_out' => 'Transfer Keluar',
             'opname_adjustment' => 'Penyesuaian Opname',
+            'initial_import' => 'Stok Awal Impor',
             default => ucwords(str_replace('_', ' ', $this->movement_type)),
         };
     }

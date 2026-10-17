@@ -28,6 +28,9 @@ class ProductController extends Controller
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
         }
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status === 'active');
+        }
 
         $products   = $query->latest()->paginate(20)->withQueryString();
         $categories = Category::orderBy('name')->get();
@@ -50,6 +53,7 @@ class ProductController extends Controller
         $request->validate($this->rules());
         $this->validateProductUnitSelection($request);
         $this->applyCalculatedConversions($request);
+        $this->applyCalculatedBuyPrices($request);
         $this->applyMinimumStockConversions($request);
 
         DB::transaction(function () use ($request) {
@@ -57,6 +61,7 @@ class ProductController extends Controller
                 'name'                 => $request->name,
                 'barcode'              => $request->barcode,
                 'is_expirable'         => $request->boolean('is_expirable'),
+                'is_active'            => $request->boolean('is_active', true),
                 'category_id'         => $request->category_id,
                 'buy_unit_id'         => $request->product_units[$request->default_purchase_unit_index]['unit_id'],
                 'buy_price'           => $request->product_units[$request->default_purchase_unit_index]['buy_price'],
@@ -132,13 +137,17 @@ class ProductController extends Controller
         $request->validate($this->rules($product->id));
         $this->validateProductUnitSelection($request);
         $this->applyCalculatedConversions($request);
+        $this->applyCalculatedBuyPrices($request);
         $this->applyMinimumStockConversions($request);
 
         DB::transaction(function () use ($request, $product) {
+            $product = Product::lockForUpdate()->findOrFail($product->id);
+            $this->validateHistoricalUnits($product, $request);
             $product->update([
                 'name'                 => $request->name,
                 'barcode'              => $request->barcode ?: $product->barcode,
                 'is_expirable'         => $request->boolean('is_expirable'),
+                'is_active'            => $request->boolean('is_active'),
                 'category_id'         => $request->category_id,
                 'buy_unit_id'         => $request->product_units[$request->default_purchase_unit_index]['unit_id'],
                 'buy_price'           => $request->product_units[$request->default_purchase_unit_index]['buy_price'],
@@ -173,6 +182,7 @@ class ProductController extends Controller
             'name'                 => 'required|string|max:200',
             'barcode'              => 'nullable|string|max:100|unique:products,barcode,' . ($ignoreId ?? 'NULL'),
             'is_expirable'         => 'nullable|boolean',
+            'is_active'            => 'nullable|boolean',
             'category_id'         => 'required|exists:categories,id',
             'product_units'       => 'required|array|min:1',
             'product_units.*.unit_id' => 'required|exists:units,id|distinct',
@@ -232,6 +242,31 @@ class ProductController extends Controller
                 ->values()
                 ->all(),
         ]);
+    }
+
+    private function validateHistoricalUnits(Product $product, Request $request): void
+    {
+        $hasHistory=$product->stocks()->where('quantity','>',0)->exists()
+            || $product->saleItems()->exists() || $product->purchaseOrderItems()->exists()
+            || $product->stockMovements()->exists() || $product->stockTransfers()->exists();
+        if (!$hasHistory) return;
+        $units=$product->productUnits()->lockForUpdate()->get();
+        $submitted=collect($request->product_units)->keyBy('unit_id');
+        $base=$units->firstWhere('is_base_unit',true);
+        $newBase=(int) $request->product_units[(int) $request->base_unit_index]['unit_id'];
+        $changed=$base && (int) $base->unit_id!==$newBase;
+        foreach ($units as $unit) {
+            $row=$submitted->get($unit->unit_id);
+            if (!$row || abs((float) $row['conversion_to_base']-(float) $unit->conversion_to_base)>0.00001) {
+                $changed=true;
+                break;
+            }
+        }
+        if ($changed) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'product_units'=>'Barang sudah memiliki stok atau riwayat transaksi. Satuan lama tidak dapat dihapus, satuan dasar tidak dapat diganti, dan isi/konversi satuan tidak dapat diubah. Harga dan satuan default tetap dapat diperbarui; satuan baru dapat ditambahkan.',
+            ]);
+        }
     }
 
     private function syncProductUnits(Product $product, Request $request): void
@@ -352,6 +387,23 @@ class ProductController extends Controller
 
         foreach ($conversions as $index => $conversion) {
             $units[$index]['conversion_to_base'] = $conversion;
+        }
+
+        $request->merge(['product_units' => $units]);
+    }
+
+    private function applyCalculatedBuyPrices(Request $request): void
+    {
+        $units = $request->product_units;
+        $purchaseIndex = (int) $request->default_purchase_unit_index;
+        $purchasePrice = (float) $units[$purchaseIndex]['buy_price'];
+        $purchaseConversion = (float) $units[$purchaseIndex]['conversion_to_base'];
+
+        foreach ($units as $index => $unit) {
+            $units[$index]['buy_price'] = round(
+                $purchasePrice * (float) $unit['conversion_to_base'] / $purchaseConversion,
+                2
+            );
         }
 
         $request->merge(['product_units' => $units]);

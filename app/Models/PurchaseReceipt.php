@@ -6,7 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class PurchaseReceipt extends Model
 {
+    public function inspections() { return $this->hasMany(PurchaseInspection::class); }
+    public function returns() { return $this->hasMany(PurchaseReturn::class); }
     protected $fillable = [
+        'submission_token',
         'purchase_order_id',
         'receipt_date',
         'received_by',

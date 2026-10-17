@@ -3,22 +3,23 @@
 @section('page-title', 'Stock Opname')
 
 @section('content')
+<div class="inventory-heading"><h5><i class="bi bi-clipboard-check me-2"></i>Stock Opname</h5></div>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div class="btn-group btn-group-sm">
-        <a href="{{ route('inventory.opnames.index') }}" class="btn btn-primary active">
+        <a href="{{ route('inventory.opnames.index') }}" class="btn btn-primary active" aria-current="page">
             <i class="bi bi-clipboard-check me-1"></i>Riwayat Opname
         </a>
         <a href="{{ route('inventory.opnames.movements') }}" class="btn btn-outline-secondary">
             <i class="bi bi-clock-history me-1"></i>Mutasi Barang
         </a>
     </div>
-    <a href="{{ route('inventory.opnames.create') }}" class="btn btn-primary btn-sm">
+    @if(auth()->user()->canAccessRoute('inventory.opnames.create')) <a href="{{ route('inventory.opnames.create') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-circle me-1"></i> Buat Opname Baru
-    </a>
+    </a> @endif
 </div>
 
 <div class="card table-card">
-    <div class="card-body p-0">
+    <div class="card-body p-0 table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
@@ -44,14 +45,14 @@
                     <td class="text-muted small">{{ $opname->createdBy->name ?? '-' }}</td>
                     <td class="text-center">
                         @if($opname->status === 'draft')
-                        <a href="{{ route('inventory.opnames.edit', $opname) }}" class="btn btn-sm btn-outline-warning py-0 px-2"><i class="bi bi-pencil"></i></a>
+                        @if(auth()->user()->canAccessRoute('inventory.opnames.edit')) <a href="{{ route('inventory.opnames.edit', $opname) }}" class="btn btn-sm btn-outline-warning py-0 px-2"><i class="bi bi-pencil"></i></a> @endif
                         @endif
                         <a href="{{ route('inventory.opnames.show', $opname) }}" class="btn btn-sm btn-outline-info py-0 px-2"><i class="bi bi-eye"></i></a>
                         @if($opname->status === 'draft')
-                        <form method="POST" action="{{ route('inventory.opnames.destroy', $opname) }}" class="d-inline" onsubmit="return confirm('Hapus draft opname ini?')">
+                        @if(auth()->user()->canAccessRoute('inventory.opnames.destroy')) <form method="POST" action="{{ route('inventory.opnames.destroy', $opname) }}" class="d-inline" data-confirm="Hapus draft opname ini?">
                             @csrf @method('DELETE')
                             <button class="btn btn-sm btn-outline-danger py-0 px-2"><i class="bi bi-trash"></i></button>
-                        </form>
+                        </form> @endif
                         @endif
                     </td>
                 </tr>

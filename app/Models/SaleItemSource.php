@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class SaleItemSource extends Model
 {
-    protected $fillable = ['sale_item_id', 'location_id', 'stock_batch_id', 'quantity'];
+    protected $fillable = ['sale_item_id', 'location_id', 'stock_batch_id', 'quantity', 'base_quantity'];
 
     protected $casts = [
         'quantity' => 'decimal:4',
+        'base_quantity' => 'decimal:4',
     ];
 
     public function saleItem()

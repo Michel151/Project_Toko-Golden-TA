@@ -4,22 +4,22 @@ namespace App\Http\Controllers\Purchase;
 
 use App\Http\Controllers\Controller;
 use App\Models\Location;
-use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseReceipt;
-use App\Models\PurchaseReceiptItem;
-use App\Services\StockService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class PurchaseReceiptController extends Controller
 {
-    public function __construct(protected StockService $stockService) {}
+    public function __construct(protected \App\Services\PurchaseFulfillmentService $fulfillment) {}
 
     public function index(Request $request)
     {
         $query = PurchaseReceipt::with(['purchaseOrder.supplier', 'receivedBy', 'items.location']);
+        $receivableOrders = PurchaseOrder::with(['supplier', 'items.product', 'items.productUnit.unit'])
+            ->whereIn('status', ['pending', 'partial'])
+            ->whereHas('items', fn ($itemQuery) => $itemQuery->whereRaw('quantity_received + quantity_reserved < quantity_ordered'))
+            ->latest('order_date')
+            ->get();
 
         if ($request->filled('from')) {
             $query->whereDate('receipt_date', '>=', $request->from);
@@ -35,7 +35,7 @@ class PurchaseReceiptController extends Controller
         $receipts = $query->latest('receipt_date')->paginate(15)->withQueryString();
 
         return view('purchase.receipts.index', compact(
-            'receipts', 'receiptCount', 'allocationCount', 'supplierCount'
+            'receipts', 'receiptCount', 'allocationCount', 'supplierCount', 'receivableOrders'
         ));
     }
 
@@ -48,9 +48,9 @@ class PurchaseReceiptController extends Controller
             ->get();
 
         $selectedOrder = null;
-        if ($request->filled('order_id')) {
+        if ($request->filled('order_id') || old('purchase_order_id')) {
             $selectedOrder = PurchaseOrder::with(['supplier', 'items.product.buyUnit', 'items.productUnit.unit'])
-                ->findOrFail($request->order_id);
+                ->findOrFail(old('purchase_order_id', $request->order_id));
         }
 
         $locations = Location::orderBy('name')->get();
@@ -60,116 +60,35 @@ class PurchaseReceiptController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
+            'submission_token' => 'nullable|uuid',
             'purchase_order_id' => 'required|exists:purchase_orders,id',
             'receipt_date' => 'required|date',
-            'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.purchase_order_item_id' => 'required|exists:purchase_order_items,id',
+            'notes' => 'nullable|string|max:5000',
+            'items' => 'required|array|min:1|max:500',
+            'items.*.purchase_order_item_id' => 'required|distinct|exists:purchase_order_items,id',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.product_unit_id' => 'required|exists:product_units,id',
-            'items.*.quantity_received' => 'required|numeric|min:0.01',
+            'items.*.quantity_received' => 'required|numeric|min:0|max:999999999|decimal:0,4',
+            'items.*.quantity_damaged' => 'nullable|numeric|min:0|max:999999999|decimal:0,4',
+            'items.*.quantity_wrong' => 'nullable|numeric|min:0|max:999999999|decimal:0,4',
+            'items.*.quantity_missing' => 'nullable|numeric|min:0|max:999999999|decimal:0,4',
+            'items.*.reason' => 'nullable|string|max:2000',
+            'items.*.quarantine_location_id' => 'nullable|exists:locations,id',
             'items.*.expired_date' => 'nullable|date',
-            'items.*.allocations' => 'required|array|min:1',
+            'items.*.allocations' => 'nullable|array|max:100',
             'items.*.allocations.*.location_id' => 'required|exists:locations,id',
-            'items.*.allocations.*.quantity' => 'required|numeric|min:0',
+            'items.*.allocations.*.quantity' => 'required|numeric|min:0|max:999999999|decimal:0,4',
+            'items.*.batches' => 'sometimes|array|max:100',
+            'items.*.batches.*.location_id' => 'nullable|exists:locations,id',
+            'items.*.batches.*.quantity' => 'required|numeric|min:0|max:999999999|decimal:0,4',
+            'items.*.batches.*.expired_date' => 'nullable|date_format:Y-m-d',
+            'items.*.batches.*.batch_code' => 'nullable|string|max:100',
         ]);
+        $receipt = $this->fulfillment->receive($data, (int) auth()->id());
 
-        foreach ($request->items as $item) {
-            $allocations = collect($item['allocations'])->filter(fn ($allocation) => (float) $allocation['quantity'] > 0);
-            $allocatedTotal = (float) $allocations->sum('quantity');
-            $product = Product::find($item['product_id']);
-
-            if ($product?->is_expirable && empty($item['expired_date'])) {
-                return back()->withInput()->with('error', "Tanggal kadaluarsa wajib diisi untuk {$product->name}.");
-            }
-
-            if (abs($allocatedTotal - (float) $item['quantity_received']) > 0.0001) {
-                return back()->withInput()->with('error', 'Total alokasi lokasi harus sama dengan jumlah barang yang diterima.');
-            }
-            if ($allocations->pluck('location_id')->duplicates()->isNotEmpty()) {
-                return back()->withInput()->with('error', 'Satu lokasi tidak boleh dipilih lebih dari sekali untuk barang yang sama.');
-            }
-        }
-
-        DB::transaction(function () use ($request) {
-            $receipt = PurchaseReceipt::create([
-                'purchase_order_id' => $request->purchase_order_id,
-                'receipt_date' => $request->receipt_date,
-                'received_by' => auth()->id(),
-                'notes' => $request->notes,
-            ]);
-
-            $po = PurchaseOrder::find($request->purchase_order_id);
-
-            foreach ($request->items as $item) {
-                if (empty($item['quantity_received']) || $item['quantity_received'] <= 0) {
-                    continue;
-                }
-
-                // Validasi tidak melebihi sisa
-                $poItem = $po->items()->find($item['purchase_order_item_id']);
-                if (! $poItem || (int) $poItem->product_id !== (int) $item['product_id'] || (int) $poItem->product_unit_id !== (int) $item['product_unit_id']) {
-                    throw new \Exception('Item penerimaan tidak sesuai dengan Purchase Order.');
-                }
-                $remaining = $poItem->remainingQuantity();
-                if ((float) $item['quantity_received'] > $remaining + 0.0001) {
-                    throw ValidationException::withMessages([
-                        'items' => "Jumlah penerimaan {$poItem->product->name} melebihi sisa PO.",
-                    ]);
-                }
-                $qtyReceived = (float) $item['quantity_received'];
-
-                if ($qtyReceived <= 0) {
-                    continue;
-                }
-
-                $product = Product::find($item['product_id']);
-                $productUnit = $poItem->productUnit;
-                $product->update(['buy_price' => $poItem->buy_price]);
-                foreach ($item['allocations'] as $allocation) {
-                    $allocationQty = (float) $allocation['quantity'];
-                    if ($allocationQty <= 0) {
-                        continue;
-                    }
-
-                    $location = Location::findOrFail($allocation['location_id']);
-                    $receiptItem = PurchaseReceiptItem::create([
-                        'purchase_receipt_id' => $receipt->id,
-                        'purchase_order_item_id' => $poItem->id,
-                        'product_id' => $product->id,
-                        'product_unit_id' => $productUnit?->id,
-                        'location_id' => $location->id,
-                        'quantity_received' => $allocationQty,
-                        'expired_date' => $product->is_expirable ? $item['expired_date'] : null,
-                    ]);
-                    if ($productUnit) {
-                        $this->stockService->receiveStockUsingUnit(
-                            $product, $productUnit, $location, $allocationQty, $receipt,
-                            $receipt->receipt_date, $po->po_number,
-                            $product->is_expirable ? $item['expired_date'] : null,
-                            $receiptItem
-                        );
-                    } else {
-                        $this->stockService->receiveStock(
-                            $product, $location, $allocationQty, $receipt,
-                            $receipt->receipt_date, $po->po_number,
-                            $product->is_expirable ? $item['expired_date'] : null,
-                            $receiptItem
-                        );
-                    }
-                }
-
-                $poItem->increment('quantity_received', $qtyReceived);
-            }
-
-            // Update status PO
-            $po->refresh();
-            $po->updateStatus();
-        });
-
-        return redirect()->route('purchase.receipts.index')
-            ->with('success', 'Penerimaan barang berhasil dicatat. Stok telah diperbarui.');
+        return redirect()->route('purchase.receipts.show', $receipt)
+            ->with('success', 'Pemeriksaan penerimaan dicatat. Hanya barang baik yang masuk stok jual.');
     }
 
     public function show(PurchaseReceipt $receipt)
@@ -181,6 +100,9 @@ class PurchaseReceiptController extends Controller
             'items.productUnit.unit',
             'items.location',
             'items.purchaseOrderItem',
+            'items.stockBatch',
+            'inspections.purchaseOrderItem.product', 'inspections.purchaseOrderItem.productUnit.unit',
+            'inspections.quarantineLocation', 'returns.replacementOrder',
         ]);
 
         return view('purchase.receipts.show', compact('receipt'));
@@ -192,7 +114,7 @@ class PurchaseReceiptController extends Controller
         $order->load(['items' => function ($q) {
             $q->with('product.buyUnit')
                 ->with('productUnit.unit')
-                ->whereRaw('quantity_received < quantity_ordered');
+                ->whereRaw('quantity_received + quantity_reserved < quantity_ordered');
         }]);
 
         return response()->json($order->items->map(fn ($item) => [
@@ -204,7 +126,7 @@ class PurchaseReceiptController extends Controller
             'unit_name' => $item->productUnit->unit->name ?? $item->product->buyUnit->name,
             'quantity_ordered' => $item->quantity_ordered,
             'quantity_received' => $item->quantity_received,
-            'remaining' => $item->remainingQuantity(),
+            'remaining' => $item->receivableQuantity(),
         ]));
     }
 }

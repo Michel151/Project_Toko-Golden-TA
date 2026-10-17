@@ -3,11 +3,11 @@ namespace App\Http\Controllers\Report;
 
 use App\Http\Controllers\Controller;
 use App\Models\PurchaseOrder;
-use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\ReportExport;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseReportController extends Controller
 {
@@ -16,19 +16,19 @@ class PurchaseReportController extends Controller
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());
 
-        $orders = PurchaseOrder::with(['supplier', 'items.product', 'createdBy'])
-            ->whereBetween('order_date', [$from, $to])
-            ->latest('order_date')
-            ->get();
-
-        $suppliers  = Supplier::orderBy('name')->get();
-        $totalValue = $orders->sum(fn($po) => $po->totalValue());
-        $completed  = $orders->where('status', 'completed')->count();
-        $pending    = $orders->whereIn('status', ['pending', 'partial'])->count();
+        $filters = $request->validate(['from'=>'nullable|date', 'to'=>'nullable|date|after_or_equal:from', 'per_page'=>'nullable|integer|in:25,50,100']);
+        $query = PurchaseOrder::whereBetween('order_date', [$from, $to]);
+        $orderCount = (clone $query)->count();
+        $completed = (clone $query)->where('status', 'completed')->count();
+        $pending = (clone $query)->whereIn('status', ['pending', 'partial'])->count();
+        $totalValue = (float) DB::table('purchase_order_items')->join('purchase_orders', 'purchase_orders.id', '=', 'purchase_order_items.purchase_order_id')
+            ->whereBetween('purchase_orders.order_date', [$from, $to])->whereNull('purchase_orders.root_purchase_order_id')
+            ->sum(DB::raw('quantity_ordered * buy_price'));
+        $orders = $query->with(['supplier', 'items', 'createdBy'])->latest('order_date')->orderByDesc('id')
+            ->paginate((int) ($filters['per_page'] ?? 25))->withQueryString();
 
         return view('report.purchase', compact(
-            'orders', 'from', 'to', 'suppliers',
-            'totalValue', 'completed', 'pending'
+            'orders', 'from', 'to', 'orderCount', 'totalValue', 'completed', 'pending'
         ));
     }
 
@@ -53,7 +53,7 @@ class PurchaseReportController extends Controller
             ->whereBetween('order_date', [$from, $to])->latest('order_date')->get();
         $rows = $orders->map(fn ($order) => [
             $order->po_number, $order->order_date->format('d/m/Y'), $order->supplier->name,
-            ucfirst($order->status), $order->items->count(), $order->createdBy->name ?? '-', (float) $order->totalValue(),
+            $order->status_label, $order->items->count(), $order->createdBy->name ?? '-', (float) $order->totalValue(),
         ])->all();
 
         return Excel::download(

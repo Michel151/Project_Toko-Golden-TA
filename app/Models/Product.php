@@ -10,6 +10,7 @@ class Product extends Model
         'name',
         'barcode',
         'is_expirable',
+        'is_active',
         'category_id',
         'buy_unit_id',
         'buy_price',
@@ -24,6 +25,7 @@ class Product extends Model
     protected $casts = [
         'can_retail'           => 'boolean',
         'is_expirable'         => 'boolean',
+        'is_active'            => 'boolean',
         'buy_price'            => 'decimal:2',
         'sell_price_wholesale' => 'decimal:2',
         'sell_price_retail'    => 'decimal:2',
@@ -106,7 +108,7 @@ class Product extends Model
 
     public function stockTransfers()
     {
-        return $this->hasMany(StockTransfer::class);
+        return $this->belongsToMany(StockTransfer::class, 'stock_transfer_items');
     }
 
     public function stockMovements()
@@ -114,7 +116,27 @@ class Product extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
     // Helper: total stok semua lokasi
+    public function stockAvailability(?int $locationId = null): array
+    {
+        $stocks = $this->stocks->when($locationId !== null, fn ($rows) => $rows->where('location_id', $locationId));
+        $batches = $this->stockBatches
+            ->when($locationId !== null, fn ($rows) => $rows->where('location_id', $locationId))
+            ->filter(fn ($batch) => (float) $batch->quantity_remaining > 0);
+        $physical = (float) $stocks->sum('quantity');
+        $expired = $this->is_expirable
+            ? (float) $batches->filter(fn ($batch) => $batch->expired_date && $batch->expired_date->lt(today()))->sum('quantity_remaining') : 0.0;
+        // Match the sale engine: undated tracked batches are currently sellable.
+        $sellable = $this->is_expirable ? (float) $batches
+            ->filter(fn ($batch) => ! $batch->expired_date || $batch->expired_date->gte(today()))->sum('quantity_remaining') : $physical;
+        return compact('physical', 'sellable', 'expired');
+    }
+
     public function totalStock(): float
     {
         return (float) $this->stocks()->sum('quantity');

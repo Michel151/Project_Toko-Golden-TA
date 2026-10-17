@@ -6,8 +6,7 @@
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-graph-up-arrow"></i></div><div><h5 class="fw-bold mb-1">Laporan Penjualan</h5><div class="text-white-50 small">Analisis transaksi, pembayaran, dan produk terlaris</div></div></div><span class="badge bg-success">{{ $totalTrx }} Transaksi</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="d-flex gap-2 align-items-end" method="GET">
-        <div><label class="d-block">Dari Tanggal</label><input type="date" name="from" class="form-control form-control-sm" value="{{ $from }}"></div>
-        <div><label class="d-block">Sampai Tanggal</label><input type="date" name="to" class="form-control form-control-sm" value="{{ $to }}"></div>
+        @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
         <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
     </form>
     <div class="btn-group btn-group-sm">
@@ -48,15 +47,15 @@
     <div class="col-md-8">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Daftar Transaksi</h6></div>
-            <div class="card-body p-0">
+            <div class="card-body p-0 table-responsive">
                 <table class="table table-hover report-table mb-0">
-                    <thead><tr><th>No. Invoice</th><th>Tanggal</th><th>Pelanggan</th><th class="text-center">Bayar</th><th class="text-end">Total</th></tr></thead>
+                    <thead><tr><th>No. Invoice</th><th>Tanggal</th><th>Pelanggan / Kasir</th><th class="text-center">Bayar</th><th class="text-end">Total</th></tr></thead>
                     <tbody>
                         @forelse($sales as $sale)
                         <tr>
                             <td><a href="{{ route('sale.sales.show', $sale) }}" class="text-decoration-none">{{ $sale->sale_number }}</a></td>
                             <td>{{ $sale->sale_date->format('d/m/Y') }}</td>
-                            <td>{{ $sale->customer_name ?? 'Umum' }}</td>
+                            <td>{{ $sale->customer_name ?: 'Umum' }}<div class="small text-muted">{{ $sale->createdBy?->name ?? '-' }}</div></td>
                             <td class="text-center"><span class="badge bg-{{ $sale->payment_method === 'tunai' ? 'success' : 'info' }}">{{ ucfirst($sale->payment_method) }}</span></td>
                             <td class="text-end">Rp {{ number_format($sale->total_amount, 0, ',', '.') }}</td>
                         </tr>

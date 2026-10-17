@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\AccessPermissions;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable
 {
@@ -51,7 +53,37 @@ class User extends Authenticatable
         if (is_array($roles)) {
             return in_array($this->role, $roles);
         }
+
         return $this->role === $roles;
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isOwner()) {
+            return true;
+        }
+        if (! in_array($permission, AccessPermissions::keys(), true)) {
+            return false;
+        }
+        // Share one lookup within a request; never keep permissions across requests.
+        $request = request();
+        $key = 'access.permissions.'.$this->role;
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, DB::table('role_permissions')
+                ->where('role', $this->role)->pluck('permission')->all());
+        }
+        $permissions = $request->attributes->get($key);
+        $feature = substr($permission, 0, strrpos($permission, '.'));
+
+        return in_array($permission, $permissions, true)
+            && in_array("$feature.view", $permissions, true);
+    }
+
+    public function canAccessRoute(string $name): bool
+    {
+        $permission = AccessPermissions::forRoute($name);
+
+        return $permission !== null && $this->hasPermission($permission);
     }
 
     // Relationships
