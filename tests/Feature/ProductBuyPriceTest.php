@@ -54,7 +54,22 @@ class ProductBuyPriceTest extends TestCase
                 'conversion_to_base' => [600, 100, 10, 1][$index],
             ]);
         }
-        $this->get(route('master.products.edit', $product))->assertOk()->assertSee('buy-price-input');
+        foreach (['create'=>route('master.products.create'), 'edit'=>route('master.products.edit', $product)] as $name => $url) {
+            $page = $this->get($url)->assertOk()->assertSee('buy-price-input');
+            $document = new \DOMDocument;
+            @$document->loadHTML($page->getContent());
+            $xpath = new \DOMXPath($document);
+            $this->assertSame(1, $xpath->query('//table[@id="productUnitsTable"]//th[@class="d-none" and @aria-hidden="true"]')->length);
+            foreach ($xpath->query('//input[contains(@class,"conversion-preview")]') as $preview) {
+                $this->assertSame('d-none', $preview->parentNode->getAttribute('class'));
+            }
+            $this->assertGreaterThan(0, $xpath->query('//input[contains(@class,"conversion-input") and @type="hidden"]')->length);
+            if (getenv('CAPTURE_PRODUCT_UNIT_UI') === '1') {
+                $directory = storage_path('framework/testing/product-units');
+                if (!is_dir($directory)) mkdir($directory, 0777, true);
+                file_put_contents($directory.'/'.$name.'.html', $page->getContent());
+            }
+        }
     }
 
     public function test_update_uses_middle_purchase_unit_and_recalculates_changed_packaging(): void

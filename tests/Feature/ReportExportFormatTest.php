@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Exports\{ReportExport, GrossProfitExport};
+use App\Exports\{ReportExport, ProfitLossExport};
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Maatwebsite\Excel\Facades\Excel;
@@ -61,20 +61,20 @@ class ReportExportFormatTest extends TestCase
         $this->assertSame('TOTAL',$sheet->getCell('A6')->getValue());
     }
 
-    public function test_existing_gross_profit_total_is_not_duplicated_and_null_remains_unknown(): void
+    public function test_profit_loss_results_are_not_duplicated_and_unknown_values_are_explicit(): void
     {
-        $sheet=$this->sheet(new GrossProfitExport('Laba Kotor',['Invoice','Penjualan','HPP','Laba'],
-            [['INV-1',20000,0,null],['TOTAL',20000,0,null]],[2,3,4]));
-        $this->assertSame('TOTAL',$sheet->getCell('A6')->getValue());
-        $this->assertNull($sheet->getCell('D6')->getValue());
-        $this->assertSame('A4:D5',$sheet->getAutoFilter()->getRange());
+        $sheet=$this->sheet(new ProfitLossExport('Laba Rugi',
+            [['Harga Pokok Penjualan',0,true,'total'],['Laba Kotor',null,true,'result']],[]));
+        $this->assertSame('Laba Kotor',$sheet->getCell('A6')->getValue());
+        $this->assertSame('Belum lengkap',$sheet->getCell('B6')->getValue());
+        $this->assertSame('',$sheet->getAutoFilter()->getRange());
         $this->assertSame(6,$sheet->getHighestDataRow());
     }
 
     public function test_all_report_exports_remain_accessible_and_filter_metadata_is_preserved(): void
     {
         $this->actingAs(User::create(['name'=>'Owner','email'=>'report-format@example.com','password'=>'password','role'=>'owner']));
-        foreach (['sale','purchase','stock','transfer','gross-profit'] as $name) {
+        foreach (['sale','purchase','stock','transfer','profit-loss'] as $name) {
             $this->get(route('report.'.$name.'.pdf'))->assertOk()->assertHeader('Content-Type','application/pdf');
             $this->get(route('report.'.$name.'.excel'))->assertOk();
         }
@@ -95,7 +95,7 @@ class ReportExportFormatTest extends TestCase
             \App\Models\StockBatch::create(['product_id'=>$product->id,'location_id'=>$location->id,
                 'received_date'=>today(),'expired_date'=>$expiry,'quantity_initial'=>$quantity,'quantity_remaining'=>$quantity]);
         }
-        foreach (['sale','purchase','stock','transfer','gross-profit','stock-expired'] as $name) {
+        foreach (['sale','purchase','stock','transfer','profit-loss','stock-expired'] as $name) {
             $report = $name === 'stock-expired' ? 'stock' : $name;
             $filters = $name === 'stock-expired' ? ['expiry_status'=>'expired'] : [];
             $page = $this->get(route('report.'.$report,$filters))->assertOk();

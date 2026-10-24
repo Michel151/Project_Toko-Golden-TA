@@ -17,6 +17,7 @@
     <a href="{{ route('inventory.opnames.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
 </div>
 <form method="POST" action="{{ route('inventory.opnames.update', $opname) }}" data-complete-url="{{ route('inventory.opnames.complete',$opname) }}" id="opnameForm">
+    <div class="small text-muted mb-3">Petugas Opname: <strong class="text-body text-break">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: 'Belum dicatat' }}</strong></div>
     @csrf @method('PUT')
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <span class="small text-muted" id="opnameItemCount">{{ $opname->items->count() }} barang</span>
@@ -44,7 +45,14 @@
                             @include('inventory.opnames.quantity-input',['field'=>"items[{$item->id}][physical_quantity]",'value'=>$value])
                         @endif
                     </td>
-                    <td class="text-end fw-semibold item-difference opname-difference"></td>
+                    <td class="text-end fw-semibold opname-difference"><span class="item-difference"></span>
+                        @if(auth()->user()->isOwner() && app(\App\Services\MovingAverageCostService::class)->canTrack($item->product))
+                            <div data-valuation-field>
+                            <label class="d-block small fw-normal mt-1" for="opnameCost{{ $item->id }}">Nilai perolehan penambahan / satuan dasar (Rp)</label>
+                            <input id="opnameCost{{ $item->id }}" name="items[{{ $item->id }}][valuation_unit_cost]" type="number" min="0.0000000001" step="0.0000000001" class="form-control form-control-sm" value="{{ old('items.'.$item->id.'.valuation_unit_cost',$item->valuation_unit_cost) }}">
+                            </div>
+                        @endif
+                    </td>
                 </tr>
                 @if($item->tracks_expiry)
                     @php
@@ -76,7 +84,7 @@
     </div>
     <div id="opnameEmpty" class="text-center text-muted py-3" hidden>Barang tidak ditemukan.</div>
     <div class="d-flex flex-wrap gap-2 mt-2 opname-actions">
-        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan Draft</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan Draf</button>
         <button type="button" class="btn btn-success" id="btnSelesaikan"><i class="bi bi-check-circle me-1"></i>Selesaikan Opname</button>
         <a href="{{ route('inventory.opnames.index') }}" class="btn btn-outline-secondary">Batal</a>
     </div>

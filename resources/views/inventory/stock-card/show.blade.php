@@ -4,14 +4,14 @@
 
 @push('styles')
 <style>
-    .stock-card-heading{background:linear-gradient(120deg,#172039,#27324a);color:#fff;border-radius:14px;padding:1.2rem 1.3rem}
+    .stock-card-heading{background:var(--app-header);color:#fff;border:1px solid #18211c;border-radius:8px;padding:1rem 1.25rem}
     .stock-card-icon{width:46px;height:46px;display:grid;place-items:center;border-radius:12px;background:rgba(200,150,12,.18);color:#ffc107;font-size:1.25rem}
     .stock-card-stat{border:0;border-radius:12px;box-shadow:0 3px 12px rgba(25,35,55,.06)}
     .stock-card-filter{background:#fff;border:1px solid #e8ebf1;border-radius:12px;padding:.85rem 1rem}
     .stock-card-table th{white-space:nowrap}.stock-card-table td{vertical-align:middle;padding:.7rem}
     .stock-card-tabs{background:#fff;border:1px solid #e7eaf0;border-radius:12px;padding:.35rem;box-shadow:0 2px 10px rgba(25,35,55,.04)}
     .stock-card-tabs .nav-link{border:0;border-radius:9px;color:#697386;font-weight:600;padding:.65rem 1rem}
-    .stock-card-tabs .nav-link.active{background:#27324a;color:#fff}
+    .stock-card-tabs .nav-link.active{background:var(--app-accent-2);color:#fff}
     .stock-card-tabs .nav-link i{margin-right:.4rem}
     .location-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:#eef3ff;color:#0d6efd}
 </style>
@@ -165,18 +165,18 @@
     </table></div>
 </div>
 @else
-<div class="stock-card-filter mb-3">
-    <form class="d-flex flex-wrap gap-2 align-items-end">
-        <div><label class="form-label small text-muted">Lokasi</label><select name="location_id" class="form-select form-select-sm" style="width:170px"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected($locationId===$location->id)>{{ $location->name }}</option>@endforeach</select></div>
-        <div><label class="form-label small text-muted">Dari Tanggal</label><input type="date" name="from" value="{{ $from }}" class="form-control form-control-sm"></div>
-        <div><label class="form-label small text-muted">Sampai Tanggal</label><input type="date" name="to" value="{{ $to }}" class="form-control form-control-sm"></div>
-        <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        <a href="{{ route('inventory.stock-card.show',$product) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i></a>
+<div class="mb-3">
+    <form class="app-filter-bar">
+        <div class="app-filter-field"><label for="stockCardLocation">Lokasi</label><select id="stockCardLocation" name="location_id" class="form-select form-select-sm"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected($locationId===$location->id)>{{ $location->name }}</option>@endforeach</select></div>
+        <div class="app-filter-field"><label for="stockCardFrom">Dari Tanggal</label><input id="stockCardFrom" type="date" name="from" value="{{ $from }}" class="form-control form-control-sm"></div>
+        <div class="app-filter-field"><label for="stockCardTo">Sampai Tanggal</label><input id="stockCardTo" type="date" name="to" value="{{ $to }}" class="form-control form-control-sm"></div>
+        <div class="app-filter-actions"><button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
+        <a href="{{ route('inventory.stock-card.show',$product) }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise"></i></a></div>
     </form>
 </div>
 <div class="card table-card">
     <div class="card-header bg-white border-0 py-3"><h6 class="fw-bold mb-1">Mutasi Persediaan</h6><small class="text-muted">{{ $movements->total() }} transaksi dalam periode terpilih</small></div>
-    <div class="table-responsive"><table class="table table-hover stock-card-table mb-0">
+    <div class="table-responsive"><table class="table table-hover stock-card-table app-mobile-records mb-0" data-mobile-records>
         <thead><tr><th>Tanggal</th><th>Referensi</th><th>Keterangan</th><th>Lokasi</th><th class="text-end">Masuk</th><th class="text-end">Keluar</th><th class="text-end">Saldo</th><th>Petugas</th></tr></thead>
         <tbody>
         @forelse($movements as $movement)

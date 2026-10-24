@@ -4,7 +4,7 @@
 
 @push('styles')
 <style>
-    .audit-heading { background: linear-gradient(120deg, #172039, #27324a); color: #fff; border-radius: 14px; padding: 1.2rem 1.3rem; }
+    .audit-heading { background: var(--app-header); color: #fff; border-radius: 14px; padding: 1.2rem 1.3rem; }
     .audit-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(200, 150, 12, .18); color: #ffc107; display: grid; place-items: center; font-size: 1.2rem; }
     .audit-filter { background: #fff; border: 1px solid #e8ebf1; border-radius: 12px; padding: .85rem 1rem; }
     .audit-filter label { display: block; font-size: .67rem; text-transform: uppercase; letter-spacing: .04em; color: #7b8498; font-weight: 600; margin-bottom: .2rem; }

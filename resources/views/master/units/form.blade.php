@@ -1,9 +1,9 @@
 @extends('layouts.app')
-@section('title', isset($unit) ? 'Edit Satuan' : 'Tambah Satuan')
-@section('page-title', isset($unit) ? 'Edit Satuan' : 'Tambah Satuan')
+@section('title', isset($unit) ? 'Ubah Satuan' : 'Tambah Satuan')
+@section('page-title', isset($unit) ? 'Ubah Satuan' : 'Tambah Satuan')
 
 @section('content')
-@include('master._header', ['icon'=>'rulers', 'title'=>isset($unit) ? 'Edit Satuan' : 'Tambah Satuan', 'description'=>'Tentukan satuan yang digunakan pada transaksi dan stok.'])
+@include('master._header', ['icon'=>'rulers', 'title'=>isset($unit) ? 'Ubah Satuan' : 'Tambah Satuan', 'description'=>'Tentukan satuan yang digunakan pada transaksi dan stok.'])
 <div class="row justify-content-center">
     <div class="col-md-5">
         <div class="card table-card">
@@ -27,7 +27,7 @@
 
                     <div class="d-flex gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save me-1"></i>{{ isset($unit) ? 'Perbarui' : 'Simpan' }}
+                            <i class="bi bi-save me-1"></i>{{ isset($unit) ? 'Simpan Perubahan' : 'Simpan' }}
                         </button>
                         <a href="{{ route('master.units.index') }}" class="btn btn-outline-secondary">Batal</a>
                     </div>

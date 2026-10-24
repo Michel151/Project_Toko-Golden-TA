@@ -7,21 +7,34 @@ use App\Models\StockTransfer;
 use App\Models\Location;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\ReportExport;
 use Maatwebsite\Excel\Facades\Excel;
 
 class TransferReportController extends Controller
 {
+    private function transferQuery(Request $request, string $from, string $to): Builder
+    {
+        $filters = $request->validate([
+            'from_location_id' => ['nullable', 'integer', 'exists:locations,id'],
+            'to_location_id' => ['nullable', 'integer', 'exists:locations,id'],
+        ]);
+
+        return StockTransfer::with(['items.product.buyUnit', 'items.product.retailUnit', 'items.product.productUnits.unit', 'fromLocation', 'toLocation', 'createdBy'])
+            ->whereDate('transfer_date', '>=', $from)
+            ->whereDate('transfer_date', '<=', $to)
+            ->when($filters['from_location_id'] ?? null, fn ($query, $id) => $query->where('from_location_id', $id))
+            ->when($filters['to_location_id'] ?? null, fn ($query, $id) => $query->where('to_location_id', $id))
+            ->latest('transfer_date')->latest('created_at')->latest('id');
+    }
+
     public function index(Request $request)
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());
 
-        $transfers = StockTransfer::with(['items.product.buyUnit', 'items.product.retailUnit', 'items.product.productUnits.unit', 'fromLocation', 'toLocation', 'createdBy'])
-            ->whereDate('transfer_date', '>=', $from)
-            ->whereDate('transfer_date', '<=', $to)
-            ->latest('transfer_date')
+        $transfers = $this->transferQuery($request, $from, $to)
             ->get();
 
         $locations = Location::orderBy('name')->get();
@@ -40,10 +53,8 @@ class TransferReportController extends Controller
     {
         $from      = $request->get('from', now()->startOfMonth()->toDateString());
         $to        = $request->get('to', now()->toDateString());
-        $transfers = StockTransfer::with(['items.product.buyUnit', 'items.product.retailUnit', 'items.product.productUnits.unit', 'fromLocation', 'toLocation', 'createdBy'])
-            ->whereDate('transfer_date', '>=', $from)
-            ->whereDate('transfer_date', '<=', $to)
-            ->latest()->get();
+        $transfers = $this->transferQuery($request, $from, $to)
+            ->get();
 
         $pdf = Pdf::loadView('report.pdf.transfer', compact('transfers', 'from', 'to'))
                   ->setPaper('a4', 'landscape');
@@ -54,9 +65,7 @@ class TransferReportController extends Controller
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
-        $transfers = StockTransfer::with(['items.product.buyUnit', 'items.product.retailUnit', 'items.product.productUnits.unit', 'fromLocation', 'toLocation', 'createdBy'])
-            ->whereDate('transfer_date', '>=', $from)
-            ->whereDate('transfer_date', '<=', $to)->latest('transfer_date')->get();
+        $transfers = $this->transferQuery($request, $from, $to)->get();
         $rows = $transfers->flatMap(fn ($transfer) => $transfer->items->map(fn ($item) => [
             $transfer->transfer_number, $transfer->transfer_date->format('d/m/Y'), $item->product->name,
             $transfer->fromLocation->name, $transfer->toLocation->name,

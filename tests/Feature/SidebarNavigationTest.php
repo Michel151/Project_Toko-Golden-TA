@@ -50,6 +50,16 @@ class SidebarNavigationTest extends TestCase
         $this->assertGreaterThan(0,$xpath->query('//*[@id="sidebar"]//ul[contains(@class,"nav-submenu")]')->length);
     }
 
+    public function test_finance_precedes_reports_and_valuation_is_last(): void
+    {
+        $xpath = $this->sidebar('owner');
+        $groups = array_map(fn ($node) => trim($node->textContent), iterator_to_array($xpath->query('//*[@id="sidebar"]//span[contains(@class,"section-label")]')));
+        $this->assertLessThan(array_search('Laporan', $groups), array_search('Keuangan', $groups));
+        $list = $xpath->query('//*[@id="sidebar"]//a[@href="'.route('expenses.index').'"]/parent::li/parent::ul')->item(0);
+        $labels = array_map(fn ($node) => trim($node->textContent), iterator_to_array($xpath->query('.//a', $list)));
+        $this->assertSame(['Pencatatan Beban', 'Pencatatan Pajak', 'Penilaian Persediaan'], $labels);
+    }
+
     public function test_stock_card_keeps_monitoring_menu_active(): void
     {
         $this->sidebar('kasir');

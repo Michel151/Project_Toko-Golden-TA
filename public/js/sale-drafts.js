@@ -88,7 +88,7 @@
         dirty = true;
         writeLocal();
         updateIdentity();
-        setStatus(localAvailable ? 'Draft tersimpan di perangkat' : 'Penyimpanan perangkat tidak tersedia; menyimpan ke server...');
+        setStatus(localAvailable ? 'Draf tersimpan di perangkat' : 'Penyimpanan perangkat tidak tersedia; menyimpan ke server...');
         clearTimeout(timer);
         timer = setTimeout(sync, 700);
     }
@@ -106,7 +106,7 @@
                     if (body.draft.status !== 'active') {
                         closed = true;
                         removeLocal(sent.id);
-                        setStatus('Draft sudah ditutup. Buka keranjang baru sebelum melanjutkan.');
+                        setStatus('Draf sudah ditutup. Buka keranjang baru sebelum melanjutkan.');
                         document.getElementById('saveSaleButton').disabled = true;
                         return false;
                     }
@@ -118,7 +118,7 @@
                         try { localStorage.removeItem(previousKey); } catch (_) {}
                     }
                     updateIdentity();
-                    setStatus('Perubahan dipisahkan dari draft di tab lain');
+                    setStatus('Perubahan dipisahkan dari draf di tab lain');
                     clearTimeout(timer);
                     timer = setTimeout(sync, 100);
                     return false;
@@ -128,10 +128,10 @@
                 dirty = current.client_updated_at !== sent.client_updated_at;
                 writeLocal();
                 updateIdentity();
-                setStatus(dirty ? 'Draft tersimpan di perangkat' : `Draft tersimpan ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`);
+                setStatus(dirty ? 'Draf tersimpan di perangkat' : `Draf tersimpan ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`);
                 return true;
             } catch (_) {
-                setStatus(localAvailable ? 'Draft tersimpan di perangkat; belum tersinkron' : 'Draft belum tersimpan. Penyimpanan perangkat dan server tidak tersedia.');
+                setStatus(localAvailable ? 'Draf tersimpan di perangkat; belum tersinkron' : 'Draf belum tersimpan. Penyimpanan perangkat dan server tidak tersedia.');
                 return false;
             }
         })();
@@ -152,7 +152,7 @@
             document.getElementById('saleDraftMessage').textContent = '';
         } catch (_) {
             if (load !== candidateLoad) return null;
-            document.getElementById('saleDraftMessage').textContent = 'Server belum tersedia. Menampilkan draft pada perangkat ini.';
+            document.getElementById('saleDraftMessage').textContent = 'Server belum tersedia. Menampilkan draf pada perangkat ini.';
         }
         mergeCandidates();
         return candidates;

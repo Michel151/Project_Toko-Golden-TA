@@ -87,6 +87,34 @@ class User extends Authenticatable
     }
 
     // Relationships
+    public function hasTransactionHistory(): bool
+    {
+        $references = [
+            'purchase_orders' => ['created_by'],
+            'purchase_receipts' => ['received_by'],
+            'sales' => ['created_by'],
+            'stock_transfers' => ['created_by'],
+            'stock_opnames' => ['created_by'],
+            'purchase_returns' => ['created_by', 'approved_by', 'dispatched_by'],
+            'expenses' => ['created_by', 'confirmed_by'],
+            'monthly_taxes' => ['created_by', 'confirmed_by'],
+            'monthly_tax_revisions' => ['created_by'],
+            'inventory_cost_settings' => ['enabled_by'],
+            'inventory_cost_entries' => ['created_by'],
+            'stock_movements' => ['created_by'],
+            'product_import_runs' => ['user_id'],
+            'audit_logs' => ['user_id'],
+        ];
+
+        foreach ($references as $table => $columns) {
+            if (DB::table($table)->where(function ($query) use ($columns) {
+                foreach ($columns as $column) $query->orWhere($column, $this->id);
+            })->exists()) return true;
+        }
+
+        return false;
+    }
+
     public function purchaseOrders()
     {
         return $this->hasMany(PurchaseOrder::class, 'created_by');

@@ -3,7 +3,7 @@
 @section('page-title', 'Dashboard Owner')
 @push('styles')
 <style>
-.dashboard-hero{background:#243228;color:#fff;border-radius:8px}
+.dashboard-hero{background:var(--app-header);color:#fff;border-radius:8px}
 .owner-section{background:#fff;border-top:2px solid var(--app-border);padding:1rem;min-width:0}
 .owner-section h6{font-weight:700;margin:0}
 .owner-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:1rem}
@@ -69,7 +69,7 @@
         @forelse($topProducts as $index=>$item)<div class="owner-line"><span class="small text-muted">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">Rp {{ number_format($item->revenue,0,',','.') }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan lunas.</div>@endforelse
         </div><div data-ranking="quantity" hidden>@forelse($topQuantityProducts as $index=>$item)<div class="owner-line"><span class="small text-muted">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">{{ number_format($item->base_quantity,2,',','.') }} {{ $item->base_unit }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan bersatuan.</div>@endforelse</div>
     </section></div>
-    <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="locationHeading"><div class="owner-heading"><div><h6 id="locationHeading">Persediaan per Lokasi</h6><div class="small text-muted">Estimasi stok fisik × harga beli saat ini</div></div></div><div class="owner-value mb-1">Rp {{ number_format($inventoryValue,0,',','.') }}</div><div class="small text-muted mb-2">{{ $totalProducts }} jenis barang aktif</div>
+    <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="locationHeading"><div class="owner-heading"><div><h6 id="locationHeading">Persediaan per Lokasi</h6><div class="small text-muted">Nilai biaya tercatat; termasuk reservasi setelah moving average aktif</div></div></div><div class="owner-value mb-1">Rp {{ number_format($inventoryValue,0,',','.') }}</div><div class="small text-muted mb-2">{{ $totalProducts }} jenis barang aktif</div>
         @php $maxLocationValue=max(1,(float)($locationValues->max('value') ?? 0)); @endphp
         @forelse($locationValues as $location)<div class="py-2"><div class="d-flex flex-wrap justify-content-between gap-1"><a href="{{ route('inventory.stock.index',['location_id'=>$location->id]) }}" class="text-decoration-none">{{ $location->name }}</a><span class="small">Rp {{ number_format($location->value,0,',','.') }}</span></div><div class="owner-location-bar"><span style="width:{{ max(0,(float)$location->value)/$maxLocationValue*100 }}%"></span></div></div>@empty<div class="owner-empty">Belum ada lokasi.</div>@endforelse
     </section></div>

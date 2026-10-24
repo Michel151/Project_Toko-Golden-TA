@@ -9,6 +9,7 @@ use App\Models\ProductLocation;
 use App\Models\Stock;
 use App\Models\StockOpname;
 use App\Models\StockOpnameItem;
+use App\Models\User;
 use App\Services\StockService;
 use App\Services\OpnameExpiryService;
 use Illuminate\Http\Request;
@@ -29,24 +30,33 @@ class OpnameController extends Controller
     public function create()
     {
         $locations = Location::orderBy('name')->get();
-        return view('inventory.opnames.create', compact('locations'));
+        $users = User::orderBy('name')->orderBy('id')->get(['id', 'name', 'role']);
+        return view('inventory.opnames.create', compact('locations', 'users'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'location_id'  => 'required|exists:locations,id',
             'opname_date'  => 'required|date',
+            'participant_ids' => 'sometimes|required|array|min:1|max:100',
+            'participant_ids.*' => 'required|integer|distinct|exists:users,id',
         ]);
 
         // Buat draft opname dengan semua produk di lokasi tersebut
-        $opname = DB::transaction(function () use ($request) {
+        $opname = DB::transaction(function () use ($request, $validated) {
+            $participantIds = $validated['participant_ids'] ?? [auth()->id()];
+            $participants = User::whereIn('id', $participantIds)->orderBy('name')->orderBy('id')->get(['id', 'name']);
+            if ($participants->count() !== count($participantIds)) {
+                throw ValidationException::withMessages(['participant_ids'=>'Daftar petugas berubah. Silakan pilih kembali petugas opname.']);
+            }
             $opname = StockOpname::create([
                 'opname_number' => StockOpname::generateOpnameNumber(),
                 'location_id'   => $request->location_id,
                 'opname_date'   => $request->opname_date,
                 'status'        => 'draft',
                 'created_by'    => auth()->id(),
+                'participants'  => $participants->map(fn ($user) => ['user_id'=>$user->id, 'name'=>$user->name])->all(),
             ]);
 
             $registeredProductIds = ProductLocation::where('location_id', $request->location_id)
@@ -115,6 +125,7 @@ class OpnameController extends Controller
         $validated = $this->validateItems($request);
 
         DB::transaction(function () use ($opname, $validated) {
+            app(\App\Services\MovingAverageCostService::class)->lock();
             $this->savePhysicalQuantities($this->lockDraft($opname), $validated['items']);
         });
 
@@ -159,6 +170,7 @@ class OpnameController extends Controller
         $validated = $this->validateItems($request);
 
         DB::transaction(function () use ($opname, $validated) {
+            app(\App\Services\MovingAverageCostService::class)->lock();
             $opname = $this->lockDraft($opname);
             $this->savePhysicalQuantities($opname, $validated['items']);
             $opname->load(['items.product', 'location']);
@@ -179,7 +191,8 @@ class OpnameController extends Controller
                     $item->physical_quantity,
                     $opname,
                     $opname->opname_date,
-                    $opname->opname_number
+                    $opname->opname_number,
+                    $item->valuation_unit_cost
                 );
 
                 // Simpan selisih final
@@ -199,7 +212,8 @@ class OpnameController extends Controller
     {
         return $request->validate([
             'items' => 'required|array|max:10000',
-            'items.*' => 'required|array:physical_quantity,expiries',
+            'items.*' => 'required|array:physical_quantity,expiries,valuation_unit_cost',
+            'items.*.valuation_unit_cost' => 'nullable|numeric|min:0|max:999999999999.99|decimal:0,10',
             'items.*.physical_quantity' => 'nullable|numeric|decimal:0,4|min:0|max:99999999999.9999',
             'items.*.expiries' => 'nullable|array|max:500',
             'items.*.expiries.*' => 'required|array:id,expired_date,physical_quantity',
@@ -220,6 +234,7 @@ class OpnameController extends Controller
 
         foreach ($items as $itemId => $data) {
             $item = $opnameItems->get((int) $itemId);
+            if (auth()->user()?->isOwner()) $item->update(['valuation_unit_cost' => $data['valuation_unit_cost'] ?? $item->valuation_unit_cost]);
             app(OpnameExpiryService::class)->capture($item, (int) $opname->location_id);
             if ((bool)$item->tracks_expiry !== (bool)$item->product->is_expirable) {
                 throw ValidationException::withMessages(['items'=>'Pengaturan kedaluwarsa barang berubah. Buat draf opname baru.']);

@@ -43,6 +43,18 @@ class Location extends Model
         return $this->hasMany(StockOpname::class);
     }
 
+    public function hasTransactionHistory(): bool
+    {
+        return $this->purchaseReceiptItems()->exists()
+            || $this->saleItemSources()->exists()
+            || $this->stockTransfersFrom()->exists()
+            || $this->stockTransfersTo()->exists()
+            || $this->stockOpnames()->exists()
+            || StockMovement::where('location_id', $this->id)->exists()
+            || StockBatch::where('location_id', $this->id)->exists()
+            || PurchaseInspection::where('quarantine_location_id', $this->id)->exists();
+    }
+
     // Cek apakah lokasi masih memiliki stok > 0
     public function hasStock(): bool
     {

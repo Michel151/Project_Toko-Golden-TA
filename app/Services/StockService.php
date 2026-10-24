@@ -15,8 +15,24 @@ use Illuminate\Support\Facades\DB;
 
 class StockService
 {
+    public function __construct(private MovingAverageCostService $costs) {}
+
+    private function atomic(callable $work): mixed
+    {
+        return DB::transaction(function () use ($work) {
+            $this->costs->lock();
+            return $work();
+        }, 3);
+    }
+
     public function initializeImportedStock(Product $product, Location $location, float $baseQuantity, Model $reference, ?string $expiry = null, ?string $batchCode = null): void
     {
+        $this->atomic(fn () => $this->initializeImportedStockInternal($product, $location, $baseQuantity, $reference, $expiry, $batchCode));
+    }
+
+    private function initializeImportedStockInternal(Product $product, Location $location, float $baseQuantity, Model $reference, ?string $expiry = null, ?string $batchCode = null): void
+    {
+        $this->costs->prepare($product);
         $balanceBefore = $this->increaseAggregateStock($product, $location, $baseQuantity);
         if ($product->is_expirable && $baseQuantity > 0) {
             StockBatch::create([
@@ -27,6 +43,13 @@ class StockService
         }
         if ($baseQuantity > 0) $this->recordMovement($product,$location,'initial_import',$baseQuantity,$balanceBefore,$reference,
             now('Asia/Jakarta')->toDateString(),'IMPORT-MULTI-'.$reference->getKey(),$batchCode ? 'Batch '.$batchCode : null);
+        if ($baseQuantity > 0) {
+            $unit = $product->defaultPurchaseUnit;
+            $baseCost = $unit && (float) $unit->conversion_to_base > 0
+                ? \Brick\Math\BigDecimal::of($unit->buy_price)->dividedBy($unit->conversion_to_base, 10, \Brick\Math\RoundingMode::HalfUp)
+                : \Brick\Math\BigDecimal::of($product->buy_price);
+            $this->costs->receive($product, $baseQuantity, MovingAverageCostService::money($baseCost->multipliedBy((string) $baseQuantity)), $reference, today(), 'import-movement:'.StockMovement::where('product_id', $product->id)->max('id'));
+        }
     }
 
     /**
@@ -35,22 +58,51 @@ class StockService
      */
     public function receiveStock(Product $product, Location $location, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $expiredDate = null, ?PurchaseReceiptItem $receiptItem = null): void
     {
+        $this->atomic(fn () => $this->receiveStockInternal($product, $location, $quantity, $reference, $movementDate, $referenceNumber, $expiredDate, $receiptItem));
+    }
+
+    private function receiveStockInternal(Product $product, Location $location, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $expiredDate = null, ?PurchaseReceiptItem $receiptItem = null): void
+    {
+        $this->costs->prepare($product);
         $stockQty = $this->toBaseQuantity($product, $quantity, $product->defaultPurchaseUnit);
 
         $balanceBefore = $this->increaseAggregateStock($product, $location, $stockQty);
         $this->createBatch($product, $location, $stockQty, $movementDate, $expiredDate, $receiptItem);
 
         $this->recordMovement($product, $location, 'purchase', $stockQty, $balanceBefore, $reference, $movementDate, $referenceNumber);
+        $this->receiveValuation($product, $product->defaultPurchaseUnit, $quantity, $stockQty, $reference, $movementDate, $receiptItem);
     }
 
     public function receiveStockUsingUnit(Product $product, ProductUnit $productUnit, Location $location, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $expiredDate = null, ?PurchaseReceiptItem $receiptItem = null): void
     {
+        $this->atomic(fn () => $this->receiveStockUsingUnitInternal($product, $productUnit, $location, $quantity, $reference, $movementDate, $referenceNumber, $expiredDate, $receiptItem));
+    }
+
+    private function receiveStockUsingUnitInternal(Product $product, ProductUnit $productUnit, Location $location, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $expiredDate = null, ?PurchaseReceiptItem $receiptItem = null): void
+    {
+        $this->costs->prepare($product);
         $stockQty = $this->toBaseQuantity($product, $quantity, $productUnit);
 
         $balanceBefore = $this->increaseAggregateStock($product, $location, $stockQty);
         $this->createBatch($product, $location, $stockQty, $movementDate, $expiredDate, $receiptItem);
 
         $this->recordMovement($product, $location, 'purchase', $stockQty, $balanceBefore, $reference, $movementDate, $referenceNumber);
+        $this->receiveValuation($product, $productUnit, $quantity, $stockQty, $reference, $movementDate, $receiptItem);
+    }
+
+    private function receiveValuation(Product $product, ?ProductUnit $unit, float $quantity, float $baseQuantity, ?Model $reference, mixed $date, ?PurchaseReceiptItem $receiptItem): void
+    {
+        $orderItem = $receiptItem?->purchaseOrderItem;
+        while ($orderItem && (float) $orderItem->buy_price <= 0 && $orderItem->source_purchase_order_item_id) {
+            $orderItem = \App\Models\PurchaseOrderItem::findOrFail($orderItem->source_purchase_order_item_id);
+        }
+        $unitPrice = $orderItem?->buy_price ?? $unit?->buy_price ?? $product->buy_price;
+        $value = MovingAverageCostService::money(\Brick\Math\BigDecimal::of($unitPrice)->multipliedBy((string) $quantity));
+        if ($receiptItem) {
+            $receiptItem->forceFill(['cost_base_quantity' => $baseQuantity, 'acquisition_value' => $value])->save();
+        }
+        $key = $receiptItem ? 'receipt:'.$receiptItem->id : 'receipt-movement:'.StockMovement::where('product_id', $product->id)->max('id');
+        $this->costs->receive($product, $baseQuantity, $value, $reference, $date, $key);
     }
 
     /**
@@ -59,6 +111,12 @@ class StockService
      */
     public function deductStock(Product $product, Location $location, float $quantity, string $saleType, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): array
     {
+        return $this->atomic(fn () => $this->deductStockInternal($product, $location, $quantity, $saleType, $reference, $movementDate, $referenceNumber));
+    }
+
+    private function deductStockInternal(Product $product, Location $location, float $quantity, string $saleType, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): array
+    {
+        $this->costs->prepare($product);
         $stockQty = ($saleType === 'grosir' && $product->can_retail)
             ? $quantity * $product->conversion_factor
             : $quantity;
@@ -94,6 +152,11 @@ class StockService
     }
 
     public function restoreHeldSale(Sale $sale, string $movementType = 'sale_cancelled'): void
+    {
+        $this->atomic(fn () => $this->restoreHeldSaleInternal($sale, $movementType));
+    }
+
+    private function restoreHeldSaleInternal(Sale $sale, string $movementType = 'sale_cancelled'): void
     {
         $sale->load(['items.productUnit', 'items.product', 'items.sources']);
         app(SaleStockSnapshotService::class)->recoverLegacySources($sale);
@@ -138,6 +201,8 @@ class StockService
     public function transferStock(Product $product, Location $from, Location $to, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): void
     {
         DB::transaction(function () use ($product, $from, $to, $quantity, $reference, $movementDate, $referenceNumber) {
+            $this->costs->lock();
+            $this->costs->prepare($product);
             $stockFrom = Stock::where('product_id', $product->id)
                             ->where('location_id', $from->id)
                             ->lockForUpdate()
@@ -156,21 +221,7 @@ class StockService
             $stockFrom->quantity = $stockFrom->quantity - $quantity;
             $stockFrom->save();
 
-            $stockTo = Stock::where('product_id', $product->id)
-                            ->where('location_id', $to->id)
-                            ->first();
-
-            $toBalanceBefore = (float) ($stockTo?->quantity ?? 0);
-            if ($stockTo) {
-                $stockTo->quantity = $stockTo->quantity + $quantity;
-                $stockTo->save();
-            } else {
-                Stock::create([
-                    'product_id'  => $product->id,
-                    'location_id' => $to->id,
-                    'quantity'    => $quantity,
-                ]);
-            }
+            $toBalanceBefore = $this->increaseAggregateStock($product, $to, $quantity);
 
             $this->recordMovement($product, $from, 'transfer_out', -$quantity, $fromBalanceBefore, $reference, $movementDate, $referenceNumber, "Transfer ke {$to->name}");
             $this->recordMovement($product, $to, 'transfer_in', $quantity, $toBalanceBefore, $reference, $movementDate, $referenceNumber, "Transfer dari {$from->name}");
@@ -181,8 +232,14 @@ class StockService
      * Sesuaikan stok hasil stock opname.
      * physical_quantity dalam satuan yang tersimpan di stocks.
      */
-    public function adjustStock(Product $product, Location $location, float $physicalQty, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): void
+    public function adjustStock(Product $product, Location $location, float $physicalQty, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $valuationUnitCost = null): void
     {
+        $this->atomic(fn () => $this->adjustStockInternal($product, $location, $physicalQty, $reference, $movementDate, $referenceNumber, $valuationUnitCost));
+    }
+
+    private function adjustStockInternal(Product $product, Location $location, float $physicalQty, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $valuationUnitCost = null): void
+    {
+        $valuation = $this->costs->prepare($product);
         $stock = Stock::where('product_id', $product->id)
             ->where('location_id', $location->id)
             ->lockForUpdate()
@@ -201,6 +258,13 @@ class StockService
 
         if (abs($difference) > 0.00001) {
             $this->recordMovement($product, $location, 'opname_adjustment', $difference, $balanceBefore, $reference, $movementDate, $referenceNumber);
+            if (!$valuation) return;
+            if ($difference > 0 && $reference === null && str_starts_with($referenceNumber ?? '', 'IMPORT')) {
+                if (!auth()->user()?->isOwner() || $valuationUnitCost === null) throw \Illuminate\Validation\ValidationException::withMessages(['costing' => 'Nilai perolehan stok impor wajib disediakan owner.']);
+                $this->costs->receive($product, $difference, MovingAverageCostService::money(\Brick\Math\BigDecimal::of($valuationUnitCost)->multipliedBy((string) $difference)), null, $movementDate, 'legacy-import-movement:'.StockMovement::where('product_id', $product->id)->max('id'));
+            } else {
+                $this->costs->adjustment($product, $difference, $valuationUnitCost, $reference, $movementDate, 'adjustment-movement:'.StockMovement::where('product_id', $product->id)->max('id'));
+            }
         }
     }
 
@@ -251,6 +315,7 @@ class StockService
     {
         $stock = Stock::where('product_id', $product->id)
             ->where('location_id', $location->id)
+            ->lockForUpdate()
             ->first();
 
         $balanceBefore = (float) ($stock?->quantity ?? 0);

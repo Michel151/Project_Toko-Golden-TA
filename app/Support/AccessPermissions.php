@@ -23,7 +23,6 @@ class AccessPermissions
             'inventory.opnames' => ['label' => 'Stock Opname', 'group' => 'Inventori', 'icon' => 'clipboard-check', 'actions' => ['view', 'create', 'edit', 'delete']],
             'report.stock' => ['label' => 'Laporan Stok', 'group' => 'Laporan', 'icon' => 'bar-chart', 'actions' => ['view']],
             'report.sale' => ['label' => 'Laporan Penjualan', 'group' => 'Laporan', 'icon' => 'graph-up', 'actions' => ['view']],
-            'report.gross-profit' => ['label' => 'Laporan Laba Kotor', 'group' => 'Laporan', 'icon' => 'calculator', 'actions' => ['view']],
             'report.purchase' => ['label' => 'Laporan Pembelian', 'group' => 'Laporan', 'icon' => 'file-earmark-text', 'actions' => ['view']],
             'report.transfer' => ['label' => 'Laporan Transfer', 'group' => 'Laporan', 'icon' => 'arrow-repeat', 'actions' => ['view']],
         ];

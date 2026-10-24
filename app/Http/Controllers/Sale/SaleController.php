@@ -114,7 +114,7 @@ class SaleController extends Controller
             'draft_id' => 'nullable|uuid',
             'draft_version' => 'required_with:draft_id|nullable|integer|min:0',
             'transaction_confirmed' => 'accepted',
-            'sale_date' => 'required|date',
+            'sale_date' => 'required|date_format:Y-m-d|before_or_equal:'.now('Asia/Jakarta')->toDateString(),
             'payment_method' => 'required|in:tunai,transfer',
             'amount_paid' => 'required|numeric|min:0',
             'customer_name' => 'nullable|string|max:150',
@@ -127,6 +127,8 @@ class SaleController extends Controller
             'items.*.sources.*.location_id' => 'required|exists:locations,id',
             'items.*.sources.*.quantity' => 'required|numeric|min:0',
         ], [
+            'sale_date.before_or_equal' => 'Tanggal penjualan tidak boleh melewati hari ini (WIB).',
+            'sale_date.date_format' => 'Tanggal penjualan harus berupa tanggal yang valid.',
             'transaction_confirmed.accepted' => 'Centang konfirmasi sebelum menyimpan transaksi.',
         ]);
 
@@ -157,6 +159,7 @@ class SaleController extends Controller
 
         try {
             $sale = DB::transaction(function () use ($request, $pending, $holdUntil, $jakartaNow) {
+                app(\App\Services\MovingAverageCostService::class)->lock();
                 app(\App\Services\SaleDraftService::class)->consume($request);
                 $totalAmount = collect($request->items)->sum(fn ($i) => $i['quantity'] * $i['unit_price']
                 );
@@ -190,6 +193,8 @@ class SaleController extends Controller
                         ? (float) $purchaseUnit->buy_price / (float) $purchaseUnit->conversion_to_base
                         : (float) $product->buy_price;
                     $costPrice = $baseCost * (float) $productUnit->conversion_to_base;
+                    $costMethod = app(\App\Services\MovingAverageCostService::class)->prepare($product) ? 'reserved' : 'legacy_master';
+                    if ($costMethod === 'reserved') $costPrice = 0;
                     $legacySaleType = (float) $productUnit->conversion_to_base > 1 ? 'grosir' : 'ecer';
 
                     $saleItem = SaleItem::create([
@@ -200,6 +205,7 @@ class SaleController extends Controller
                         'quantity' => $itemData['quantity'],
                         'unit_price' => $itemData['unit_price'],
                         'cost_price' => $costPrice,
+                        'cost_method' => $costMethod,
                         'subtotal' => $itemData['quantity'] * $itemData['unit_price'],
                         'cost_subtotal' => $itemData['quantity'] * $costPrice,
                     ]);
@@ -245,6 +251,7 @@ class SaleController extends Controller
                     }
                 }
 
+                if (!$pending) app(\App\Services\MovingAverageCostService::class)->finalizeSale($sale);
                 return $sale;
             });
         } catch (\Exception $e) {
@@ -272,6 +279,7 @@ class SaleController extends Controller
         ]);
 
         $result = DB::transaction(function () use ($request, $sale) {
+            app(\App\Services\MovingAverageCostService::class)->lock();
             $locked = Sale::whereKey($sale->id)->lockForUpdate()->firstOrFail();
             if ($locked->status !== 'pending') {
                 return 'closed';
@@ -283,6 +291,12 @@ class SaleController extends Controller
             if ((float) $request->amount_paid < (float) $locked->total_amount) {
                 return 'short';
             }
+            if ($locked->sale_date->toDateString() > now('Asia/Jakarta')->toDateString()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'sale_date' => 'Tanggal penjualan tidak boleh melewati hari ini (WIB). Ubah tanggal transaksi sebelum menyelesaikan pembayaran.',
+                ]);
+            }
+            app(\App\Services\MovingAverageCostService::class)->finalizeSale($locked);
             $locked->update([
                 'status' => 'paid',
                 'payment_method' => $request->payment_method,
@@ -421,7 +435,7 @@ class SaleController extends Controller
             'draft_id' => 'nullable|uuid',
             'draft_version' => 'required_with:draft_id|nullable|integer|min:0',
             'transaction_confirmed' => 'accepted',
-            'sale_date' => 'required|date',
+            'sale_date' => 'required|date_format:Y-m-d|before_or_equal:'.now('Asia/Jakarta')->toDateString(),
             'payment_method' => 'required|in:tunai,transfer',
             'customer_name' => 'nullable|string|max:150',
             'items' => 'required|array|min:1',
@@ -433,6 +447,8 @@ class SaleController extends Controller
             'items.*.sources.*.location_id' => 'required|exists:locations,id',
             'items.*.sources.*.quantity' => 'required|numeric|min:0',
         ], [
+            'sale_date.before_or_equal' => 'Tanggal penjualan tidak boleh melewati hari ini (WIB).',
+            'sale_date.date_format' => 'Tanggal penjualan harus berupa tanggal yang valid.',
             'transaction_confirmed.accepted' => 'Centang konfirmasi sebelum menyimpan perubahan.',
         ]);
 
@@ -447,6 +463,7 @@ class SaleController extends Controller
 
         try {
             $result = DB::transaction(function () use ($request, $sale) {
+                app(\App\Services\MovingAverageCostService::class)->lock();
                 $locked = Sale::whereKey($sale->id)->lockForUpdate()->firstOrFail();
                 if ($locked->status !== 'pending') {
                     return 'closed';
@@ -539,6 +556,8 @@ class SaleController extends Controller
                 ? (float) $purchaseUnit->buy_price / (float) $purchaseUnit->conversion_to_base
                 : (float) $product->buy_price;
             $costPrice = $baseCost * (float) $productUnit->conversion_to_base;
+            $costMethod = app(\App\Services\MovingAverageCostService::class)->prepare($product) ? 'reserved' : 'legacy_master';
+            if ($costMethod === 'reserved') $costPrice = 0;
 
             $saleItem = SaleItem::create([
                 'sale_id' => $sale->id,
@@ -548,6 +567,7 @@ class SaleController extends Controller
                 'quantity' => $itemData['quantity'],
                 'unit_price' => $itemData['unit_price'],
                 'cost_price' => $costPrice,
+                'cost_method' => $costMethod,
                 'subtotal' => $itemData['quantity'] * $itemData['unit_price'],
                 'cost_subtotal' => $itemData['quantity'] * $costPrice,
             ]);

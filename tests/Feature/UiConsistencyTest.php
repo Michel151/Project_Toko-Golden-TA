@@ -32,6 +32,7 @@ class UiConsistencyTest extends TestCase
     private function order(string $number, array $extra=[]): PurchaseOrder
     {
         $order=PurchaseOrder::create(array_merge(['po_number'=>$number,'supplier_id'=>$this->supplier->id,'created_by'=>auth()->id(),'order_date'=>'2026-10-16','status'=>'pending'],$extra));
+        if (isset($extra['created_at'])) $order->forceFill(['created_at'=>$extra['created_at']])->save();
         $order->items()->create(['product_id'=>$this->product->id,'quantity_ordered'=>10,'quantity_received'=>0,'buy_price'=>100]);
         return $order;
     }
@@ -42,6 +43,166 @@ class UiConsistencyTest extends TestCase
         $directory=storage_path('framework/testing/ui-consistency');
         if (!is_dir($directory)) mkdir($directory,0777,true);
         file_put_contents($directory.'/'.$name,$content);
+    }
+
+    public function test_master_products_sort_by_name_with_stable_order_for_equal_names(): void
+    {
+        $this->product->update(['name'=>'Zebra']);
+        $biscuit = $this->product->replicate();
+        $biscuit->name = 'Biskuit';
+        $biscuit->save();
+        $water = $this->product->replicate();
+        $water->name = 'Air Mineral';
+        $water->save();
+        $otherWater = $water->replicate();
+        $otherWater->save();
+        $this->get(route('master.products.index'))->assertOk()
+            ->assertViewHas('products', fn ($rows) => $rows->pluck('id')->all() === [$water->id,$otherWater->id,$biscuit->id,$this->product->id]);
+    }
+
+    public function test_alphabetical_product_pagination_preserves_search_category_and_status_filters(): void
+    {
+        $expected = [];
+        for ($i = 22; $i >= 1; $i--) {
+            $product = $this->product->replicate();
+            $product->name = 'Produk Uji '.str_pad((string) $i, 2, '0', STR_PAD_LEFT);
+            $product->is_active = true;
+            $product->save();
+            $expected[] = $product->id;
+        }
+        $expected = array_reverse($expected);
+        $inactive = $this->product->replicate();
+        $inactive->name = 'Produk Uji Nonaktif';
+        $inactive->is_active = false;
+        $inactive->save();
+        $other = $this->product->replicate();
+        $other->name = 'Produk Uji Kategori Lain';
+        $other->category_id = Category::create(['name'=>'Kategori Lain'])->id;
+        $other->save();
+        $filters = ['search'=>'Produk Uji','category_id'=>$this->product->category_id,'status'=>'active'];
+        $page = $this->get(route('master.products.index', $filters))->assertOk()
+            ->assertViewHas('products', fn ($rows) => $rows->total() === 22 && $rows->pluck('id')->all() === array_slice($expected, 0, 20));
+        $this->get(route('master.products.index', $filters + ['page'=>2]))->assertOk()
+            ->assertViewHas('products', fn ($rows) => $rows->pluck('id')->all() === array_slice($expected, 20));
+        parse_str(parse_url($page->viewData('products')->url(2), PHP_URL_QUERY), $query);
+        $this->assertEquals($filters + ['page'=>2], $query);
+    }
+
+    public function test_purchase_order_list_sorts_by_document_date_then_creation_time_and_id(): void
+    {
+        $first = $this->order('PO-UJI-1', ['order_date'=>'2026-10-17','created_at'=>'2026-10-17 09:00:00']);
+        $second = $this->order('PO-UJI-2', ['order_date'=>'2026-10-17','created_at'=>'2026-10-17 10:00:00']);
+        $return = $this->order('PO-RETUR-UJI', ['root_purchase_order_id'=>$first->id,'order_date'=>'2026-10-17','created_at'=>'2026-10-17 10:00:00']);
+        $early = $this->order('PO-DIBUAT-LEBIH-AWAL', ['order_date'=>'2026-10-17','created_at'=>'2026-10-17 08:00:00']);
+        $backdated = $this->order('PO-TANGGAL-LAMA', ['order_date'=>'2026-10-16','created_at'=>'2026-10-17 11:00:00']);
+        $this->get(route('purchase.orders.index'))->assertOk()
+            ->assertViewHas('orders', fn ($rows) => $rows->pluck('id')->all() === [$return->id,$second->id,$first->id,$early->id,$backdated->id]);
+        $expected = [$return->id,$second->id,$first->id,$early->id,$backdated->id];
+        $this->get(route('purchase.receipts.index'))->assertOk()
+            ->assertViewHas('receivableOrders', fn ($rows) => $rows->pluck('id')->all() === $expected);
+        $this->get(route('purchase.receipts.create'))->assertOk()
+            ->assertViewHas('pendingOrders', fn ($rows) => $rows->pluck('id')->all() === $expected);
+    }
+
+    public function test_receipt_history_sorts_latest_first_and_keeps_date_filter_and_pagination(): void
+    {
+        $order = $this->order('PO-RIWAYAT');
+        $ids = [];
+        for ($i = 0; $i < 18; $i++) {
+            $receipt = \App\Models\PurchaseReceipt::create(['purchase_order_id'=>$order->id,'receipt_date'=>'2026-10-17','received_by'=>auth()->id()]);
+            $receipt->forceFill(['created_at'=>'2026-10-17 10:00:00'])->save();
+            $ids[] = $receipt->id;
+        }
+        $early = \App\Models\PurchaseReceipt::create(['purchase_order_id'=>$order->id,'receipt_date'=>'2026-10-17','received_by'=>auth()->id()]);
+        $early->forceFill(['created_at'=>'2026-10-17 09:00:00'])->save();
+        $old = \App\Models\PurchaseReceipt::create(['purchase_order_id'=>$order->id,'receipt_date'=>'2026-10-16','received_by'=>auth()->id()]);
+        $old->forceFill(['created_at'=>'2026-10-17 11:00:00'])->save();
+        $expected = [...array_reverse($ids), $early->id];
+        $filters = ['from'=>'2026-10-17','to'=>'2026-10-17'];
+        $page = $this->get(route('purchase.receipts.index', $filters))->assertOk()
+            ->assertViewHas('receipts', fn ($rows) => $rows->total() === 19 && $rows->pluck('id')->all() === array_slice($expected, 0, 15));
+        $this->get(route('purchase.receipts.index', $filters + ['page'=>2]))->assertOk()
+            ->assertViewHas('receipts', fn ($rows) => $rows->pluck('id')->all() === array_slice($expected, 15));
+        $this->get(route('purchase.receipts.index'))->assertOk()
+            ->assertViewHas('receipts', fn ($rows) => $rows->total() === 20 && $rows->pluck('id')->all() === array_slice($expected, 0, 15));
+        parse_str(parse_url($page->viewData('receipts')->url(2), PHP_URL_QUERY), $query);
+        $this->assertEquals($filters + ['page'=>2], $query);
+    }
+
+    public function test_purchase_order_sorting_stays_stable_across_pages_and_combined_filters(): void
+    {
+        $ids = [];
+        for ($i = 1; $i <= 18; $i++) {
+            $ids[] = $this->order('PO-HALAMAN-'.$i, ['order_date'=>'2026-10-17','created_at'=>'2026-10-17 10:00:00'])->id;
+        }
+        $this->order('PO-STATUS-LAIN', ['order_date'=>'2026-10-17','status'=>'completed']);
+        $this->order('PO-TANGGAL-LAIN', ['order_date'=>'2026-10-18']);
+        $supplier = Supplier::create(['name'=>'Supplier Lain']);
+        $this->order('PO-SUPPLIER-LAIN', ['order_date'=>'2026-10-17','supplier_id'=>$supplier->id]);
+        $filters = ['supplier_id'=>$this->supplier->id,'status'=>'pending','from'=>'2026-10-17','to'=>'2026-10-17'];
+        $expected = array_reverse($ids);
+        $firstPage = $this->get(route('purchase.orders.index', $filters))->assertOk()
+            ->assertViewHas('orders', fn ($rows) => $rows->total() === 18 && $rows->pluck('id')->all() === array_slice($expected, 0, 15));
+        $this->get(route('purchase.orders.index', $filters + ['page'=>2]))->assertOk()
+            ->assertViewHas('orders', fn ($rows) => $rows->pluck('id')->all() === array_slice($expected, 15));
+        parse_str(parse_url($firstPage->viewData('orders')->url(2), PHP_URL_QUERY), $query);
+        $this->assertEquals($filters + ['page'=>2], $query);
+    }
+
+    public function test_filter_pages_keep_explicit_labels_and_shared_controls(): void
+    {
+        foreach (['products-list'=>'master.products.index','returns-list'=>'purchase.returns.index','sales-list'=>'sale.sales.index'] as $name => $route) {
+            $page = $this->get(route($route))->assertOk()->assertSee('app-filter-bar')->assertSee('Terapkan');
+            $this->capture($name.'.html', $page->getContent());
+        }
+        $this->get(route('master.products.index', ['search'=>'Barang','category_id'=>$this->product->category_id,'status'=>'active']))
+            ->assertOk()->assertSee('Reset filter')->assertSee('Barang Utama');
+        $page = $this->get(route('master.products.index'))->assertOk();
+        $document = new \DOMDocument;
+        @$document->loadHTML($page->getContent());
+        $xpath = new \DOMXPath($document);
+        foreach (['master.products.import','master.products.create'] as $route) {
+            $this->assertSame(1, $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " product-list-toolbar ")]//a[@href="'.route($route).'"]')->length);
+        }
+        $page = $this->get(route('sale.sales.index'))->assertOk();
+        $document = new \DOMDocument;
+        @$document->loadHTML($page->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(1, $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " sale-list-toolbar ")]//a[@href="'.route('sale.sales.create').'"]')->length);
+    }
+
+    public function test_stock_card_uses_the_shared_header_and_active_tab_colors(): void
+    {
+        $this->get(route('inventory.stock-card.show', $this->product))
+            ->assertOk()
+            ->assertSee('.stock-card-heading{background:var(--app-header)', false)
+            ->assertSee('.stock-card-tabs .nav-link.active{background:var(--app-accent-2)', false);
+    }
+
+    public function test_page_headers_and_tabs_share_the_application_theme(): void
+    {
+        $pages = [
+            'product-theme' => ['master.products.show', ['product' => $this->product]],
+            'supplier-theme' => ['master.suppliers.create', []],
+            'stock-theme' => ['inventory.stock.index', []],
+            'stock-card-theme' => ['inventory.stock-card.show', ['product' => $this->product]],
+            'transfer-theme' => ['inventory.transfers.create', []],
+            'sale-theme' => ['sale.sales.create', []],
+            'permissions-theme' => ['permissions.index', []],
+            'audit-theme' => ['audit-logs.index', []],
+            'backup-theme' => ['database-backups.index', []],
+            'dashboard-theme' => ['dashboard', []],
+            'report-theme' => ['report.stock', []],
+        ];
+        foreach ($pages as $name => [$route, $parameters]) {
+            $page = $this->get(route($route, $parameters))->assertOk();
+            $page->assertSee('.page-content .stock-card-heading,', false)
+                ->assertSee('.page-content .supplier-catalog-tabs .nav-link.active,', false)
+                ->assertSee('.page-content .product-tabs .nav-link.active,', false)
+                ->assertSee('.page-content .nav-tabs .nav-link.active,', false)
+                ->assertSee('background: var(--app-accent-2);', false);
+            $this->capture($name.'.html', $page->getContent());
+        }
     }
 
     public function test_purchase_report_summary_and_exports_cover_the_whole_period_not_only_the_page(): void
@@ -103,6 +264,33 @@ class UiConsistencyTest extends TestCase
             $active=$xpath->query('//a[@aria-current="page" and @href="'.route($route).'"]');
             $this->assertSame(1,$active->length);
         }
+    }
+
+    public function test_sale_report_and_exports_sort_newest_date_creation_time_then_id_first(): void
+    {
+        $make = function ($number, $date, $created) {
+            $sale = \App\Models\Sale::create(['sale_number'=>$number, 'created_by'=>auth()->id(), 'sale_date'=>$date, 'total_amount'=>100, 'payment_method'=>'tunai', 'status'=>'paid']);
+            $sale->forceFill(['created_at'=>$created])->save();
+        };
+        $make('INV-OLDER-DATE', '2026-10-15', '2026-10-17 10:00:00');
+        $make('INV-EARLY', '2026-10-16', '2026-10-16 08:00:00');
+        $make('INV-LATE', '2026-10-16', '2026-10-16 10:00:00');
+        $make('INV-TIE', '2026-10-16', '2026-10-16 10:00:00');
+        $expected = ['INV-TIE', 'INV-LATE', 'INV-EARLY', 'INV-OLDER-DATE'];
+        $filters = ['from'=>'2026-10-01', 'to'=>'2026-10-17'];
+        $this->get(route('report.sale', $filters))->assertOk()
+            ->assertViewHas('sales', fn ($sales) => $sales->pluck('sale_number')->all() === $expected)
+            ->assertViewHas('totalTrx', 4)->assertViewHas('totalAmount', 400);
+        \Maatwebsite\Excel\Facades\Excel::fake();
+        $this->get(route('report.sale.excel', $filters))->assertOk();
+        \Maatwebsite\Excel\Facades\Excel::assertDownloaded('Laporan-Penjualan-2026-10-01-sd-2026-10-17.xlsx',
+            fn ($export) => array_column(array_slice($export->array(), 4), 0) === $expected);
+        $pdf = \Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+        $pdf->shouldReceive('setPaper')->once()->with('a4', 'portrait')->andReturnSelf();
+        $pdf->shouldReceive('stream')->once()->andReturn(response('sorted-pdf'));
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('loadView')->once()->with('report.pdf.sale',
+            \Mockery::on(fn ($data) => $data['sales']->pluck('sale_number')->all() === $expected))->andReturn($pdf);
+        $this->get(route('report.sale.pdf', $filters))->assertOk()->assertSee('sorted-pdf');
     }
 
     public function test_sale_report_displays_the_correct_cashier_below_each_customer(): void

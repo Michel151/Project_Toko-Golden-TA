@@ -1,16 +1,16 @@
 @extends('layouts.app')
-@section('title', isset($category) ? 'Edit Kategori' : 'Tambah Kategori')
-@section('page-title', isset($category) ? 'Edit Kategori' : 'Tambah Kategori')
+@section('title', isset($category) ? 'Ubah Kategori' : 'Tambah Kategori')
+@section('page-title', isset($category) ? 'Ubah Kategori' : 'Tambah Kategori')
 
 @section('content')
-@include('master._header', ['icon'=>'tags', 'title'=>isset($category) ? 'Edit Kategori' : 'Tambah Kategori', 'description'=>'Gunakan nama kategori yang singkat dan mudah dikenali.'])
+@include('master._header', ['icon'=>'tags', 'title'=>isset($category) ? 'Ubah Kategori' : 'Tambah Kategori', 'description'=>'Gunakan nama kategori yang singkat dan mudah dikenali.'])
 <div class="row justify-content-center">
     <div class="col-md-5">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3">
                 <h6 class="fw-bold mb-0">
                     <i class="bi bi-tags me-2"></i>
-                    {{ isset($category) ? 'Edit' : 'Tambah' }} Kategori
+                    {{ isset($category) ? 'Ubah' : 'Tambah' }} Kategori
                 </h6>
             </div>
             <div class="card-body">
@@ -34,7 +34,7 @@
                     <div class="d-flex gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save me-1"></i>
-                            {{ isset($category) ? 'Perbarui' : 'Simpan' }}
+                            {{ isset($category) ? 'Simpan Perubahan' : 'Simpan' }}
                         </button>
                         <a href="{{ route('master.categories.index') }}" class="btn btn-outline-secondary">
                             Batal

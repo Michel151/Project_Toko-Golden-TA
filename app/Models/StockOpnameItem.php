@@ -13,6 +13,7 @@ class StockOpnameItem extends Model
         'physical_quantity',
         'difference',
         'tracks_expiry',
+        'valuation_unit_cost',
     ];
 
     protected $casts = [
@@ -20,6 +21,7 @@ class StockOpnameItem extends Model
         'physical_quantity' => 'decimal:4',
         'difference'        => 'decimal:4',
         'tracks_expiry'     => 'boolean',
+        'valuation_unit_cost' => 'decimal:10',
     ];
 
     public function stockOpname()

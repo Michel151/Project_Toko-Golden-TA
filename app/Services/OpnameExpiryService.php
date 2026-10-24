@@ -103,7 +103,7 @@ class OpnameExpiryService
                 }
             }
         }
-        $stocks->adjustStock($item->product,$opname->location,(float)$item->physical_quantity,$opname,$opname->opname_date,$opname->opname_number);
+        $stocks->adjustStock($item->product,$opname->location,(float)$item->physical_quantity,$opname,$opname->opname_date,$opname->opname_number,$item->valuation_unit_cost);
         if ($changed && abs((float)$item->difference)<.00001) {
             StockMovement::create(['product_id'=>$item->product_id,'location_id'=>$opname->location_id,
                 'movement_type'=>'opname_adjustment','quantity'=>0,'balance_before'=>$item->system_quantity,

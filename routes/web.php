@@ -23,7 +23,6 @@ use App\Http\Controllers\Report\StockReportController;
 use App\Http\Controllers\Report\PurchaseReportController;
 use App\Http\Controllers\Report\SaleReportController;
 use App\Http\Controllers\Report\TransferReportController;
-use App\Http\Controllers\Report\GrossProfitReportController;
 
 // ── Redirect root ─────────────────────────────────────────────────────────────
 Route::get('/', fn() => redirect()->route('login'));
@@ -36,6 +35,24 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::middleware('role:owner')->prefix('inventory/costing')->name('inventory.costing.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\InventoryCostController::class, 'index'])->name('index');
+        Route::get('/{product}', [\App\Http\Controllers\InventoryCostController::class, 'show'])->name('show');
+    });
+
+    Route::middleware('role:owner')->group(function () {
+        Route::post('taxes/{tax}/confirm', [\App\Http\Controllers\MonthlyTaxController::class, 'confirm'])->name('taxes.confirm');
+        Route::get('taxes/{tax}/proof', [\App\Http\Controllers\MonthlyTaxController::class, 'proof'])->name('taxes.proof');
+        Route::resource('taxes', \App\Http\Controllers\MonthlyTaxController::class)->except('destroy');
+        Route::post('expenses/{expense}/confirm', [\App\Http\Controllers\ExpenseController::class, 'confirm'])->name('expenses.confirm');
+        Route::post('expenses/{expense}/pay', [\App\Http\Controllers\ExpenseController::class, 'pay'])->name('expenses.pay');
+        Route::post('expenses/{expense}/void', [\App\Http\Controllers\ExpenseController::class, 'void'])->name('expenses.void');
+        Route::get('expenses/{expense}/proof', [\App\Http\Controllers\ExpenseController::class, 'proof'])->name('expenses.proof');
+        Route::resource('expenses', \App\Http\Controllers\ExpenseController::class)->except('destroy');
+        Route::get('report/profit-loss', [\App\Http\Controllers\Report\ProfitLossReportController::class, 'index'])->name('report.profit-loss');
+        Route::get('report/profit-loss/pdf', [\App\Http\Controllers\Report\ProfitLossReportController::class, 'pdf'])->name('report.profit-loss.pdf');
+        Route::get('report/profit-loss/excel', [\App\Http\Controllers\Report\ProfitLossReportController::class, 'excel'])->name('report.profit-loss.excel');
+    });
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -147,9 +164,6 @@ Route::middleware('auth')->group(function () {
 
     // ── Laporan (owner only) ───────────────────────────────────────────────────
     Route::prefix('report')->name('report.')->group(function () {
-        Route::get('gross-profit', [GrossProfitReportController::class, 'index'])->middleware('permission:report.gross-profit')->name('gross-profit');
-        Route::get('gross-profit/pdf', [GrossProfitReportController::class, 'pdf'])->middleware('permission:report.gross-profit')->name('gross-profit.pdf');
-        Route::get('gross-profit/excel', [GrossProfitReportController::class, 'excel'])->middleware('permission:report.gross-profit')->name('gross-profit.excel');
         Route::get('stock',    [StockReportController::class,    'index'])->middleware('permission:report.stock')->name('stock');
         Route::get('purchase', [PurchaseReportController::class, 'index'])->middleware('permission:report.purchase')->name('purchase');
         Route::get('sale',     [SaleReportController::class,     'index'])->middleware('permission:report.sale')->name('sale');

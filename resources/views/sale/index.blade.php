@@ -1,11 +1,22 @@
 @extends('layouts.app')
 @section('title', 'Transaksi Penjualan')
 @section('page-title', 'Transaksi Penjualan')
+@push('styles')
+<style>
+.sale-list-toolbar { justify-content:space-between; }
+.sale-list-filters { display:flex;flex-wrap:wrap;align-items:end;gap:12px;flex-grow:1; }
+@media(max-width:767px) {
+    .app-filter-bar.sale-list-toolbar { display:flex;align-items:stretch; }
+    .sale-list-filters { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%; }
+    .sale-list-filters .app-filter-actions { grid-column:1/-1; }
+}
+</style>
+@endpush
 
 @section('content')
 <div class="inventory-heading"><h5><i class="bi bi-cart-check me-2"></i>Transaksi Penjualan</h5></div>
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <form class="d-flex gap-2 flex-wrap align-items-end" method="GET">
+<div class="app-filter-bar sale-list-toolbar mb-3">
+    <form class="sale-list-filters" method="GET">
         @include('components.date-range',['prefix'=>'saleList'])
         <div class="app-filter-field"><label for="salePayment">Pembayaran</label><select id="salePayment" name="payment_method" class="form-select form-select-sm">
             <option value="">Semua Pembayaran</option>
@@ -19,10 +30,11 @@
             <option value="cancelled" @selected(request('status') === 'cancelled')>Dibatalkan</option>
             <option value="cancelled_auto" @selected(request('status') === 'cancelled_auto')>Dibatalkan Otomatis</option>
         </select></div>
-        <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
+        <div class="app-filter-actions"><button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
         @if(request()->hasAny(['from','to','payment_method','status']))
-        <a href="{{ route('sale.sales.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</a>
+        <a href="{{ route('sale.sales.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise"></i></a>
         @endif
+        </div>
     </form>
     @if(auth()->user()->canAccessRoute('sale.sales.create')) <a href="{{ route('sale.sales.create') }}" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-circle me-1"></i> Transaksi Baru
@@ -73,7 +85,7 @@
                     <td class="text-center">
                         <a href="{{ route('sale.sales.show', $sale) }}" class="btn btn-sm btn-outline-info py-0 px-2"><i class="bi bi-eye"></i></a>
                         @if($sale->status === 'pending')
-                            @if(auth()->user()->canAccessRoute('sale.sales.edit')) <a href="{{ route('sale.sales.edit', $sale) }}" class="btn btn-sm btn-outline-warning py-0 px-2" title="Edit transaksi"><i class="bi bi-pencil"></i></a> @endif
+                            @if(auth()->user()->canAccessRoute('sale.sales.edit')) <a href="{{ route('sale.sales.edit', $sale) }}" class="btn btn-sm btn-outline-warning py-0 px-2" title="Ubah transaksi"><i class="bi bi-pencil"></i></a> @endif
                         @endif
                         @if($sale->status === 'paid')
                             <a href="{{ route('sale.sales.print', ['sale' => $sale, 'popup' => 1]) }}" class="btn btn-sm btn-outline-secondary py-0 px-2 js-print-popup" title="Cetak Nota"><i class="bi bi-printer"></i></a>

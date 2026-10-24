@@ -15,9 +15,7 @@ $sellable=$product->is_expirable ? (float)$product->stockBatches->filter(fn($bat
 $expired=$product->is_expirable ? (float)$product->stockBatches->filter(fn($batch)=>(float)$batch->quantity_remaining>0 && $batch->expired_date && $batch->expired_date->lt(today()))->sum(fn($batch)=>(float)$batch->quantity_remaining) : 0;
 $min=(float)$product->min_stock_total;
 $baseUnitName=$product->productUnits->firstWhere('is_base_unit', true)?->unit?->name ?? ($product->can_retail ? ($product->retailUnit->name ?? $product->buyUnit->name) : $product->buyUnit->name);
-$purchaseUnit=$product->productUnits->firstWhere('is_default_purchase', true);
-$baseCost=$purchaseUnit && (float)$purchaseUnit->conversion_to_base>0 ? (float)$purchaseUnit->buy_price/(float)$purchaseUnit->conversion_to_base : (float)$product->buy_price;
-$value=$total*$baseCost;
+$value=$product->inventoryValue();
 $grandValue+=$value; $low=$sellable<=$min;
 @endphp
 <tr><td><strong>{{ $product->name }}</strong></td><td>{{ $product->category->name ?? '-' }}</td><td>{{ $baseUnitName }}</td><td class="right">{{ $product->displayStock($total) }}</td><td class="right">{{ $product->displayStock($sellable) }}</td><td class="right {{ $expired>0?'low':'' }}">{{ $product->displayStock($expired) }}</td><td class="right">{{ $product->displayStock($min) }}</td><td class="right">Rp {{ number_format($value,0,',','.') }}</td><td class="center {{ $low?'low':'safe' }}">{{ $low?'Rendah':'Aman' }}</td></tr>

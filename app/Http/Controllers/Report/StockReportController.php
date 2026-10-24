@@ -26,7 +26,7 @@ class StockReportController extends Controller
         $locations  = Location::orderBy('name')->get();
         $categories = Category::orderBy('name')->get();
 
-        $query = Product::with(['buyUnit', 'retailUnit', 'category', 'stocks.location', 'stockBatches', 'productLocations.location', 'productUnits.unit']);
+        $query = Product::with(['costBalance', 'buyUnit', 'retailUnit', 'category', 'stocks.location', 'stockBatches', 'productLocations.location', 'productUnits.unit']);
 
         $this->applyFilters($query, $request);
 
@@ -36,7 +36,7 @@ class StockReportController extends Controller
         $stockSummary = ['products'=>$products->count(), 'value'=>0.0, 'low'=>0, 'empty'=>0];
         foreach ($products as $product) {
             $availability = $product->stockAvailability();
-            $stockSummary['value'] += $availability['physical'] * $this->baseCost($product);
+            $stockSummary['value'] += $product->inventoryValue();
             if ($availability['sellable'] <= 0) {
                 $stockSummary['empty']++;
             } elseif ($availability['sellable'] <= (float) $product->min_stock_total) {
@@ -49,7 +49,7 @@ class StockReportController extends Controller
 
     public function pdf(Request $request)
     {
-        $query = Product::with(['buyUnit', 'retailUnit', 'category', 'stocks.location', 'stockBatches', 'productUnits.unit']);
+        $query = Product::with(['costBalance', 'buyUnit', 'retailUnit', 'category', 'stocks.location', 'stockBatches', 'productUnits.unit']);
         $this->applyFilters($query, $request);
         $products = $query->orderBy('name')->get();
         $reportTitle = $this->reportTitle($request);
@@ -63,7 +63,7 @@ class StockReportController extends Controller
     public function excel(Request $request)
     {
         $locations = Location::orderBy('name')->get();
-        $query = Product::with(['buyUnit', 'retailUnit', 'category', 'stocks', 'stockBatches', 'productUnits.unit']);
+        $query = Product::with(['costBalance', 'buyUnit', 'retailUnit', 'category', 'stocks', 'stockBatches', 'productUnits.unit']);
         $this->applyFilters($query, $request);
         $products = $query->orderBy('name')->get();
 
@@ -80,7 +80,7 @@ class StockReportController extends Controller
                     ->filter(fn ($batch) => (float) $batch->quantity_remaining > 0 && $batch->expired_date && $batch->expired_date->lt(today()))
                     ->sum(fn ($batch) => (float) $batch->quantity_remaining)
                 : 0;
-            $value = $total * $this->baseCost($product);
+            $value = $product->inventoryValue();
             $locationStocks = $locations->map(function ($location) use ($product) {
                 if (! $product->is_expirable) {
                     return (float) ($product->stocks->firstWhere('location_id', $location->id)?->quantity ?? 0);
@@ -152,6 +152,7 @@ class StockReportController extends Controller
     private function exportMetadata(Request $request): array
     {
         return array_values(array_filter([
+            'Nilai: moving average otomatis dari stok nol (termasuk reservasi); stok lama memakai metode sebelumnya sampai habis.',
             $request->filled('category_id') ? 'Kategori: '.(Category::find($request->category_id)?->name ?? '-') : null,
             $request->filled('location_id') ? 'Seleksi barang di lokasi: '.(Location::find($request->location_id)?->name ?? '-').' (jumlah stok seluruh lokasi)' : 'Cakupan: seluruh lokasi',
             $this->expiryFilterLabel($request) ? 'Kedaluwarsa: '.$this->expiryFilterLabel($request) : null,
@@ -177,14 +178,4 @@ class StockReportController extends Controller
         return $prefix . '-' . now()->format('Y-m-d') . '.' . $extension;
     }
 
-    private function baseCost(Product $product): float
-    {
-        $purchaseUnit = $product->productUnits->firstWhere('is_default_purchase', true);
-
-        if ($purchaseUnit && (float) $purchaseUnit->conversion_to_base > 0) {
-            return (float) $purchaseUnit->buy_price / (float) $purchaseUnit->conversion_to_base;
-        }
-
-        return (float) $product->buy_price;
-    }
 }

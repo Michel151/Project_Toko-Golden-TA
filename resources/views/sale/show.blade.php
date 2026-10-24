@@ -9,7 +9,7 @@
     @if($sale->status === 'paid')
         <a href="{{ route('sale.sales.print', ['sale' => $sale, 'popup' => 1]) }}" class="btn btn-sm btn-outline-secondary js-print-popup"><i class="bi bi-printer me-1"></i>Cetak Nota</a>
     @elseif($sale->status === 'pending')
-        @if(auth()->user()->canAccessRoute('sale.sales.edit')) <a href="{{ route('sale.sales.edit', $sale) }}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil me-1"></i>Edit Transaksi</a> @endif
+        @if(auth()->user()->canAccessRoute('sale.sales.edit')) <a href="{{ route('sale.sales.edit', $sale) }}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil me-1"></i>Ubah Transaksi</a> @endif
     @endif
 </div>
 <div class="row g-3">

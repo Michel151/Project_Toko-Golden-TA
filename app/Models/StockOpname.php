@@ -13,10 +13,12 @@ class StockOpname extends Model
         'opname_date',
         'status',
         'created_by',
+        'participants',
     ];
 
     protected $casts = [
         'opname_date' => 'date',
+        'participants' => 'array',
     ];
 
     public function location()

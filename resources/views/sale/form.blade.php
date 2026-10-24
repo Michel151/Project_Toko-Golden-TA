@@ -1,16 +1,16 @@
 @extends('layouts.app')
 @php($editing = isset($sale))
-@section('title', $editing ? 'Edit Transaksi' : 'Transaksi Baru')
-@section('page-title', $editing ? 'Edit Transaksi Penjualan' : 'Transaksi Penjualan Baru')
+@section('title', $editing ? 'Ubah Transaksi' : 'Transaksi Baru')
+@section('page-title', $editing ? 'Ubah Transaksi Penjualan' : 'Transaksi Penjualan Baru')
 
 @push('styles')
 <style>
-.pos-heading { background:linear-gradient(120deg,#172039,#27324a); color:#fff; border-radius:14px; padding:1rem 1.25rem; }
+.pos-heading { background:var(--app-header); color:#fff; border-radius:14px; padding:1rem 1.25rem; }
 .pos-items-card { border:0; border-radius:14px; box-shadow:0 3px 16px rgba(25,35,55,.07); overflow:visible; }
 .pos-items-card .card-header { position:sticky; top:0; z-index:4; }
 .pos-items-scroll { max-height:clamp(520px,calc(100vh - 280px),760px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
 .pos-checkout { position:sticky; top:78px; border:0; border-radius:14px; box-shadow:0 5px 22px rgba(25,35,55,.10); overflow:hidden; }
-.pos-total { background:linear-gradient(125deg,#172039,#27324a); color:#fff; padding:1.25rem; }
+.pos-total { background:var(--app-header); color:#fff; padding:1.25rem; }
 .pos-total #grandTotal { background:transparent; border:0; color:#ffc107; font-size:1.7rem; font-weight:800; padding:0; box-shadow:none; }
 .pos-change { background:#ecf9f1; border:1px solid #ccebd8; border-radius:10px; padding:.75rem; }
 .pos-change #changeAmount { background:transparent; border:0; color:#198754; font-weight:700; padding:0; box-shadow:none; }
@@ -30,7 +30,7 @@
 .scanner-box{background:#fff8df;border:1px solid #f1d77d;border-radius:11px;padding:.75rem 1rem}.scanner-box .form-control{border-color:#e7c24d}.scanner-status{min-height:18px}
 .catalog-tabs { flex-wrap:nowrap; overflow-x:auto; padding-bottom:.25rem; scrollbar-width:thin; }
 .catalog-tabs .nav-link { white-space:nowrap; color:#566078; border:1px solid #e2e6ed; background:#fff; }
-.catalog-tabs .nav-link.active { color:#fff; background:#172039; border-color:#172039; }
+.catalog-tabs .nav-link.active { color:#fff; background:var(--app-accent-2); border-color:var(--app-accent-2); }
 .catalog-list { max-height:55vh; overflow-y:auto; overflow-x:hidden; }
 .catalog-product { height:100%; border:1px solid #e2e6ed; border-radius:11px; background:#fff; padding:.85rem; text-align:left; transition:.15s ease; }
 .catalog-product:hover { border-color:#198754; box-shadow:0 4px 14px rgba(25,135,84,.12); transform:translateY(-1px); }
@@ -88,8 +88,8 @@
     <input type="hidden" name="draft_version" id="saleDraftVersion" value="{{ old('draft_version', 0) }}">
     @if($editing) @method('PUT') @endif
     <div class="pos-heading d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-        <div><h5 class="fw-bold mb-0"><i class="bi bi-cart3 text-warning me-2"></i>{{ $editing ? 'Edit '.$sale->sale_number : 'Transaksi Penjualan' }}</h5></div>
-        <div class="d-flex align-items-center flex-wrap gap-2"><span class="small text-white-50" id="draftSaveStatus" role="status" aria-live="polite">Belum ada draft</span><button type="button" class="btn btn-sm btn-outline-light" id="showSaleDrafts"><i class="bi bi-clock-history me-1"></i>Draft</button><span class="badge bg-warning text-dark" id="itemCounter">0 Barang</span></div>
+        <div><h5 class="fw-bold mb-0"><i class="bi bi-cart3 text-warning me-2"></i>{{ $editing ? 'Ubah '.$sale->sale_number : 'Transaksi Penjualan' }}</h5></div>
+        <div class="d-flex align-items-center flex-wrap gap-2"><span class="small text-white-50" id="draftSaveStatus" role="status" aria-live="polite">Belum ada draft</span><button type="button" class="btn btn-sm btn-outline-light" id="showSaleDrafts"><i class="bi bi-clock-history me-1"></i>Draf</button><span class="badge bg-warning text-dark" id="itemCounter">0 Barang</span></div>
     </div>
     <div class="pos-workspace">
         <div>
@@ -125,7 +125,7 @@
                 <div class="card-body">
                     <h6 class="fw-bold mb-3"><i class="bi bi-receipt me-2 text-primary"></i>Informasi Transaksi</h6>
                     <div class="row g-2 mb-3">
-                        <div class="col-6"><label class="form-label small fw-semibold">Tanggal <span class="text-danger">*</span></label><input type="date" name="sale_date" class="form-control form-control-sm" value="{{ old('sale_date', $editing ? $sale->sale_date->format('Y-m-d') : now('Asia/Jakarta')->toDateString()) }}" required>@if($editing)<div class="small text-muted mt-1">{{ $sale->transaction_time_label }}</div>@endif</div>
+                        <div class="col-6"><label class="form-label small fw-semibold">Tanggal <span class="text-danger">*</span></label><input type="date" name="sale_date" class="form-control form-control-sm @error('sale_date') is-invalid @enderror" value="{{ old('sale_date', $editing ? $sale->sale_date->format('Y-m-d') : now('Asia/Jakarta')->toDateString()) }}" max="{{ now('Asia/Jakarta')->toDateString() }}" required>@error('sale_date')<div class="invalid-feedback">{{ $message }}</div>@enderror @if($editing)<div class="small text-muted mt-1">{{ $sale->transaction_time_label }}</div>@endif</div>
                         <div class="col-6"><label class="form-label small fw-semibold">Pembayaran <span class="text-danger">*</span></label><select name="payment_method" class="form-select form-select-sm" required><option value="tunai" @selected(old('payment_method', $editing ? $sale->payment_method : 'tunai') === 'tunai')>Tunai</option><option value="transfer" @selected(old('payment_method', $editing ? $sale->payment_method : 'tunai') === 'transfer')>Transfer</option></select></div>
                         <div class="col-12"><label class="form-label small fw-semibold">Nama Pelanggan</label><input type="text" name="customer_name" class="form-control form-control-sm" value="{{ old('customer_name', $editing ? $sale->customer_name : '') }}" placeholder="Pelanggan umum (opsional)"></div>
                     </div>
@@ -343,15 +343,15 @@ function validateCartStock() {
                     if (!location) return;
                     const stock = available(product, location.id);
                     option.dataset.qty = stock;
-                    option.textContent = `${location.name} (Stok: ${number(stock / conversion)} ${unit.unit_name})`;
+                    option.textContent = `${location.name} (Stok: ${formatStok(stock, product)})`;
                 });
                 const selectedLocation = row.querySelector('.source-location-select')?.value;
                 const stockLabel = row.querySelector('.available-qty');
                 if (stockLabel && selectedLocation !== 'manual') {
-                    stockLabel.textContent = `${number(available(product, selectedLocation) / conversion)} ${unit.unit_name}`;
+                    stockLabel.textContent = formatStok(available(product, selectedLocation), product);
                 }
                 row.querySelectorAll('.manual-stock').forEach(label => {
-                    label.textContent = `${number(available(product, label.dataset.locationId) / conversion)} ${unit.unit_name}`;
+                    label.textContent = formatStok(available(product, label.dataset.locationId), product);
                 });
             }
             const allStock = locations.reduce((sum, location) => sum + available(product, location.id), 0);
@@ -365,15 +365,15 @@ function validateCartStock() {
                     const requested = demand.get(key(product.id, source.locationId)) || 0;
                     if (requested > stock + 0.000001) {
                         const location = locations.find(l => l.id == source.locationId);
-                        messages.push(`${location?.name || 'Lokasi'}: ${stock <= 0 ? 'stok kosong' : `stok hanya ${number(stock / conversion)} ${unit.unit_name}`}. Total kebutuhan di keranjang ${number(requested / conversion)} ${unit.unit_name}.`);
+                        messages.push(`${location?.name || 'Lokasi'}: ${stock <= 0 ? 'stok kosong' : `stok hanya ${formatStok(stock, product)}`}. Total kebutuhan di keranjang ${number(requested / conversion)} ${unit.unit_name}.`);
                     }
                 });
                 if (messages.length) {
                     const alternatives = locations.filter(l => !sources.some(s => s.quantity > 0 && s.locationId == l.id)).map(l => {
                         const remaining = available(product, l.id) - (demand.get(key(product.id, l.id)) || 0);
-                        return { location: l, quantity: remaining / conversion };
+                        return { location: l, quantity: remaining };
                     }).filter(s => s.quantity > 0);
-                    if (alternatives.length) messages.push(`Sisa di lokasi lain: ${alternatives.map(s => `${s.location.name} ${number(s.quantity)} ${unit.unit_name}`).join('; ')}.`);
+                    if (alternatives.length) messages.push(`Sisa di lokasi lain: ${alternatives.map(s => `${s.location.name} ${formatStok(s.quantity, product)}`).join('; ')}.`);
                 }
             }
             const allocated = sources.reduce((sum, source) => sum + source.quantity, 0);
@@ -452,30 +452,36 @@ function buildProductOptions() {
 }
 
 function formatStok(rawQty, product) {
+    const quantityNumber = value => Number(value).toLocaleString('id-ID', { maximumFractionDigits: 4 });
     if (product && product.product_units && product.product_units.length) {
-        const units = [...product.product_units].sort((a, b) => b.conversion_to_base - a.conversion_to_base);
-        let remaining = rawQty;
+        const units = [...product.product_units]
+            .filter(unit => Number(unit.conversion_to_base) > 0)
+            .sort((a, b) => b.conversion_to_base - a.conversion_to_base);
+        let remaining = Math.round(Math.abs(rawQty) * 10000);
         const parts = [];
-        units.forEach(unit => {
-            const conversion = Number(unit.conversion_to_base || 0);
+        units.forEach((unit, index) => {
+            const conversion = Math.round(Number(unit.conversion_to_base) * 10000);
             if (conversion <= 0) return;
-            const amount = Math.floor(remaining / conversion);
+            const amount = index === units.length - 1
+                ? remaining / conversion
+                : Math.floor(remaining / conversion);
             if (amount > 0) {
-                parts.push(`${formatNumber(amount)} ${unit.unit_name}`);
+                parts.push(`${quantityNumber(amount)} ${unit.unit_name}`);
                 remaining = remaining % conversion;
             }
         });
-        return parts.length ? parts.join(' ') : `0 ${units[units.length - 1].unit_name}`;
+        if (parts.length) return `${rawQty < 0 ? '-' : ''}${parts.join(' ')}`;
+        if (units.length) return `0 ${units[units.length - 1].unit_name}`;
     }
 
     if (product && product.can_retail && product.conversion_factor > 0) {
         const wholeDus  = Math.floor(rawQty / product.conversion_factor);
-        const sisaBotol = Math.round(rawQty % product.conversion_factor);
+        const sisaBotol = Math.round((rawQty - wholeDus * product.conversion_factor) * 10000) / 10000;
         return sisaBotol > 0
-            ? `${wholeDus} ${product.buy_unit_name} ${sisaBotol} ${product.retail_unit_name}`
-            : `${wholeDus} ${product.buy_unit_name}`;
+            ? `${quantityNumber(wholeDus)} ${product.buy_unit_name} ${quantityNumber(sisaBotol)} ${product.retail_unit_name}`
+            : `${quantityNumber(wholeDus)} ${product.buy_unit_name}`;
     }
-    return `${Math.floor(rawQty)} ${product ? product.buy_unit_name : ''}`;
+    return `${quantityNumber(rawQty)} ${product ? product.buy_unit_name : ''}`;
 }
 
 function buildLocationOptions(selectedId, availableStocks, product) {

@@ -22,6 +22,7 @@ class SaleReportController extends Controller
             ->paid()
             ->whereBetween('sale_date', [$from, $to])
             ->latest('sale_date')
+            ->latest('created_at')->latest('id')
             ->get();
 
         $totalAmount   = $sales->sum('total_amount');
@@ -52,7 +53,7 @@ class SaleReportController extends Controller
         $sales = Sale::with(['items.product'])
             ->paid()
             ->whereBetween('sale_date', [$from, $to])
-            ->latest('sale_date')->get();
+            ->latest('sale_date')->latest('created_at')->latest('id')->get();
 
         $pdf = Pdf::loadView('report.pdf.sale', compact('sales', 'from', 'to'))
                   ->setPaper('a4', 'portrait');
@@ -63,7 +64,7 @@ class SaleReportController extends Controller
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
-        $sales = Sale::with('createdBy')->paid()->whereBetween('sale_date', [$from, $to])->latest('sale_date')->get();
+        $sales = Sale::with('createdBy')->paid()->whereBetween('sale_date', [$from, $to])->latest('sale_date')->latest('created_at')->latest('id')->get();
         $rows = $sales->map(fn ($sale) => [
             $sale->sale_number, $sale->sale_date->format('d/m/Y'), $sale->customer_name ?? 'Umum',
             ucfirst($sale->payment_method), $sale->createdBy->name ?? '-', (float) $sale->total_amount,

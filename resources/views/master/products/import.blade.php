@@ -28,7 +28,7 @@
 <div class="alert alert-warning">
     Stok aktual merupakan jumlah akhir per lokasi dalam satuan dasar. Nilai 0 mengosongkan stok; sel kosong mempertahankan stok. Perubahan stok dicatat dalam riwayat mutasi.
 </div>
-<p>Barang baru menggunakan satu satuan dasar. Kategori, satuan, dan lokasi yang belum tersedia dibuat otomatis. Untuk barang terdaftar, gunakan barcode yang tersimpan atau nama yang unik; harga, kategori, satuan, dan stok minimum tetap mengikuti data sistem. Konfigurasi dus/pack dan kedaluwarsa dapat dilengkapi melalui Edit Barang.</p>
+<p>Barang baru menggunakan satu satuan dasar. Kategori, satuan, dan lokasi yang belum tersedia dibuat otomatis. Untuk barang terdaftar, gunakan barcode yang tersimpan atau nama yang unik; harga, kategori, satuan, dan stok minimum tetap mengikuti data sistem. Konfigurasi dus/pack dan kedaluwarsa dapat dilengkapi melalui Ubah Barang.</p>
 <p>Supplier yang diisi langsung dihubungkan dengan barang. Nama supplier baru dibuat otomatis; alamat dan telepon dapat dilengkapi di Master Supplier. Harga hubungan baru mengikuti harga beli satuan pembelian barang yang tersimpan. Hubungan dan harga supplier yang sudah ada tetap dipertahankan.</p>
 <div class="table-responsive">
 <table class="table table-sm">

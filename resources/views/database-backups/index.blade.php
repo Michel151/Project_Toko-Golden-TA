@@ -4,7 +4,7 @@
 
 @push('styles')
 <style>
-.backup-hero{background:linear-gradient(120deg,#172039,#27324a);color:#fff;border-radius:14px;padding:1.25rem}.backup-card{border:0;border-radius:14px;box-shadow:0 3px 16px rgba(25,35,55,.07)}.backup-icon{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:#eef3ff;color:#0d6efd;font-size:1.2rem}.danger-note{background:#fff4f4;border:1px solid #f2cccc;border-radius:10px;padding:.85rem}
+.backup-hero{background:var(--app-header);color:#fff;border-radius:14px;padding:1.25rem}.backup-card{border:0;border-radius:14px;box-shadow:0 3px 16px rgba(25,35,55,.07)}.backup-icon{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:#eef3ff;color:#0d6efd;font-size:1.2rem}.danger-note{background:#fff4f4;border:1px solid #f2cccc;border-radius:10px;padding:.85rem}
 </style>
 @endpush
 

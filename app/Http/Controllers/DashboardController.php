@@ -56,7 +56,8 @@ class DashboardController extends Controller
         $monthItems = \App\Models\SaleItem::whereHas('sale', fn ($query) => $query->paid()
             ->whereDate('sale_date', '>=', $today->copy()->startOfMonth()->toDateString())->whereDate('sale_date', '<=', $today->toDateString()));
         $monthCost = (float) (clone $monthItems)->sum('cost_subtotal');
-        $missingCostCount = (clone $monthItems)->where('cost_subtotal', '<=', 0)->count();
+        $missingCostCount = (clone $monthItems)->where(fn ($q) => $q->whereNull('cost_subtotal')->orWhere('cost_subtotal', '<', 0)
+            ->orWhere(fn ($q) => $q->where('cost_subtotal', 0)->where('cost_method', '!=', 'moving_average')))->count();
         $salesWithoutItemsCount = (clone $monthSalesQuery)->whereDoesntHave('items')->count();
         $grossProfit = $salesMonth - $monthCost;
         $pendingSalesQuery = Sale::where('status', 'pending');
@@ -106,7 +107,7 @@ class DashboardController extends Controller
             ];
         });
 
-        $products = Product::active()->with(['stocks', 'stockBatches', 'buyUnit', 'retailUnit', 'category', 'productUnits.unit'])->get();
+        $products = Product::active()->with(['costBalance', 'stocks', 'stockBatches', 'buyUnit', 'retailUnit', 'category', 'productUnits.unit'])->get();
         $sellableStock = $products->mapWithKeys(fn ($product) => [$product->id => $product->is_expirable
             ? (float) $product->stockBatches->filter(fn ($batch) => (float) $batch->quantity_remaining > 0 && (! $batch->expired_date || $batch->expired_date->toDateString() >= $today->toDateString()))->sum('quantity_remaining')
             : (float) $product->stocks->sum('quantity')]);
@@ -117,13 +118,7 @@ class DashboardController extends Controller
             ->filter(fn($product) => $sellableStock[$product->id] <= 0)
             ->count();
         $inventoryValue = $products->sum(function ($product) {
-            $quantity = (float) $product->stocks->sum('quantity');
-            $purchaseUnit = $product->productUnits->firstWhere('is_default_purchase', true);
-            $baseCost = $purchaseUnit && (float) $purchaseUnit->conversion_to_base > 0
-                ? (float) $purchaseUnit->buy_price / (float) $purchaseUnit->conversion_to_base
-                : (float) $product->buy_price;
-
-            return $quantity * $baseCost;
+            return $product->inventoryValue();
         });
 
         $topProductQuery = DB::table('sale_items')
@@ -154,11 +149,7 @@ class DashboardController extends Controller
 
         $locationValues = Location::orderBy('name')->get()->map(function ($location) use ($products) {
             $value = $products->sum(function ($product) use ($location) {
-                $purchaseUnit = $product->productUnits->firstWhere('is_default_purchase', true);
-                $baseCost = $purchaseUnit && (float) $purchaseUnit->conversion_to_base > 0
-                    ? (float) $purchaseUnit->buy_price / (float) $purchaseUnit->conversion_to_base
-                    : (float) $product->buy_price;
-                return (float) ($product->stocks->firstWhere('location_id', $location->id)?->quantity ?? 0) * $baseCost;
+                return $product->inventoryValue((int) $location->id);
             });
             return (object) ['id' => $location->id, 'name' => $location->name, 'value' => $value];
         })->sortByDesc('value')->values();

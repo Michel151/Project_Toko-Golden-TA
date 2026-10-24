@@ -34,7 +34,7 @@
 </div>
 @include('components.report-kpis',['metrics'=>[
     ['label'=>'Jenis Barang','value'=>number_format($stockSummary['products'],0,',','.'),'hint'=>'Barang sesuai filter','icon'=>'box-seam','tone'=>'primary'],
-    ['label'=>'Nilai Persediaan','value'=>'Rp '.number_format($stockSummary['value'],0,',','.'),'hint'=>'Stok fisik seluruh lokasi - harga beli','icon'=>'cash-stack','tone'=>'success'],
+    ['label'=>'Nilai Persediaan','value'=>'Rp '.number_format($stockSummary['value'],0,',','.'),'hint'=>'Seluruh lokasi; termasuk reservasi setelah moving average aktif','icon'=>'cash-stack','tone'=>'success'],
     ['label'=>'Stok Rendah','value'=>number_format($stockSummary['low'],0,',','.').' jenis','hint'=>'Tersedia, tidak melebihi minimum','icon'=>'exclamation-triangle','tone'=>'warning'],
     ['label'=>'Stok Layak Jual Habis','value'=>number_format($stockSummary['empty'],0,',','.').' jenis','hint'=>'Tidak ada stok yang layak dijual','icon'=>'box','tone'=>'danger'],
 ]])
@@ -84,11 +84,7 @@
                         $minTot = (float) $product->min_stock_total;
                         $isLow = $sellable <= $minTot;
 
-                        $purchaseUnit = $product->productUnits->firstWhere('is_default_purchase', true);
-                        $baseCost = $purchaseUnit && (float) $purchaseUnit->conversion_to_base > 0
-                            ? (float) $purchaseUnit->buy_price / (float) $purchaseUnit->conversion_to_base
-                            : (float) $product->buy_price;
-                        $value = $total * $baseCost;
+                        $value = $product->inventoryValue();
                         $grandValue += $value;
 
                     @endphp

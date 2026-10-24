@@ -48,7 +48,7 @@
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Daftar Transaksi</h6></div>
             <div class="card-body p-0 table-responsive">
-                <table class="table table-hover report-table mb-0">
+                <table class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
                     <thead><tr><th>No. Invoice</th><th>Tanggal</th><th>Pelanggan / Kasir</th><th class="text-center">Bayar</th><th class="text-end">Total</th></tr></thead>
                     <tbody>
                         @forelse($sales as $sale)

@@ -7,6 +7,10 @@
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="d-flex gap-2 align-items-end" method="GET">
         @include('components.date-range',['prefix'=>'purchaseReport','fromValue'=>$from,'toValue'=>$to])
+        <div><label for="purchaseReportSupplier">Supplier</label><select id="purchaseReportSupplier" name="supplier_id" class="form-select form-select-sm" style="max-width:260px">
+            <option value="">Semua Supplier</option>
+            @foreach($suppliers as $supplier)<option value="{{ $supplier->id }}" @selected((string) request('supplier_id') === (string) $supplier->id)>{{ $supplier->name }}</option>@endforeach
+        </select></div>
         <div><label for="purchasePageSize">Per Halaman</label><select id="purchasePageSize" name="per_page" class="form-select form-select-sm">@foreach([25,50,100] as $size)<option value="{{ $size }}" @selected((int)request('per_page',25)===$size)>{{ $size }}</option>@endforeach</select></div>
         <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
     </form>

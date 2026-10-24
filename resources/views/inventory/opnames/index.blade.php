@@ -39,7 +39,7 @@
                     <td>{{ $opname->opname_date->format('d/m/Y') }}</td>
                     <td class="text-center">
                         <span class="badge bg-{{ $opname->status === 'completed' ? 'success' : 'warning' }}">
-                            {{ $opname->status === 'completed' ? 'Selesai' : 'Draft' }}
+                            {{ $opname->status === 'completed' ? 'Selesai' : 'Draf' }}
                         </span>
                     </td>
                     <td class="text-muted small">{{ $opname->createdBy->name ?? '-' }}</td>

@@ -19,6 +19,8 @@ class PurchaseReceiptController extends Controller
             ->whereIn('status', ['pending', 'partial'])
             ->whereHas('items', fn ($itemQuery) => $itemQuery->whereRaw('quantity_received + quantity_reserved < quantity_ordered'))
             ->latest('order_date')
+            ->latest('created_at')
+            ->latest('id')
             ->get();
 
         if ($request->filled('from')) {
@@ -32,7 +34,7 @@ class PurchaseReceiptController extends Controller
         $receiptCount = $summaryReceipts->count();
         $allocationCount = $summaryReceipts->sum(fn ($receipt) => $receipt->items->count());
         $supplierCount = $summaryReceipts->pluck('purchaseOrder.supplier_id')->unique()->count();
-        $receipts = $query->latest('receipt_date')->paginate(15)->withQueryString();
+        $receipts = $query->latest('receipt_date')->latest('created_at')->latest('id')->paginate(15)->withQueryString();
 
         return view('purchase.receipts.index', compact(
             'receipts', 'receiptCount', 'allocationCount', 'supplierCount', 'receivableOrders'
@@ -44,7 +46,9 @@ class PurchaseReceiptController extends Controller
         // Bisa dari detail PO atau pilih sendiri
         $pendingOrders = PurchaseOrder::with('supplier')
             ->whereIn('status', ['pending', 'partial'])
-            ->orderBy('order_date')
+            ->latest('order_date')
+            ->latest('created_at')
+            ->latest('id')
             ->get();
 
         $selectedOrder = null;

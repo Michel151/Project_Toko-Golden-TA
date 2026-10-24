@@ -21,6 +21,7 @@ class PurchaseFulfillmentService
     public function receive(array $data, int $userId): PurchaseReceipt
     {
         return DB::transaction(function () use ($data, $userId) {
+            app(MovingAverageCostService::class)->lock();
             $order = $this->lockOrder((int) $data['purchase_order_id']);
             if (! empty($data['submission_token']) && $existing = PurchaseReceipt::where('submission_token', $data['submission_token'])->first()) {
                 if ((int) $existing->purchase_order_id !== $order->id || (int) $existing->received_by !== $userId) {

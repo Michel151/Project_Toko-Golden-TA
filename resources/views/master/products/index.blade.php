@@ -1,32 +1,44 @@
 @extends('layouts.app')
 @section('title', 'Barang')
 @section('page-title', 'Master Barang')
+@push('styles')
+<style>
+.product-list-toolbar { justify-content:space-between; }
+.product-list-filters { display:flex;flex-wrap:wrap;align-items:end;gap:12px;flex-grow:1; }
+@media(max-width:767px) {
+    .app-filter-bar.product-list-toolbar { display:flex;align-items:stretch; }
+    .product-list-filters { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%; }
+    .product-list-filters .app-filter-search,.product-list-filters .app-filter-actions { grid-column:1/-1; }
+}
+</style>
+@endpush
 
 @section('content')
 @include('master._header', ['icon'=>'box-seam', 'title'=>'Data Barang', 'description'=>'Kelola identitas, harga, satuan, barcode, dan persediaan barang.'])
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <form class="d-flex gap-2" method="GET">
-        <input type="text" name="search" class="form-control form-control-sm" style="width:200px"
-               placeholder="Nama / barcode..." value="{{ request('search') }}">
-        <select name="category_id" class="form-select form-select-sm" style="width:160px">
+<div class="app-filter-bar product-list-toolbar mb-3">
+    <form class="product-list-filters" method="GET">
+        <div class="app-filter-field app-filter-search"><label for="productSearch">Cari Barang</label><input id="productSearch" type="search" name="search" class="form-control form-control-sm"
+               placeholder="Nama / barcode..." value="{{ request('search') }}"></div>
+        <div class="app-filter-field"><label for="productCategory">Kategori</label><select id="productCategory" name="category_id" class="form-select form-select-sm">
             <option value="">Semua Kategori</option>
             @foreach($categories as $cat)
             <option value="{{ $cat->id }}" {{ request('category_id') == $cat->id ? 'selected' : '' }}>
                 {{ $cat->name }}
             </option>
             @endforeach
-        </select>
-        <select name="status" class="form-select form-select-sm" style="width:130px">
+        </select></div>
+        <div class="app-filter-field"><label for="productStatus">Status</label><select id="productStatus" name="status" class="form-select form-select-sm">
             <option value="">Semua Status</option>
             <option value="active" @selected(request('status') === 'active')>Aktif</option>
             <option value="inactive" @selected(request('status') === 'inactive')>Nonaktif</option>
-        </select>
-        <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i></button>
+        </select></div>
+        <div class="app-filter-actions"><button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
         @if(request()->hasAny(['search','category_id','status']))
-        <a href="{{ route('master.products.index') }}" class="btn btn-sm btn-outline-danger">
-            <i class="bi bi-x"></i>
+        <a href="{{ route('master.products.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter">
+            <i class="bi bi-arrow-counterclockwise"></i>
         </a>
         @endif
+        </div>
     </form>
     <div class="d-flex gap-2 flex-wrap">
     @if(auth()->user()->canAccessRoute('master.products.import')) <a href="{{ route('master.products.import') }}" class="btn btn-outline-success btn-sm">

@@ -13,6 +13,7 @@ class HeldSaleService
     public function cancel(Sale $sale, bool $automatic = false): bool
     {
         return DB::transaction(function () use ($sale, $automatic) {
+            app(MovingAverageCostService::class)->lock();
             $locked = Sale::whereKey($sale->id)->lockForUpdate()->firstOrFail();
             if ($locked->status !== 'pending') {
                 return false;
@@ -22,7 +23,7 @@ class HeldSaleService
             $locked->update(['status' => $automatic ? 'cancelled_auto' : 'cancelled']);
 
             return true;
-        });
+        }, 3);
     }
 
     public function cancelOverdue(): int

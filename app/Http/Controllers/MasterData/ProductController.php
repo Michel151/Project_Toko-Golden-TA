@@ -10,6 +10,8 @@ use App\Models\ProductLocation;
 use App\Models\ProductUnit;
 use App\Models\Stock;
 use App\Models\Unit;
+use App\Support\DeletionConstraint;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -32,7 +34,7 @@ class ProductController extends Controller
             $query->where('is_active', $request->status === 'active');
         }
 
-        $products   = $query->latest()->paginate(20)->withQueryString();
+        $products   = $query->orderBy('name')->orderBy('id')->paginate(20)->withQueryString();
         $categories = Category::orderBy('name')->get();
 
         return view('master.products.index', compact('products', 'categories'));
@@ -120,7 +122,8 @@ class ProductController extends Controller
         $locations       = Location::orderBy('name')->get();
         $product->load('productUnits.unit');
         $productLocations = $product->productLocations->keyBy('location_id');
-        return view('master.products.form', compact('product', 'categories', 'units', 'locations', 'productLocations'));
+        $expirySettingLocked = $product->isExpirySettingLocked();
+        return view('master.products.form', compact('product', 'categories', 'units', 'locations', 'productLocations', 'expirySettingLocked'));
     }
 
     public function printLabel(Product $product)
@@ -141,7 +144,14 @@ class ProductController extends Controller
         $this->applyMinimumStockConversions($request);
 
         DB::transaction(function () use ($request, $product) {
+            // Use the same gate/order as stock writers before checking current history.
+            app(\App\Services\MovingAverageCostService::class)->lock();
             $product = Product::lockForUpdate()->findOrFail($product->id);
+            if ($request->boolean('is_expirable') !== $product->is_expirable && $product->isExpirySettingLocked()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'is_expirable' => 'Pengaturan kedaluwarsa tidak dapat diubah karena barang sudah memiliki stok atau riwayat transaksi.',
+                ]);
+            }
             $this->validateHistoricalUnits($product, $request);
             $product->update([
                 'name'                 => $request->name,
@@ -169,10 +179,30 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
-        if ($product->stocks()->where('quantity', '>', 0)->exists()) {
+        try {
+            $result = DB::transaction(function () use ($product) {
+                app(\App\Services\MovingAverageCostService::class)->lock();
+                $locked = Product::whereKey($product->id)->lockForUpdate()->firstOrFail();
+                if ($locked->costBalance()->exists()) return 'cost';
+                if ($locked->stocks()->where('quantity', '!=', 0)->exists()) return 'stock';
+                if ($locked->hasTransactionHistory()) return 'history';
+                $locked->delete();
+                return 'deleted';
+            }, 3);
+        } catch (QueryException $exception) {
+            if (!DeletionConstraint::isReferenced($exception, 'products')) throw $exception;
+            $result = 'history';
+        }
+
+        if ($result === 'cost') {
+            return back()->with('error', 'Barang memiliki riwayat penilaian persediaan. Nonaktifkan barang untuk mempertahankan riwayatnya.');
+        }
+        if ($result === 'stock') {
             return back()->with('error', 'Barang tidak bisa dihapus karena masih memiliki stok.');
         }
-        $product->delete();
+        if ($result === 'history') {
+            return back()->with('error', 'Barang tidak dapat dihapus karena masih digunakan dalam riwayat transaksi atau batch stok. Nonaktifkan barang untuk mempertahankan riwayatnya.');
+        }
         return redirect()->route('master.products.index')->with('success', 'Barang berhasil dihapus.');
     }
 

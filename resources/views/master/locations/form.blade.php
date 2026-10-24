@@ -1,9 +1,9 @@
 @extends('layouts.app')
-@section('title', isset($location) ? 'Edit Lokasi' : 'Tambah Lokasi')
-@section('page-title', isset($location) ? 'Edit Lokasi' : 'Tambah Lokasi')
+@section('title', isset($location) ? 'Ubah Lokasi' : 'Tambah Lokasi')
+@section('page-title', isset($location) ? 'Ubah Lokasi' : 'Tambah Lokasi')
 
 @section('content')
-@include('master._header', ['icon'=>'geo-alt', 'title'=>isset($location) ? 'Edit Lokasi' : 'Tambah Lokasi', 'description'=>'Catat lokasi penyimpanan untuk pengelolaan stok yang akurat.'])
+@include('master._header', ['icon'=>'geo-alt', 'title'=>isset($location) ? 'Ubah Lokasi' : 'Tambah Lokasi', 'description'=>'Catat lokasi penyimpanan untuk pengelolaan stok yang akurat.'])
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card table-card">
@@ -31,7 +31,7 @@
 
                     <div class="d-flex gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save me-1"></i>{{ isset($location) ? 'Perbarui' : 'Simpan' }}
+                            <i class="bi bi-save me-1"></i>{{ isset($location) ? 'Simpan Perubahan' : 'Simpan' }}
                         </button>
                         <a href="{{ route('master.locations.index') }}" class="btn btn-outline-secondary">Batal</a>
                     </div>

@@ -13,7 +13,7 @@
 .transfer-product-empty { padding:.7rem .75rem; color:#6b7280; font-size:.85rem; }
 .transfer-catalog-tabs { flex-wrap:nowrap; overflow-x:auto; padding-bottom:.25rem; scrollbar-width:thin; }
 .transfer-catalog-tabs .nav-link { white-space:nowrap; color:#566078; border:1px solid #e2e6ed; background:#fff; }
-.transfer-catalog-tabs .nav-link.active { color:#fff; background:#172039; border-color:#172039; }
+.transfer-catalog-tabs .nav-link.active { color:#fff; background:var(--app-accent-2); border-color:var(--app-accent-2); }
 .transfer-catalog-list { max-height:55vh; overflow-y:auto; overflow-x:hidden; }
 .transfer-catalog-product { height:100%; border:1px solid #e2e6ed; border-radius:8px; background:#fff; padding:.85rem; text-align:left; transition:.15s ease; }
 .transfer-catalog-product:hover { border-color:#0d6efd; box-shadow:0 4px 14px rgba(13,110,253,.12); transform:translateY(-1px); }

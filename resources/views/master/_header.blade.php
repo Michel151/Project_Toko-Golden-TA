@@ -1,6 +1,6 @@
 @once
 <style>
-    .master-heading{position:relative;overflow:hidden;background:linear-gradient(120deg,#172039 0%,#27324a 72%,#57491e 100%);color:#fff;border-radius:15px;padding:1.2rem 1.35rem;box-shadow:0 5px 18px rgba(23,32,57,.13)}
+    .master-heading{position:relative;overflow:hidden;background:var(--app-header);color:#fff;border-radius:15px;padding:1.2rem 1.35rem;box-shadow:0 5px 18px rgba(23,32,57,.13)}
     .master-heading::after{content:'';position:absolute;width:150px;height:150px;border-radius:50%;right:-45px;top:-75px;background:rgba(255,193,7,.12)}
     .master-heading-icon{width:48px;height:48px;flex:0 0 48px;border-radius:13px;background:rgba(255,193,7,.14);border:1px solid rgba(255,193,7,.18);color:#ffc107;display:grid;place-items:center;font-size:1.25rem}
     .master-heading .master-label{font-size:.67rem;letter-spacing:.11em;text-transform:uppercase;color:#ffc107;font-weight:700}

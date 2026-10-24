@@ -14,10 +14,11 @@
 @section('content')
 <div class="opname-document">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-        <div class="d-flex flex-wrap align-items-center gap-2"><h5 class="fw-bold mb-0">{{ $opname->opname_number }}</h5><span class="badge bg-{{ $opname->status === 'completed' ? 'success' : 'warning text-dark' }}">{{ $opname->status === 'completed' ? 'Selesai' : 'Draft' }}</span></div>
+        <div class="d-flex flex-wrap align-items-center gap-2"><h5 class="fw-bold mb-0">{{ $opname->opname_number }}</h5><span class="badge bg-{{ $opname->status === 'completed' ? 'success' : 'warning text-dark' }}">{{ $opname->status === 'completed' ? 'Selesai' : 'Draf' }}</span></div>
         <a href="{{ route('inventory.opnames.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
     </div>
     <div class="opname-meta"><span>Lokasi: <strong>{{ $opname->location->name }}</strong></span><span>Tanggal: <strong>{{ $opname->opname_date->format('d/m/Y') }}</strong></span><span>Dibuat oleh: <strong>{{ $opname->createdBy->name ?? '-' }}</strong></span></div>
+    <div class="small text-muted mt-2">Petugas Opname: <strong class="text-body text-break">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: 'Belum dicatat' }}</strong></div>
 </div>
 <div class="opname-summary" aria-label="Ringkasan seluruh barang dalam opname">
     <div class="opname-stat"><strong>{{ number_format($summary['total'],0,',','.') }}</strong><span>Total barang</span></div>

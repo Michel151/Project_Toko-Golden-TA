@@ -17,7 +17,13 @@ class TransferController extends Controller
 
     public function index(Request $request)
     {
+        $filters = $request->validate([
+            'from_location_id' => ['nullable', 'integer', 'exists:locations,id'],
+            'to_location_id' => ['nullable', 'integer', 'exists:locations,id'],
+        ]);
         $query = StockTransfer::with(['items.product.buyUnit', 'items.product.retailUnit', 'items.product.productUnits.unit', 'items.productUnit.unit', 'fromLocation', 'toLocation', 'createdBy']);
+        $query->when($filters['from_location_id'] ?? null, fn ($query, $id) => $query->where('from_location_id', $id))
+            ->when($filters['to_location_id'] ?? null, fn ($query, $id) => $query->where('to_location_id', $id));
 
         if ($request->filled('from')) {
             $query->whereDate('transfer_date', '>=', $request->from);
@@ -42,8 +48,9 @@ class TransferController extends Controller
 
         $transfers = $query->latest()->paginate(20)->withQueryString();
         $products  = Product::orderBy('name')->get();
+        $locations = Location::orderBy('name')->get();
 
-        return view('inventory.transfers.index', compact('transfers', 'products'));
+        return view('inventory.transfers.index', compact('transfers', 'products', 'locations'));
     }
 
     public function create()

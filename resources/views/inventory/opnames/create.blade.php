@@ -2,31 +2,47 @@
 @extends('layouts.app')
 @section('title', 'Buat Stock Opname')
 @section('page-title', 'Buat Stock Opname Baru')
+@push('styles')
+<style>
+#opnameParticipantsMenu .form-check-input:checked { background-color:var(--app-accent-2);border-color:var(--app-accent-2); }
+</style>
+@endpush
 
 @section('content')
 <div class="row justify-content-center">
     <div class="col-md-5">
         <div class="card table-card">
             <div class="card-body">
-                <p class="text-muted small mb-3">Sistem akan membuat draft opname berisi semua barang di lokasi yang dipilih. Anda kemudian mengisi jumlah fisik setiap barang.</p>
+                <p class="text-muted small mb-3">Sistem akan membuat draf opname berisi semua barang di lokasi yang dipilih. Anda kemudian mengisi jumlah fisik setiap barang.</p>
                 <form method="POST" action="{{ route('inventory.opnames.store') }}">
                     @csrf
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Lokasi <span class="text-danger">*</span></label>
-                        <select name="location_id" class="form-select @error('location_id') is-invalid @enderror" required>
+                        <label for="opnameLocation" class="form-label fw-semibold">Lokasi <span class="text-danger">*</span></label>
+                        <select id="opnameLocation" name="location_id" class="form-select @error('location_id') is-invalid @enderror" required>
                             <option value="">-- Pilih Lokasi --</option>
                             @foreach($locations as $loc)
-                            <option value="{{ $loc->id }}">{{ $loc->name }}</option>
+                            <option value="{{ $loc->id }}" @selected((string) old('location_id') === (string) $loc->id)>{{ $loc->name }}</option>
                             @endforeach
                         </select>
                         @error('location_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
+                    <div class="mb-3">
+                        <label for="opnameDate" class="form-label fw-semibold">Tanggal Opname <span class="text-danger">*</span></label>
+                        <input id="opnameDate" type="date" name="opname_date" class="form-control" value="{{ old('opname_date', today()->toDateString()) }}" required>
+                    </div>
                     <div class="mb-4">
-                        <label class="form-label fw-semibold">Tanggal Opname <span class="text-danger">*</span></label>
-                        <input type="date" name="opname_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                        @php $chosenParticipants = collect(old('participant_ids', [auth()->id()]))->filter(fn ($id) => is_scalar($id))->map(fn ($id) => (string) $id)->all(); @endphp
+                        <label id="opnameParticipantsLabel" for="opnameParticipants" class="form-label fw-semibold">Petugas Opname <span class="text-danger">*</span></label>
+                        <select id="opnameParticipants" name="participant_ids[]" multiple size="5" class="form-select @error('participant_ids') is-invalid @enderror @error('participant_ids.*') is-invalid @enderror" required>
+                            @foreach($users as $user)
+                            <option value="{{ $user->id }}" @selected(in_array((string) $user->id, $chosenParticipants, true))>{{ $user->name }} ({{ ['owner'=>'Owner','kasir'=>'Kasir','staf_gudang'=>'Staf Gudang'][$user->role] ?? $user->role }})</option>
+                            @endforeach
+                        </select>
+                        @error('participant_ids')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @error('participant_ids.*')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-clipboard-plus me-1"></i>Buat Draft</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-clipboard-plus me-1"></i>Buat Draf</button>
                         <a href="{{ route('inventory.opnames.index') }}" class="btn btn-outline-secondary">Batal</a>
                     </div>
                 </form>
@@ -35,3 +51,6 @@
     </div>
 </div>
 @endsection
+@push('scripts')
+<script src="{{ asset('js/opname-participants.js') }}"></script>
+@endpush

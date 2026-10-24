@@ -1,9 +1,9 @@
 @extends('layouts.app')
-@section('title', isset($order) ? 'Edit PO' : 'Buat Purchase Order')
-@section('page-title', isset($order) ? 'Edit Purchase Order' : 'Buat Purchase Order')
+@section('title', isset($order) ? 'Ubah PO' : 'Buat Purchase Order')
+@section('page-title', isset($order) ? 'Ubah Purchase Order' : 'Buat Purchase Order')
 
 @section('content')
-<div class="procurement-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="heading-icon"><i class="bi bi-cart-plus"></i></div><div><h5 class="fw-bold mb-1">{{ isset($order) ? 'Edit Purchase Order' : 'Purchase Order Baru' }}</h5><div class="small text-white-50">Pilih supplier dan susun daftar barang yang akan dipesan</div></div></div>@isset($order)<span class="badge bg-warning text-dark font-monospace">{{ $order->po_number }}</span>@endisset</div>
+<div class="procurement-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="heading-icon"><i class="bi bi-cart-plus"></i></div><div><h5 class="fw-bold mb-1">{{ isset($order) ? 'Ubah Purchase Order' : 'Purchase Order Baru' }}</h5><div class="small text-white-50">Pilih supplier dan susun daftar barang yang akan dipesan</div></div></div>@isset($order)<span class="badge bg-warning text-dark font-monospace">{{ $order->po_number }}</span>@endisset</div>
 <form method="POST" action="{{ isset($order) ? route('purchase.orders.update', $order) : route('purchase.orders.store') }}">
     @csrf @isset($order) @method('PUT') @endisset
 
@@ -105,7 +105,7 @@
 
         <div class="col-12 d-flex gap-2">
             <button type="submit" class="btn btn-primary">
-                <i class="bi bi-save me-1"></i>{{ isset($order) ? 'Perbarui PO' : 'Simpan PO' }}
+                <i class="bi bi-save me-1"></i>{{ isset($order) ? 'Simpan Perubahan PO' : 'Simpan PO' }}
             </button>
             <a href="{{ route('purchase.orders.index') }}" class="btn btn-outline-secondary">Batal</a>
         </div>

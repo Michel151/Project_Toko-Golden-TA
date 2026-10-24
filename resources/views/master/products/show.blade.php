@@ -4,11 +4,11 @@
 
 @push('styles')
 <style>
-    .product-hero{background:linear-gradient(120deg,#172039,#27324a);color:#fff;border-radius:16px;padding:1.3rem 1.4rem;box-shadow:0 4px 18px rgba(23,32,57,.15)}
+    .product-hero{background:var(--app-header);color:#fff;border-radius:16px;padding:1.3rem 1.4rem;box-shadow:0 4px 18px rgba(23,32,57,.15)}
     .product-avatar{width:58px;height:58px;border-radius:15px;background:rgba(200,150,12,.18);color:#ffc107;display:grid;place-items:center;font-size:1.7rem}
     .product-kpi{min-width:135px;padding:.7rem .9rem;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08)}
     .product-tabs{background:#fff;border:1px solid #e7eaf0;border-radius:12px;padding:.35rem;box-shadow:0 2px 10px rgba(25,35,55,.04)}
-    .product-tabs .nav-link{border:0;border-radius:9px;color:#697386;font-weight:600;padding:.65rem 1rem}.product-tabs .nav-link.active{background:#27324a;color:#fff}.product-tabs .nav-link i{margin-right:.4rem}
+    .product-tabs .nav-link{border:0;border-radius:9px;color:#697386;font-weight:600;padding:.65rem 1rem}.product-tabs .nav-link.active{background:var(--app-accent-2);color:#fff}.product-tabs .nav-link i{margin-right:.4rem}
     .detail-card{border:0;border-radius:13px;box-shadow:0 3px 14px rgba(25,35,55,.06)}
     .detail-row{display:flex;justify-content:space-between;gap:1rem;padding:.72rem 0;border-bottom:1px solid #edf0f4}.detail-row:last-child{border-bottom:0}.detail-label{color:#7b8498}.detail-value{font-weight:600;text-align:right}
     .price-box{border-radius:12px;padding:1rem;background:#f8f9fb;border:1px solid #e9ecf2}.location-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:#eef3ff;color:#0d6efd}
@@ -31,7 +31,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <a href="{{ route('master.products.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
-    @if(auth()->user()->canAccessRoute('master.products.edit')) <a href="{{ route('master.products.edit',$product) }}" class="btn btn-sm btn-warning"><i class="bi bi-pencil me-1"></i>Edit Barang</a> @endif
+    @if(auth()->user()->canAccessRoute('master.products.edit')) <a href="{{ route('master.products.edit',$product) }}" class="btn btn-sm btn-warning"><i class="bi bi-pencil me-1"></i>Ubah Barang</a> @endif
 </div>
 
 <div class="product-hero mb-3">

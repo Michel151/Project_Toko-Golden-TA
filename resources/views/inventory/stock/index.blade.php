@@ -4,7 +4,7 @@
 
 @push('styles')
 <style>
-    .stock-heading{background:linear-gradient(120deg,#172039,#27324a);color:#fff;border-radius:8px;padding:1.15rem 1.3rem;box-shadow:0 4px 16px rgba(23,32,57,.14)}
+    .stock-heading{background:var(--app-header);color:#fff;border-radius:8px;padding:1.15rem 1.3rem;box-shadow:0 4px 16px rgba(23,32,57,.14)}
     .stock-heading-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:8px;background:rgba(200,150,12,.18);color:#ffc107;font-size:1.25rem}
     .stock-stat{border:0;border-radius:8px;box-shadow:0 3px 14px rgba(25,35,55,.06);overflow:hidden}.stock-stat::before{content:'';display:block;height:3px;background:var(--accent)}
     .stock-stat-icon{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;background:var(--soft);color:var(--accent);font-size:1.05rem}
@@ -16,6 +16,7 @@
     .status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}
     @media(max-width:767px){.priority-table thead{display:none}.priority-table tbody tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.25rem .75rem;padding:.75rem 0;border-bottom:1px solid var(--app-border)}.priority-table td{min-width:0!important;padding:.25rem 0;border:0;white-space:normal!important;overflow-wrap:anywhere}.priority-table td:first-child,.priority-table td:last-child{grid-column:1/-1}.priority-table td:last-child{text-align:right}.priority-table td[data-label]::before{content:attr(data-label);display:block;font-size:.7rem;color:#647067;margin-bottom:.15rem}.priority-table .badge{white-space:normal;text-align:left}.stock-stat .card-body{flex-wrap:wrap}}
     @media(min-width:769px){.stock-table .stock-name-cell{position:sticky;left:0;background:#fff;z-index:2}.stock-table tr.stock-low .stock-name-cell{background:#fffaf0}.stock-table tr.stock-out .stock-name-cell{background:#fff5f5}.stock-table thead .stock-name-cell{background:#f8f9fa;z-index:3}}
+    @media(max-width:768px){.stock-table .stock-name-cell{position:sticky;left:0;min-width:135px;max-width:150px;width:150px;background:#fff;z-index:2;overflow-wrap:anywhere;box-shadow:2px 0 0 #dce3de}.stock-table tr.stock-low .stock-name-cell{background:#fffaf0}.stock-table tr.stock-out .stock-name-cell{background:#fff5f5}.stock-table thead .stock-name-cell{background:#eef2ec;z-index:3}}
 </style>
 @endpush
 
@@ -54,16 +55,17 @@
     <a class="btn btn-sm {{ request('view') !== 'priorities' ? 'btn-success' : 'btn-outline-secondary' }}" href="{{ route('inventory.stock.index', request()->except(['view','page'])) }}"><i class="bi bi-boxes me-1"></i>Persediaan</a>
     <a class="btn btn-sm {{ request('view') === 'priorities' ? 'btn-success' : 'btn-outline-secondary' }}" href="{{ route('inventory.stock.index', array_merge(request()->except(['page']), ['view'=>'priorities'])) }}"><i class="bi bi-exclamation-triangle me-1"></i>Perlu Ditindaklanjuti <span class="badge bg-light text-dark ms-1">{{ $priorityCount }}</span></a>
 </nav>
-<div class="stock-filter mb-3">
-    <form class="d-flex flex-wrap gap-2 align-items-end" method="GET">
+<div class="mb-3">
+    <form class="app-filter-bar" method="GET">
         @if(request('view') === 'priorities')<input type="hidden" name="view" value="priorities">@endif
-        <div><label>Pencarian</label><div class="input-group input-group-sm"><span class="input-group-text bg-white"><i class="bi bi-search"></i></span><input type="text" name="search" class="form-control" style="width:180px" placeholder="Nama barang..." value="{{ request('search') }}"></div></div>
-        <div><label>Kategori</label><select name="category_id" class="form-select form-select-sm" style="width:160px"><option value="">Semua Kategori</option>@foreach($categories as $category)<option value="{{ $category->id }}" @selected(request('category_id') == $category->id)>{{ $category->name }}</option>@endforeach</select></div>
-        <div><label>Lokasi</label><select name="location_id" class="form-select form-select-sm" style="width:150px"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected(request('location_id') == $location->id)>{{ $location->name }}</option>@endforeach</select></div>
-        <div><label>Status</label><select name="status" class="form-select form-select-sm" style="width:140px"><option value="">Semua Status</option><option value="safe" @selected(request('status')==='safe')>Aman</option><option value="low" @selected(request('status')==='low')>Stok Rendah</option><option value="out" @selected(request('status')==='out')>Stok Habis</option></select></div>
-        <div><label>Kedaluwarsa</label><select name="expiry_status" class="form-select form-select-sm" style="width:170px"><option value="">Semua Status</option><option value="expired" @selected(request('expiry_status')==='expired')>Sudah Kedaluwarsa</option><option value="expiring" @selected(request('expiry_status')==='expiring')>Hampir Kedaluwarsa</option><option value="safe" @selected(request('expiry_status')==='safe')>Aman</option><option value="without_date" @selected(request('expiry_status')==='without_date')>Tanpa Tanggal</option><option value="untracked" @selected(request('expiry_status')==='untracked')>Tidak Dilacak</option></select></div>
-        <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
+        <div class="app-filter-field app-filter-search"><label for="stockSearch">Cari Barang</label><input id="stockSearch" type="search" name="search" class="form-control form-control-sm" placeholder="Nama barang..." value="{{ request('search') }}"></div>
+        <div class="app-filter-field"><label for="stockCategory">Kategori</label><select id="stockCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $category)<option value="{{ $category->id }}" @selected(request('category_id') == $category->id)>{{ $category->name }}</option>@endforeach</select></div>
+        <div class="app-filter-field"><label for="stockLocation">Lokasi</label><select id="stockLocation" name="location_id" class="form-select form-select-sm"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected(request('location_id') == $location->id)>{{ $location->name }}</option>@endforeach</select></div>
+        <div class="app-filter-field"><label for="stockStatus">Status</label><select id="stockStatus" name="status" class="form-select form-select-sm"><option value="">Semua Status</option><option value="safe" @selected(request('status')==='safe')>Aman</option><option value="low" @selected(request('status')==='low')>Stok Rendah</option><option value="out" @selected(request('status')==='out')>Stok Habis</option></select></div>
+        <div class="app-filter-field"><label for="stockExpiry">Kedaluwarsa</label><select id="stockExpiry" name="expiry_status" class="form-select form-select-sm"><option value="">Semua Status</option><option value="expired" @selected(request('expiry_status')==='expired')>Sudah Kedaluwarsa</option><option value="expiring" @selected(request('expiry_status')==='expiring')>Hampir Kedaluwarsa</option><option value="safe" @selected(request('expiry_status')==='safe')>Aman</option><option value="without_date" @selected(request('expiry_status')==='without_date')>Tanpa Tanggal</option><option value="untracked" @selected(request('expiry_status')==='untracked')>Tidak Dilacak</option></select></div>
+        <div class="app-filter-actions"><button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
         @if(request()->hasAny(['search','category_id','location_id','status','expiry_status']))<a href="{{ route('inventory.stock.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i></a>@endif
+        </div>
     </form>
 </div>
 

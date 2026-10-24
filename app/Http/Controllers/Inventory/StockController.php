@@ -24,7 +24,7 @@ class StockController extends Controller
         $locations  = Location::orderBy('name')->get();
         $categories = \App\Models\Category::orderBy('name')->get();
 
-        $allProducts = Product::with(['stocks', 'stockBatches', 'productUnits.unit'])->get();
+        $allProducts = Product::with(['costBalance', 'stocks', 'stockBatches', 'productUnits.unit'])->get();
         $totalProducts = $allProducts->count();
         $lowStockCount = $allProducts->filter(fn ($product) => $product->stockAvailability()['sellable'] > 0 && $product->stockAvailability()['sellable'] <= (float) $product->min_stock_total)->count();
         $outOfStockCount = $allProducts->filter(fn ($product) => $product->stockAvailability()['sellable'] <= 0)->count();
@@ -36,13 +36,7 @@ class StockController extends Controller
             ->whereDate('expired_date', '<=', today()->addDays(30))
             ->count();
         $inventoryValue = $allProducts->sum(function ($product) {
-            $quantity = (float) $product->stocks->sum('quantity');
-            $purchaseUnit = $product->productUnits->firstWhere('is_default_purchase', true);
-            $baseCost = $purchaseUnit && (float) $purchaseUnit->conversion_to_base > 0
-                ? (float) $purchaseUnit->buy_price / (float) $purchaseUnit->conversion_to_base
-                : (float) $product->buy_price;
-
-            return $quantity * $baseCost;
+            return $product->inventoryValue();
         });
 
         $query = Product::with([

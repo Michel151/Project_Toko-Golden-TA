@@ -40,7 +40,13 @@
             main.querySelector('.item-total').textContent = formatQuantity(round(total), units);
             main.querySelector('.expiry-count').textContent = detail.querySelectorAll('[data-expiry-row]').length + ' kedaluwarsa';
         }
-        paintDifference(main.querySelector('.item-difference'), round(Number(main.querySelector('.item-physical').value) - Number(main.dataset.system)), units);
+        const difference = round(Number(main.querySelector('.item-physical').value) - Number(main.dataset.system));
+        paintDifference(main.querySelector('.item-difference'), difference, units);
+        const valuation = main.querySelector('[data-valuation-field]');
+        if (valuation) {
+            valuation.hidden = difference <= 0;
+            valuation.querySelector('input').disabled = difference <= 0;
+        }
     }
     function bindQuantity(widget, id) {
         const update = () => {

@@ -5,8 +5,16 @@
 @section('content')
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-arrow-left-right"></i></div><div><h5 class="fw-bold mb-1">Laporan Transfer Stok</h5><div class="text-white-50 small">Lacak perpindahan barang antar lokasi penyimpanan</div></div></div><span class="badge bg-info text-dark">{{ $transfers->count() }} Transfer</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-    <form class="d-flex gap-2 align-items-end" method="GET">
+    <form class="d-flex flex-wrap gap-2 align-items-end" method="GET">
         @include('components.date-range',['prefix'=>'transferReport','fromValue'=>$from,'toValue'=>$to])
+        <div><label class="form-label small mb-1" for="transferFromLocation">Lokasi Asal</label><select class="form-select form-select-sm" id="transferFromLocation" name="from_location_id">
+            <option value="">Semua Lokasi Asal</option>
+            @foreach($locations as $location)<option value="{{ $location->id }}" @selected((string) request('from_location_id') === (string) $location->id)>{{ $location->name }}</option>@endforeach
+        </select></div>
+        <div><label class="form-label small mb-1" for="transferToLocation">Lokasi Tujuan</label><select class="form-select form-select-sm" id="transferToLocation" name="to_location_id">
+            <option value="">Semua Lokasi Tujuan</option>
+            @foreach($locations as $location)<option value="{{ $location->id }}" @selected((string) request('to_location_id') === (string) $location->id)>{{ $location->name }}</option>@endforeach
+        </select></div>
         <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
     </form>
     <div class="btn-group btn-group-sm">
@@ -24,24 +32,25 @@
 
 <div class="card table-card">
     <div class="card-body p-0 table-responsive">
-        <table class="table table-hover report-table mb-0">
-            <thead><tr><th>No. Transfer</th><th>Barang</th><th>Dari</th><th>Ke</th><th class="text-end">Jumlah</th><th>Tanggal</th><th>Oleh</th></tr></thead>
+        <table class="table table-hover report-table mb-0" id="transferReportTable">
+            <thead><tr><th>No. Transfer</th><th>Barang</th><th>Dari</th><th>Ke</th><th>Tanggal</th><th>Oleh</th></tr></thead>
             <tbody>
                 @forelse($transfers as $t)
                 <tr>
                     <td class="font-monospace small fw-semibold">{{ $t->transfer_number }}</td>
-                    <td class="fw-semibold">@foreach($t->items as $item)<div>{{ $item->product->name }}</div>@endforeach</td>
+                    <td><button type="button" class="btn btn-sm btn-outline-success transfer-items-open" data-bs-toggle="modal" data-bs-target="#transferItemsModal" data-transfer-id="{{ $t->id }}" data-transfer-number="{{ $t->transfer_number }}" data-transfer-context="{{ $t->fromLocation->name }} &rarr; {{ $t->toLocation->name }} | {{ $t->transfer_date->format('d/m/Y') }}" aria-label="Rincian barang {{ $t->transfer_number }}"><i class="bi bi-list-ul me-1" aria-hidden="true"></i>{{ number_format($t->items->count(), 0, ',', '.') }} barang<i class="bi bi-chevron-right ms-2" aria-hidden="true"></i></button></td>
                     <td><span class="badge bg-danger bg-opacity-10 text-danger">{{ $t->fromLocation->name }}</span></td>
                     <td><span class="badge bg-success bg-opacity-10 text-success">{{ $t->toLocation->name }}</span></td>
-                    <td class="text-end fw-semibold">@foreach($t->items as $item)<div>{{ $item->product->displayStock((float)$item->quantity) }}</div>@endforeach</td>
                     <td>{{ $t->transfer_date->format('d/m/Y') }}</td>
                     <td class="text-muted small">{{ $t->createdBy->name ?? '-' }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="7" class="report-empty"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada transfer pada periode ini</td></tr>
+                <tr><td colspan="6" class="report-empty"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada transfer pada periode ini</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 </div>
+@include('components.transfer-items-templates')
+@include('components.transfer-items-modal')
 @endsection

@@ -74,6 +74,25 @@ class Product extends Model
         return $this->hasMany(Stock::class);
     }
 
+    public function costBalance() { return $this->hasOne(InventoryCostBalance::class); }
+
+    public function inventoryBaseCost(): float
+    {
+        if ($this->costBalance?->activated_at) return (float) $this->costBalance->average_cost;
+        $unit = $this->productUnits->firstWhere('is_default_purchase', true);
+        return $unit && (float) $unit->conversion_to_base > 0 ? (float) $unit->buy_price / (float) $unit->conversion_to_base : (float) $this->buy_price;
+    }
+
+    public function inventoryValue(?int $locationId = null): float
+    {
+        if ($this->costBalance?->activated_at) {
+            if ($locationId === null) return (float) $this->costBalance->inventory_value;
+            return round((float) app(\App\Services\MovingAverageCostService::class)->ownedQuantity($this->id, $locationId) * $this->inventoryBaseCost(), 2);
+        }
+        $quantity = $locationId === null ? $this->stocks->sum('quantity') : ($this->stocks->firstWhere('location_id', $locationId)?->quantity ?? 0);
+        return (float) $quantity * $this->inventoryBaseCost();
+    }
+
     public function stockBatches()
     {
         return $this->hasMany(StockBatch::class);
@@ -114,6 +133,24 @@ class Product extends Model
     public function stockMovements()
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    public function isExpirySettingLocked(): bool
+    {
+        return $this->stocks()->where('quantity', '!=', 0)->exists()
+            || $this->hasTransactionHistory();
+    }
+
+    public function hasTransactionHistory(): bool
+    {
+        return $this->stockBatches()->exists()
+            || $this->saleItems()->exists()
+            || $this->purchaseOrderItems()->exists()
+            || PurchaseReceiptItem::where('product_id', $this->id)->exists()
+            || $this->stockMovements()->exists()
+            || $this->stockTransfers()->exists()
+            || StockTransfer::where('product_id', $this->id)->exists()
+            || StockOpnameItem::where('product_id', $this->id)->exists();
     }
 
     public function scopeActive($query)
@@ -158,28 +195,34 @@ class Product extends Model
                 ->sortByDesc(fn ($productUnit) => (float) $productUnit->conversion_to_base)
                 ->values();
 
-            $remaining = $quantity;
+            // Match the four decimal places stored in stock quantities and avoid
+            // floating-point remainders dropping a fractional base unit.
+            $remaining = (int) round(abs($quantity) * 10000);
             $parts = [];
 
-            foreach ($units as $productUnit) {
-                $conversion = (float) $productUnit->conversion_to_base;
+            foreach ($units as $index => $productUnit) {
+                $conversion = (int) round((float) $productUnit->conversion_to_base * 10000);
                 if ($conversion <= 0) {
                     continue;
                 }
 
-                $amount = floor($remaining / $conversion);
-                if ($amount <= 0 && $parts) {
-                    continue;
-                }
+                // Keep the fractional remainder in the smallest unit rather
+                // than flooring it to zero after decomposing larger packages.
+                $amount = $index === $units->count() - 1
+                    ? $remaining / $conversion
+                    : intdiv($remaining, $conversion);
 
                 if ($amount > 0) {
-                    $parts[] = number_format($amount, 0, ',', '.') . ' ' . $productUnit->unit->name;
-                    $remaining = fmod($remaining, $conversion);
+                    $parts[] = \App\Support\DisplayNumber::quantity($amount) . ' ' . $productUnit->unit->name;
+                    $remaining %= $conversion;
                 }
             }
 
             if ($parts) {
-                return implode(' ', $parts);
+                $text = implode(' ', $parts);
+                return round($quantity, 4) < 0
+                    ? '-' . (count($parts) > 1 ? '(' . $text . ')' : $text)
+                    : $text;
             }
 
             $baseUnit = $units->last();

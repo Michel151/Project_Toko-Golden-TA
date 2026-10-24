@@ -270,7 +270,7 @@
         .report-heading {
             padding: 1.25rem 1.4rem;
             border-radius: 14px;
-            background: linear-gradient(120deg, #172039, #27324a);
+            background: var(--app-header);
             color: #fff;
             box-shadow: 0 4px 16px rgba(23,32,57,.14);
         }
@@ -286,7 +286,7 @@
         @media (max-width:768px) { .report-toolbar form { width:100%; } }
 
         /* Purchase order and receipt pages */
-        .procurement-heading { background:linear-gradient(120deg,#172039,#27324a);color:#fff;border-radius:14px;padding:1.15rem 1.3rem;box-shadow:0 4px 16px rgba(23,32,57,.14); }
+        .procurement-heading { background:var(--app-header);color:#fff;border-radius:14px;padding:1.15rem 1.3rem;box-shadow:0 4px 16px rgba(23,32,57,.14); }
         .procurement-heading .heading-icon { width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:rgba(200,150,12,.18);color:#ffc107;font-size:1.2rem; }
         .procurement-stat { border:0;border-radius:13px;box-shadow:0 3px 14px rgba(25,35,55,.06);overflow:hidden; }
         .procurement-stat::before { content:'';display:block;height:3px;background:var(--accent,#c8960c); }
@@ -466,6 +466,7 @@
         .page-content .pos-heading,
         .page-content .inventory-heading,
         .page-content .stock-heading,
+        .page-content .stock-card-heading,
         .page-content .audit-heading,
         .page-content .backup-hero,
         .page-content .cashier-hero,
@@ -490,6 +491,36 @@
         .app-filter-field { min-width:140px; }
         .app-filter-field label { display:block;font-size:12px;font-weight:600;color:var(--app-muted);margin-bottom:4px; }
         .app-filter-field .form-control { width:100%; }
+        .app-filter-bar { display:flex;flex-wrap:wrap;align-items:end;gap:12px;background:#fff;border-bottom:1px solid var(--app-border);padding:16px; }
+        .app-filter-bar .app-filter-field { flex:0 1 180px;min-width:140px; }
+        .app-filter-bar .app-filter-search { flex-basis:260px; }
+        .app-filter-bar .form-control,.app-filter-bar .form-select { width:100%;min-height:32px; }
+        .app-filter-actions { display:flex;gap:8px;align-items:center; }
+        .app-field-required:not(:has(.text-danger))::after { content:' *';color:#b02a37; }
+        .app-detail-tools { display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;padding:12px 16px;border-top:1px solid var(--app-border); }
+        .app-detail-tools .app-filter-field { flex:0 1 320px;max-width:100%; }
+        .app-detail-scroll { max-height:55vh;overflow:auto; }
+        .app-detail-scroll thead th { position:sticky;top:0;z-index:2; }
+        .app-detail-scroll tr[hidden] { display:none; }
+        @media(max-width:767px) {
+            .app-filter-bar { display:grid;grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .app-filter-bar .app-filter-field { min-width:0; }
+            .app-filter-bar .app-filter-search,.app-filter-bar .app-filter-actions { grid-column:1/-1; }
+            .stock-stat .card-body,.report-stat .card-body { display:flex!important;flex-direction:column;align-items:flex-start!important;justify-content:flex-start;gap:10px!important; }
+            .stock-stat .card-body>div,.report-stat .card-body>div { min-width:0;max-width:100%;overflow-wrap:anywhere; }
+            .stock-stat-icon,.stat-symbol { flex-shrink:0; }
+            .app-mobile-records { display:block;width:100%;min-width:0!important;table-layout:fixed; }
+            .app-mobile-records thead { display:none; }
+            .app-mobile-records tbody { display:block; }
+            .app-mobile-records tbody tr { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;padding:14px 16px;border-bottom:1px solid var(--app-border); }
+            .app-mobile-records tbody td { display:block;min-width:0;padding:0!important;border:0;text-align:left!important;white-space:normal!important;overflow-wrap:anywhere; }
+            .app-mobile-records tbody td:first-child,.app-mobile-records tbody td[colspan] { grid-column:1/-1; }
+            .app-mobile-records tbody td[data-label]::before { content:attr(data-label);display:block;color:var(--app-muted);font-size:11px;font-weight:600;margin-bottom:3px; }
+            .app-mobile-records tfoot,.app-mobile-records tfoot tr { display:block; }
+            .app-mobile-records tfoot td { display:block;padding:6px 16px;text-align:left!important; }
+            .app-mobile-records tfoot td:empty { display:none; }
+        }
+        @media(max-width:359px) { .app-filter-bar { grid-template-columns:minmax(0,1fr); } }
         .app-table-scroll { max-height:65vh;overflow:auto; }
         .app-table-scroll>table>thead th { position:sticky;top:0;z-index:2; }
         .app-document-meta { display:flex;flex-wrap:wrap;gap:8px 28px;font-size:13px;color:var(--app-muted); }
@@ -520,9 +551,15 @@
         }
         .page-content .pos-total #grandTotal { color: #f1c45c; }
         .page-content .catalog-tabs .nav-link.active,
-        .page-content .transfer-catalog-tabs .nav-link.active {
+        .page-content .transfer-catalog-tabs .nav-link.active,
+        .page-content .supplier-catalog-tabs .nav-link.active,
+        .page-content .product-tabs .nav-link.active,
+        .page-content .stock-card-tabs .nav-link.active,
+        .page-content .nav-tabs .nav-link.active,
+        .page-content .nav-pills .nav-link.active {
             background: var(--app-accent-2);
             border-color: var(--app-accent-2);
+            color: #fff;
         }
         .inventory-heading { margin-bottom: 1rem; }
         .inventory-heading h5 { margin: 0; font-weight: 700; }
@@ -751,7 +788,7 @@
     });
 
     const iconLabels = {
-        'bi-eye': 'Lihat detail', 'bi-pencil': 'Edit', 'bi-trash': 'Hapus', 'bi-printer': 'Cetak Nota',
+        'bi-eye': 'Lihat detail', 'bi-pencil': 'Ubah', 'bi-trash': 'Hapus', 'bi-printer': 'Cetak Nota',
         'bi-search': 'Terapkan filter', 'bi-funnel': 'Terapkan filter',
         'bi-arrow-counterclockwise': 'Reset filter', 'bi-x': 'Reset filter',
         'bi-file-pdf': 'Cetak PDF', 'bi-file-earmark-excel': 'Unduh Excel',
@@ -849,6 +886,7 @@
 
     initializeCurrencyInputs();
 </script>
+<script src="{{ asset('js/app-presentation.js') }}"></script>
 @stack('scripts')
 @if(session('completed_sale_draft'))
 <script>

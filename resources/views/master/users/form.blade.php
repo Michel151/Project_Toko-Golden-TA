@@ -1,9 +1,9 @@
 @extends('layouts.app')
-@section('title', isset($user) ? 'Edit Pengguna' : 'Tambah Pengguna')
-@section('page-title', isset($user) ? 'Edit Pengguna' : 'Tambah Pengguna')
+@section('title', isset($user) ? 'Ubah Pengguna' : 'Tambah Pengguna')
+@section('page-title', isset($user) ? 'Ubah Pengguna' : 'Tambah Pengguna')
 
 @section('content')
-@include('master._header', ['icon'=>'person-gear', 'title'=>isset($user) ? 'Edit Pengguna' : 'Tambah Pengguna', 'description'=>'Kelola identitas akun dan hak akses pengguna sistem.'])
+@include('master._header', ['icon'=>'person-gear', 'title'=>isset($user) ? 'Ubah Pengguna' : 'Tambah Pengguna', 'description'=>'Kelola identitas akun dan hak akses pengguna sistem.'])
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card table-card">
@@ -63,7 +63,7 @@
 
                     <div class="d-flex gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save me-1"></i>{{ isset($user) ? 'Perbarui' : 'Simpan' }}
+                            <i class="bi bi-save me-1"></i>{{ isset($user) ? 'Simpan Perubahan' : 'Simpan' }}
                         </button>
                         <a href="{{ route('master.users.index') }}" class="btn btn-outline-secondary">Batal</a>
                     </div>

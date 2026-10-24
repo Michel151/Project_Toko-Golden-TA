@@ -60,6 +60,35 @@ class PurchaseReturnWorkflowTest extends TestCase
             'quantity_ordered' => 100, 'buy_price' => 12000]);
     }
 
+    public function test_large_receipt_and_return_details_have_searchable_bounded_lists(): void
+    {
+        $this->setupOrder();
+        $receipt = PurchaseReceipt::create(['purchase_order_id'=>$this->order->id,'receipt_date'=>today(),'received_by'=>$this->owner->id]);
+        $return = PurchaseReturn::create(['return_number'=>'RT-UI-MANY','purchase_receipt_id'=>$receipt->id,'created_by'=>$this->owner->id,'status'=>'draft']);
+        $prototype = $this->order->items()->first();
+        for ($i = 1; $i <= 40; $i++) {
+            $product = $prototype->product->replicate();
+            $product->name = 'Barang Rincian '.str_pad((string) $i, 2, '0', STR_PAD_LEFT);
+            $product->save();
+            $unit = $prototype->productUnit->replicate();
+            $unit->product_id = $product->id;
+            $unit->save();
+            $item = $this->order->items()->create(['product_id'=>$product->id,'product_unit_id'=>$unit->id,'quantity_ordered'=>10,'buy_price'=>12000]);
+            $receipt->items()->create(['purchase_order_item_id'=>$item->id,'product_id'=>$product->id,'product_unit_id'=>$unit->id,
+                'location_id'=>$this->location->id,'quantity_received'=>2.125,'expired_date'=>today()->addYear()]);
+            $inspection = $receipt->inspections()->create(['purchase_order_item_id'=>$item->id,'quantity_good'=>2.125,'quantity_damaged'=>0.5,
+                'quarantine_location_id'=>$this->location->id,'reason'=>'Kemasan rusak']);
+            $return->items()->create(['purchase_inspection_id'=>$inspection->id,'kind'=>'damaged','quantity'=>0.5]);
+        }
+        $page = $this->get(route('purchase.receipts.show', $receipt))->assertOk()->assertSee('data-detail-list', false)
+            ->assertSee('receiptItemsSearch')->assertSee('receiptInspectionSearch')->assertSee('2,125')->assertDontSee('2,1250');
+        $this->capturePage('receipt-many', $page);
+        $page = $this->get(route('purchase.returns.show', $return))->assertOk()->assertSee('returnItemsSearch')
+            ->assertSee('app-detail-scroll')->assertDontSee('0,5000');
+        $this->capturePage('return-many', $page);
+        $this->assertDatabaseCount('stock_movements', 0);
+    }
+
     private function payload(PurchaseOrder $order, float $good, float $damaged = 0, float $wrong = 0, float $missing = 0): array
     {
         $item = $order->items()->first();

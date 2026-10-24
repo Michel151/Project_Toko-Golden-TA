@@ -19,6 +19,8 @@ class PurchaseReceiptItem extends Model
     protected $casts = [
         'quantity_received' => 'decimal:4',
         'expired_date' => 'date',
+        'cost_base_quantity' => 'decimal:4',
+        'acquisition_value' => 'decimal:2',
     ];
 
     public function purchaseReceipt()

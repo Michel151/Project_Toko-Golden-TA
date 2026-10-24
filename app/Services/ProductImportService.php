@@ -112,7 +112,7 @@ class ProductImportService
                 ProductLocation::firstOrCreate(['product_id' => $product->id, 'location_id' => $location->id], ['min_stock' => 0]);
                 $product->stocks()->firstOrCreate(['location_id' => $location->id], ['quantity' => 0]);
                 if ($importStock && $data['stok_aktual'] !== null && $data['stok_aktual'] !== '') {
-                    app(StockService::class)->adjustStock($product, $location, (float) $data['stok_aktual'], referenceNumber: $reference);
+                    app(StockService::class)->adjustStock($product, $location, (float) $data['stok_aktual'], referenceNumber: $reference, valuationUnitCost: (string) $data['harga_beli']);
                     $result['stocks']++;
                 }
             }

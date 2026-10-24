@@ -4,7 +4,10 @@ namespace App\Http\Controllers\MasterData;
 
 use App\Http\Controllers\Controller;
 use App\Models\Location;
+use App\Services\MovingAverageCostService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LocationController extends Controller
 {
@@ -46,10 +49,35 @@ class LocationController extends Controller
 
     public function destroy(Location $location)
     {
-        if ($location->hasStock()) {
+        try {
+            $result = DB::transaction(function () use ($location) {
+                // Serialize with stock writers before checking and deleting zero-stock rows.
+                app(MovingAverageCostService::class)->lock();
+                $locked = Location::whereKey($location->id)->lockForUpdate()->firstOrFail();
+                if ($locked->hasStock()) return 'stock';
+                if ($locked->hasTransactionHistory()) return 'history';
+                $locked->delete();
+                return 'deleted';
+            }, 3);
+        } catch (QueryException $exception) {
+            // A reference inserted concurrently must also produce a clear refusal.
+            $state = $exception->errorInfo[0] ?? null;
+            $code = (int) ($exception->errorInfo[1] ?? 0);
+            $foreignKeyViolation = $state === '23503'
+                || ($state === '23000' && ($code === 1451
+                    || (in_array($code, [19, 787], true) && str_contains($exception->getMessage(), 'FOREIGN KEY constraint failed'))));
+            if (!$foreignKeyViolation || !preg_match('/^delete\s+from\s+[`"\[]?locations\b/i', $exception->getSql())) {
+                throw $exception;
+            }
+            $result = 'history';
+        }
+
+        if ($result === 'stock') {
             return back()->with('error', 'Lokasi tidak bisa dihapus karena masih memiliki stok barang.');
         }
-        $location->delete();
+        if ($result === 'history') {
+            return back()->with('error', 'Lokasi tidak dapat dihapus karena masih digunakan dalam riwayat transaksi. Riwayat penerimaan, penjualan, transfer, opname, batch stok, atau penahanan barang harus tetap tersimpan.');
+        }
         return redirect()->route('master.locations.index')->with('success', 'Lokasi berhasil dihapus.');
     }
 }

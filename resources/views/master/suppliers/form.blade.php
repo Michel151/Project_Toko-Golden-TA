@@ -1,9 +1,9 @@
 @extends('layouts.app')
-@section('title', isset($supplier) ? 'Edit Supplier' : 'Tambah Supplier')
-@section('page-title', isset($supplier) ? 'Edit Supplier' : 'Tambah Supplier')
+@section('title', isset($supplier) ? 'Ubah Supplier' : 'Tambah Supplier')
+@section('page-title', isset($supplier) ? 'Ubah Supplier' : 'Tambah Supplier')
 
 @section('content')
-@include('master._header', ['icon'=>'truck', 'title'=>isset($supplier) ? 'Edit Supplier' : 'Tambah Supplier', 'description'=>'Lengkapi identitas dan kontak pemasok barang.'])
+@include('master._header', ['icon'=>'truck', 'title'=>isset($supplier) ? 'Ubah Supplier' : 'Tambah Supplier', 'description'=>'Lengkapi identitas dan kontak pemasok barang.'])
 <div class="row justify-content-center">
     <div class="col-lg-9">
         <div class="card table-card">
@@ -156,7 +156,7 @@
 
                     <div class="d-flex gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save me-1"></i>{{ isset($supplier) ? 'Perbarui' : 'Simpan' }}
+                            <i class="bi bi-save me-1"></i>{{ isset($supplier) ? 'Simpan Perubahan' : 'Simpan' }}
                         </button>
                         <a href="{{ route('master.suppliers.index') }}" class="btn btn-outline-secondary">Batal</a>
                     </div>
@@ -483,8 +483,8 @@ document.querySelectorAll('[data-supplier-products-panel]').forEach((panel) => {
     }
 
     .supplier-catalog-tabs .nav-link.active {
-        background: #172039;
-        border-color: #172039;
+        background: var(--app-accent-2);
+        border-color: var(--app-accent-2);
         color: #fff;
     }
 

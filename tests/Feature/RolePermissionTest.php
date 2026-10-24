@@ -30,6 +30,35 @@ class RolePermissionTest extends TestCase
         }
     }
 
+    public function test_permission_layout_preserves_supported_actions_and_saved_choices_for_each_role(): void
+    {
+        $this->actingAs($this->user('owner'));
+        foreach (array_keys(AccessPermissions::ROLES) as $role) {
+            $before = DB::table('role_permissions')->where('role', $role)->pluck('permission')->sort()->values()->all();
+            $page = $this->get(route('permissions.index', ['role'=>$role]))->assertOk()
+                ->assertSee('permissionSearch')->assertSee('permissionSummary')->assertSee('permission-scroll');
+            $document = new \DOMDocument;
+            @$document->loadHTML($page->getContent());
+            $xpath = new \DOMXPath($document);
+            $inputs = $xpath->query('//input[@name="permissions[]"]');
+            $this->assertSame(count(AccessPermissions::keys()), $inputs->length);
+            $chosen = [];
+            foreach ($inputs as $input) {
+                $this->assertContains($input->getAttribute('value'), AccessPermissions::keys());
+                $this->assertSame(1, $xpath->query('//label[@for="'.$input->getAttribute('id').'"]')->length);
+                if ($input->hasAttribute('checked')) $chosen[] = $input->getAttribute('value');
+            }
+            sort($chosen);
+            $this->assertSame($before, $chosen);
+            $this->assertSame($before, DB::table('role_permissions')->where('role', $role)->pluck('permission')->sort()->values()->all());
+            if (getenv('CAPTURE_PERMISSION_UI') === '1') {
+                $directory = storage_path('framework/testing/permissions');
+                if (!is_dir($directory)) mkdir($directory, 0777, true);
+                file_put_contents($directory.'/'.$role.'.html', $page->getContent());
+            }
+        }
+    }
+
     public function test_owner_can_manage_permissions_and_keeps_full_access(): void
     {
         $owner = $this->user('owner');

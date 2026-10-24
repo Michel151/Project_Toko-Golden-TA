@@ -1,9 +1,9 @@
 @extends('layouts.app')
-@section('title', isset($product) ? 'Edit Barang' : 'Tambah Barang')
-@section('page-title', isset($product) ? 'Edit Barang' : 'Tambah Barang')
+@section('title', isset($product) ? 'Ubah Barang' : 'Tambah Barang')
+@section('page-title', isset($product) ? 'Ubah Barang' : 'Tambah Barang')
 
 @section('content')
-@include('master._header', ['icon'=>'box-seam', 'title'=>isset($product) ? 'Edit Barang' : 'Tambah Barang', 'description'=>'Lengkapi identitas, barcode, satuan, harga, dan batas minimum stok.'])
+@include('master._header', ['icon'=>'box-seam', 'title'=>isset($product) ? 'Ubah Barang' : 'Tambah Barang', 'description'=>'Lengkapi identitas, barcode, satuan, harga, dan batas minimum stok.'])
 <form method="POST" action="{{ isset($product)
     ? route('master.products.update', $product)
     : route('master.products.store') }}">
@@ -53,13 +53,21 @@
                             @error('category_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-12">
+                            @php
+                                $expirySettingLocked = $expirySettingLocked ?? false;
+                            @endphp
                             <div class="form-check form-switch">
-                                <input type="hidden" name="is_expirable" value="0">
+                                <input type="hidden" name="is_expirable" value="{{ $expirySettingLocked ? (int) $product->is_expirable : 0 }}">
                                 <input class="form-check-input" type="checkbox" role="switch" name="is_expirable" value="1"
-                                       id="isExpirable" @checked(old('is_expirable', $product->is_expirable ?? false))>
+                                       id="isExpirable" aria-describedby="expirySettingHelp"
+                                       @checked($expirySettingLocked ? $product->is_expirable : old('is_expirable', $product->is_expirable ?? false))
+                                       @disabled($expirySettingLocked)>
                                 <label class="form-check-label fw-semibold" for="isExpirable">Memiliki Kedaluwarsa</label>
                             </div>
-                            <div class="form-text">Aktifkan untuk barang yang tanggal kedaluwarsanya harus dicatat saat penerimaan.</div>
+                            <div class="form-text" id="expirySettingHelp">{{ $expirySettingLocked
+                                ? 'Pengaturan kedaluwarsa tidak dapat diubah karena barang sudah memiliki stok atau riwayat transaksi.'
+                                : 'Aktifkan untuk barang yang tanggal kedaluwarsanya harus dicatat saat penerimaan.' }}</div>
+                            @error('is_expirable')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-12">
                             <div class="form-check form-switch">
@@ -258,7 +266,7 @@
                                     <th style="min-width:190px">Satuan</th>
                                     <th style="min-width:120px">Berisi</th>
                                     <th style="min-width:190px">Satuan Isi</th>
-                                    <th style="min-width:170px">Total ke Dasar</th>
+                                    <th class="d-none" aria-hidden="true">Total ke Dasar</th>
                                     <th style="min-width:150px">Harga Beli</th>
                                     <th style="min-width:150px">Harga Jual</th>
                                     <th class="text-center">Dasar</th>
@@ -296,7 +304,7 @@
                                             @endforeach
                                         </select>
                                     </td>
-                                    <td>
+                                    <td class="d-none" aria-hidden="true">
                                         <input type="text" class="form-control conversion-preview" value="{{ $unitRow['conversion_to_base'] ?? 1 }}" readonly>
                                     </td>
                                     <td>
@@ -374,7 +382,7 @@
         <div class="col-12">
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save me-1"></i>{{ isset($product) ? 'Perbarui Barang' : 'Simpan Barang' }}
+                    <i class="bi bi-save me-1"></i>{{ isset($product) ? 'Simpan Perubahan Barang' : 'Simpan Barang' }}
                 </button>
                 <a href="{{ route('master.products.index') }}" class="btn btn-outline-secondary">Batal</a>
             </div>
@@ -530,7 +538,7 @@ function addProductUnitRow() {
         <td><select name="product_units[${productUnitIndex}][unit_id]" class="form-select unit-select" required><option value="">-- Pilih --</option>${unitOptionsHtml}</select></td>
         <td><input type="number" name="product_units[${productUnitIndex}][contains_quantity]" class="form-control contains-qty-input" value="1" min="0.0001" step="0.0001" required><input type="hidden" name="product_units[${productUnitIndex}][conversion_to_base]" class="conversion-input" value="1"></td>
         <td><select name="product_units[${productUnitIndex}][contains_unit_index]" class="form-select contains-unit-select"><option value="">Dasar</option></select></td>
-        <td><input type="text" class="form-control conversion-preview" value="1" readonly></td>
+        <td class="d-none" aria-hidden="true"><input type="text" class="form-control conversion-preview" value="1" readonly></td>
         <td><div class="input-group"><span class="input-group-text">Rp</span><input type="text" name="product_units[${productUnitIndex}][buy_price]" class="form-control buy-price-input" value="0" inputmode="decimal"></div></td>
         <td><div class="input-group"><span class="input-group-text">Rp</span><input type="text" name="product_units[${productUnitIndex}][sell_price]" class="form-control js-currency-input" value="0" inputmode="numeric" required></div></td>
         <td class="text-center"><input type="radio" class="form-check-input base-radio" name="base_unit_radio" value="${productUnitIndex}"></td>

@@ -9,6 +9,12 @@
         }
     }
     if (auth()->user()->isOwner()) {
+        $menuGroups['Keuangan'] = [
+            ['route' => 'expenses.index', 'pattern' => 'expenses.*', 'label' => 'Pencatatan Beban', 'icon' => 'journal-minus'],
+            ['route' => 'taxes.index', 'pattern' => 'taxes.*', 'label' => 'Pencatatan Pajak', 'icon' => 'receipt'],
+            ['route' => 'inventory.costing.index', 'pattern' => 'inventory.costing.*', 'label' => 'Penilaian Persediaan', 'icon' => 'calculator'],
+        ];
+        $menuGroups['Laporan'][] = ['route' => 'report.profit-loss', 'pattern' => 'report.profit-loss*', 'label' => 'Laporan Laba Rugi', 'icon' => 'calculator'];
         $menuGroups['Master Data'][] = ['route' => 'master.users.index', 'pattern' => 'master.users.*', 'label' => 'Pengguna', 'icon' => 'people'];
         $menuGroups['Sistem'] = [
             ['route' => 'audit-logs.index', 'pattern' => 'audit-logs.*', 'label' => 'Audit Log', 'icon' => 'shield-lock'],
@@ -16,7 +22,8 @@
             ['route' => 'database-backups.index', 'pattern' => 'database-backups.*', 'label' => 'Backup Database', 'icon' => 'database-check'],
         ];
     }
-    $groupIcons = ['Master Data' => 'grid', 'Pembelian' => 'bag-check', 'Penjualan' => 'cash-stack', 'Inventori' => 'boxes', 'Laporan' => 'bar-chart-line', 'Sistem' => 'gear'];
+    $groupIcons = ['Master Data' => 'grid', 'Pembelian' => 'bag-check', 'Penjualan' => 'cash-stack', 'Inventori' => 'boxes', 'Keuangan' => 'wallet2', 'Laporan' => 'bar-chart-line', 'Sistem' => 'gear'];
+    $menuGroups = array_filter(array_replace(array_fill_keys(array_keys($groupIcons), []), $menuGroups));
 @endphp
 @foreach($menuGroups as $group => $items)
 @if(auth()->user()->isKasir() || auth()->user()->isStafGudang())

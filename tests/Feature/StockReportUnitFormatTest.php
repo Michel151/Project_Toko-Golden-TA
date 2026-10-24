@@ -105,4 +105,27 @@ class StockReportUnitFormatTest extends TestCase
             return true;
         });
     }
+
+    public function test_fractional_stock_is_preserved_on_screen_pdf_and_excel(): void
+    {
+        Stock::query()->update(['quantity' => 125.5]);
+        StockBatch::whereDate('expired_date', '2026-10-06')->update([
+            'quantity_initial' => 24.5, 'quantity_remaining' => 24.5,
+        ]);
+
+        $response = $this->get(route('report.stock'))->assertOk()
+            ->assertSee('5 Dus 5,5 Botol')->assertSee('1 Dus 0,5 Botol');
+        $html = view('report.pdf.stock', ['products' => $response->viewData('products')])->render();
+        $this->assertStringContainsString('5 Dus 5,5 Botol', $html);
+        $this->assertStringContainsString('1 Dus 0,5 Botol', $html);
+
+        Excel::fake();
+        $this->get(route('report.stock.excel'))->assertOk();
+        Excel::assertDownloaded('Laporan-Stok-2026-10-06.xlsx', function (ReportExport $export) {
+            $row = $export->array()[4];
+            $this->assertSame('5 Dus 5,5 Botol', $row[4]);
+            $this->assertSame('1 Dus 0,5 Botol', $row[5]);
+            return true;
+        });
+    }
 }
