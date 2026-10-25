@@ -5,11 +5,14 @@ namespace App\Http\Controllers\MasterData;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\DeletionConstraint;
+use App\Support\PasswordPolicy;
+use App\Services\AccountPasswordService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -29,9 +32,9 @@ class UserController extends Controller
         $request->validate([
             'name'     => 'required|string|max:100',
             'email'    => 'required|email|unique:users,email',
-            'password' => $this->passwordRules(),
+            'password' => PasswordPolicy::rules(),
             'role'     => 'required|in:owner,kasir,staf_gudang',
-        ], $this->passwordMessages());
+        ], PasswordPolicy::messages());
 
         User::create([
             'name'     => $request->name,
@@ -57,41 +60,57 @@ class UserController extends Controller
         ];
 
         if ($request->filled('password')) {
-            $rules['password'] = $this->passwordRules();
+            $rules['password'] = PasswordPolicy::rules();
         }
 
-        $request->validate($rules, $this->passwordMessages());
+        $request->validate($rules, PasswordPolicy::messages());
 
         if ($user->isOwner() && $request->role !== 'owner'
             && ($user->id === auth()->id() || User::where('role', 'owner')->count() <= 1)) {
-            return back()->withErrors(['role' => 'Role akun sendiri dan owner terakhir tidak dapat diturunkan.'])->withInput();
+            return back()->withErrors(['role' => 'Role akun sendiri dan owner terakhir tidak dapat diturunkan.'])
+                ->withInput($request->except(['password', 'password_confirmation', 'current_password']));
         }
 
         $data = $request->only('name', 'email', 'role');
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
+        $updated = DB::transaction(function () use ($request, $user, $data) {
+            $locked = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $locked->update($data);
+            return $request->filled('password')
+                ? app(AccountPasswordService::class)->replace($locked, $request->password, $locked->id !== auth()->id())
+                : $locked;
+        });
+        if ($request->filled('password') && $updated->id === auth()->id()) {
+            auth()->setUser($updated);
+            $request->session()->regenerate();
+            $request->session()->put('auth.password_version.'.$updated->id, (int) $updated->password_version);
         }
-
-        $user->update($data);
         return redirect()->route('master.users.index')->with('success', 'Pengguna berhasil diperbarui.');
     }
 
-    private function passwordRules(): array
+    public function resetPassword(Request $request, User $user, AccountPasswordService $passwords)
     {
-        return ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()];
+        abort_if($user->id === $request->user()->id, 422, 'Untuk akun sendiri, gunakan menu Ubah Password.');
+        do {
+            $temporary = Str::password(16);
+        } while (! preg_match('/[a-z]/', $temporary) || ! preg_match('/[A-Z]/', $temporary));
+        $passwords->replace($user, $temporary, true);
+
+        return redirect()->route('master.users.reset-password-result')->with([
+            'temporary_password'=>Crypt::encryptString($temporary),
+            'password_reset_user'=>['name'=>$user->name, 'email'=>$user->email],
+        ]);
     }
 
-    private function passwordMessages(): array
+    public function resetResult(Request $request)
     {
-        return [
-            'password.required' => 'Password wajib diisi.',
-            'password.string' => 'Password harus berupa teks.',
-            'password.min' => 'Password minimal 8 karakter.',
-            'password.confirmed' => 'Konfirmasi password tidak sama.',
-            'password.mixed' => 'Password harus mengandung huruf besar dan huruf kecil.',
-            'password.numbers' => 'Password harus mengandung angka.',
-            'password.symbols' => 'Password harus mengandung simbol, misalnya !, @, atau #.',
-        ];
+        $encrypted = $request->session()->get('temporary_password');
+        if (! is_string($encrypted)) {
+            return redirect()->route('master.users.index')->with('error', 'Password sementara sudah tidak ditampilkan. Reset kembali jika diperlukan.');
+        }
+        $temporary = Crypt::decryptString($encrypted);
+        return response()->view('master.users.password-reset-result', [
+            'temporaryPassword'=>$temporary, 'resetUser'=>$request->session()->get('password_reset_user'),
+        ])->header('Cache-Control', 'no-store, private')->header('Pragma', 'no-cache');
     }
 
     public function destroy(User $user)

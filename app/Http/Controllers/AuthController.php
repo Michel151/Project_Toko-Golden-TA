@@ -30,7 +30,12 @@
             if (Auth::attempt($credentials, $request->boolean('remember'))) {
                 $throttle->clear($request);
                 $request->session()->regenerate();
+                $request->session()->put('auth.password_version.'.Auth::id(), (int) Auth::user()->password_version);
                 AuditService::record('login', 'Autentikasi', 'Berhasil masuk ke sistem');
+                if (Auth::user()->must_change_password) {
+                    $request->session()->forget('url.intended');
+                    return redirect()->route('account.password.edit');
+                }
                 return redirect()->intended('/dashboard');
             }
 

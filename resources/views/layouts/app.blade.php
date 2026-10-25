@@ -614,7 +614,7 @@
         </div>
         <div class="d-flex align-items-center gap-3">
             {{-- Notifikasi stok --}}
-            @if(auth()->user()->hasPermission('inventory.stock.view'))
+            @if(!auth()->user()->must_change_password && auth()->user()->hasPermission('inventory.stock.view'))
             @php
                 $topbarNotifications = app(\App\Services\NotificationService::class)->checkAllProducts();
                 $notifCount = count($topbarNotifications);
@@ -678,6 +678,7 @@
                         </span>
                     </li>
                     <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ route('account.password.edit') }}"><i class="bi bi-key me-1" aria-hidden="true"></i> Ubah Password</a></li>
                     <li>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf

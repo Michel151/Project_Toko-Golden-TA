@@ -22,7 +22,7 @@
                     <th>Nama</th>
                     <th>Email</th>
                     <th class="text-center">Role</th>
-                    <th width="120" class="text-center">Aksi</th>
+                    <th width="160" class="text-center">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -34,6 +34,7 @@
                         @if($user->id === auth()->id())
                         <span class="badge bg-secondary ms-1" style="font-size:0.65rem">Anda</span>
                         @endif
+                        @if($user->must_change_password)<span class="badge bg-warning text-dark ms-1">Wajib ganti password</span>@endif
                     </td>
                     <td>{{ $user->email }}</td>
                     <td class="text-center">
@@ -51,6 +52,10 @@
                             <i class="bi bi-pencil"></i>
                         </a>
                         @if($user->id !== auth()->id())
+                        <form method="POST" action="{{ route('master.users.reset-password', $user) }}" class="d-inline" data-confirm="Reset password {{ $user->name }}? Sesi login lama akan dibatalkan. Pengguna wajib mengganti password sementara setelah masuk." data-confirm-title="Reset Password?" data-confirm-label="Reset Password">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Reset password {{ $user->name }}" aria-label="Reset password {{ $user->name }}"><i class="bi bi-key" aria-hidden="true"></i></button>
+                        </form>
                         <form method="POST" action="{{ route('master.users.destroy', $user) }}"
                               class="d-inline" data-confirm="Hapus pengguna ini?">
                             @csrf @method('DELETE')

@@ -32,9 +32,11 @@ Route::get('/login',  [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 
 // ── Protected routes ──────────────────────────────────────────────────────────
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/account/password', [\App\Http\Controllers\AccountPasswordController::class, 'edit'])->name('account.password.edit');
+    Route::put('/account/password', [\App\Http\Controllers\AccountPasswordController::class, 'update'])->middleware('throttle:6,1')->name('account.password.update');
     Route::middleware('role:owner')->prefix('inventory/costing')->name('inventory.costing.')->group(function () {
         Route::get('/', [\App\Http\Controllers\InventoryCostController::class, 'index'])->name('index');
         Route::get('/{product}', [\App\Http\Controllers\InventoryCostController::class, 'show'])->name('show');
@@ -91,6 +93,8 @@ Route::middleware('auth')->group(function () {
         Route::get('suppliers/import/template', [\App\Http\Controllers\MasterData\SupplierImportTrialController::class, 'template'])->middleware('permission:master.suppliers')->name('suppliers.import.template');
         Route::post('suppliers/import', [\App\Http\Controllers\MasterData\SupplierImportTrialController::class, 'preview'])->middleware('permission:master.suppliers')->name('suppliers.import.preview');
         Route::resource('suppliers',  SupplierController::class)->middleware('permission:master.suppliers');
+        Route::get('users/password-reset-result', [UserController::class, 'resetResult'])->middleware('role:owner')->name('users.reset-password-result');
+        Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware(['role:owner', 'throttle:10,1'])->name('users.reset-password');
         Route::resource('users',      UserController::class)->except(['show'])->middleware('role:owner');
         Route::get('products/import', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'create'])->middleware('permission:master.products')->name('products.import');
         Route::get('products/import-trial', fn (\Illuminate\Http\Request $request) => redirect()->route('master.products.import', $request->only('preview')))->middleware('permission:master.products')->name('products.import-trial');

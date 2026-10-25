@@ -30,25 +30,9 @@
                         @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 
-                    <div class="mb-3">
-                        <label for="userPassword" class="form-label fw-semibold">
-                            Password {{ isset($user) ? '(kosongkan jika tidak diganti)' : '' }}
-                            @if(!isset($user)) <span class="text-danger">*</span> @endif
-                        </label>
-                        <input id="userPassword" type="password" name="password" autocomplete="new-password" aria-describedby="passwordRequirements"
-                               class="form-control @error('password') is-invalid @enderror"
-                               {{ !isset($user) ? 'required' : '' }}
-                               minlength="8" placeholder="Masukkan password yang kuat">
-                        @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        <div id="passwordRequirements" class="form-text">Minimal 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol (misalnya !, @, atau #).</div>
-                    </div>
-
-                    @if(!isset($user) || request()->routeIs('master.users.edit'))
-                    <div class="mb-3">
-                        <label for="userPasswordConfirmation" class="form-label fw-semibold">Konfirmasi Password</label>
-                        <input id="userPasswordConfirmation" type="password" name="password_confirmation" class="form-control" autocomplete="new-password"
-                               placeholder="Ulangi password" {{ !isset($user) ? 'required' : '' }}>
-                    </div>
+                    @include('components.password-fields', ['passwordOptional'=>isset($user)])
+                    @if(isset($user) && $user->id !== auth()->id())
+                    <p class="small text-muted">Jika password diganti di sini, pengguna wajib menggantinya lagi setelah masuk. Sesi login sebelumnya akan dibatalkan.</p>
                     @endif
 
                     <div class="mb-3">
@@ -74,3 +58,6 @@
     </div>
 </div>
 @endsection
+@push('scripts')
+@include('components.password-scripts')
+@endpush
