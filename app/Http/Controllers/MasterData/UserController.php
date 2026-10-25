@@ -9,6 +9,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
@@ -28,9 +29,9 @@ class UserController extends Controller
         $request->validate([
             'name'     => 'required|string|max:100',
             'email'    => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6|confirmed',
+            'password' => $this->passwordRules(),
             'role'     => 'required|in:owner,kasir,staf_gudang',
-        ]);
+        ], $this->passwordMessages());
 
         User::create([
             'name'     => $request->name,
@@ -56,10 +57,10 @@ class UserController extends Controller
         ];
 
         if ($request->filled('password')) {
-            $rules['password'] = 'string|min:6|confirmed';
+            $rules['password'] = $this->passwordRules();
         }
 
-        $request->validate($rules);
+        $request->validate($rules, $this->passwordMessages());
 
         if ($user->isOwner() && $request->role !== 'owner'
             && ($user->id === auth()->id() || User::where('role', 'owner')->count() <= 1)) {
@@ -73,6 +74,24 @@ class UserController extends Controller
 
         $user->update($data);
         return redirect()->route('master.users.index')->with('success', 'Pengguna berhasil diperbarui.');
+    }
+
+    private function passwordRules(): array
+    {
+        return ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()];
+    }
+
+    private function passwordMessages(): array
+    {
+        return [
+            'password.required' => 'Password wajib diisi.',
+            'password.string' => 'Password harus berupa teks.',
+            'password.min' => 'Password minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak sama.',
+            'password.mixed' => 'Password harus mengandung huruf besar dan huruf kecil.',
+            'password.numbers' => 'Password harus mengandung angka.',
+            'password.symbols' => 'Password harus mengandung simbol, misalnya !, @, atau #.',
+        ];
     }
 
     public function destroy(User $user)

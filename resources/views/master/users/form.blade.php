@@ -31,22 +31,23 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">
+                        <label for="userPassword" class="form-label fw-semibold">
                             Password {{ isset($user) ? '(kosongkan jika tidak diganti)' : '' }}
                             @if(!isset($user)) <span class="text-danger">*</span> @endif
                         </label>
-                        <input type="password" name="password"
+                        <input id="userPassword" type="password" name="password" autocomplete="new-password" aria-describedby="passwordRequirements"
                                class="form-control @error('password') is-invalid @enderror"
                                {{ !isset($user) ? 'required' : '' }}
-                               minlength="6" placeholder="Minimal 6 karakter">
+                               minlength="8" placeholder="Masukkan password yang kuat">
                         @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <div id="passwordRequirements" class="form-text">Minimal 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol (misalnya !, @, atau #).</div>
                     </div>
 
                     @if(!isset($user) || request()->routeIs('master.users.edit'))
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Konfirmasi Password</label>
-                        <input type="password" name="password_confirmation" class="form-control"
-                               placeholder="Ulangi password">
+                        <label for="userPasswordConfirmation" class="form-label fw-semibold">Konfirmasi Password</label>
+                        <input id="userPasswordConfirmation" type="password" name="password_confirmation" class="form-control" autocomplete="new-password"
+                               placeholder="Ulangi password" {{ !isset($user) ? 'required' : '' }}>
                     </div>
                     @endif
 
