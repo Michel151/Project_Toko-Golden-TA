@@ -1,6 +1,13 @@
 @extends('layouts.app')
 @section('title', 'Laporan Penjualan')
 @section('page-title', 'Laporan Penjualan')
+@push('styles')
+<style>
+@media(min-width:992px) {
+    .sale-report-overview > div > .card { min-height:320px;height:100%; }
+}
+</style>
+@endpush
 
 @section('content')
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-graph-up-arrow"></i></div><div><h5 class="fw-bold mb-1">Laporan Penjualan</h5><div class="text-white-50 small">Analisis transaksi, pembayaran, dan produk terlaris</div></div></div><span class="badge bg-success">{{ $totalTrx }} Transaksi</span></div>
@@ -51,7 +58,7 @@
     </div>
 </div>
 
-<div class="row g-3">
+<div class="row g-3 sale-report-overview">
     <div class="col-md-8">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Daftar Transaksi</h6></div>
