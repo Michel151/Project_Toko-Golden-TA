@@ -2,7 +2,7 @@
 @section('title','Dashboard Staf Gudang')
 @section('page-title','Dashboard Staf Gudang')
 @push('styles')
-<link rel="stylesheet" href="{{ asset('css/dashboard-donuts.css') }}?v=1">
+@include('dashboard.partials.donut-styles')
 <style>
 .warehouse-section{background:#fff;padding:1rem;border-top:2px solid var(--app-border)}
 .warehouse-section h6{font-weight:700;margin:0}.warehouse-section .table{font-size:.82rem;margin:0}.warehouse-section td{vertical-align:middle;padding:.55rem .5rem}

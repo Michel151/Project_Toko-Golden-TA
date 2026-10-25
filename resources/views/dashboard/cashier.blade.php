@@ -2,7 +2,7 @@
 @section('title', 'Dashboard Kasir')
 @section('page-title', 'Dashboard Kasir')
 @push('styles')
-<link rel="stylesheet" href="{{ asset('css/dashboard-donuts.css') }}?v=1">
+@include('dashboard.partials.donut-styles')
 <style>
 .cashier-metric{width:40px;height:40px;flex:0 0 40px;border-radius:8px;display:grid;place-items:center;font-size:1.2rem}
 .cashier-value{font-size:1.15rem;font-weight:700;overflow-wrap:anywhere}
