@@ -547,6 +547,7 @@ function addProductUnitRow() {
         <td><button type="button" class="btn btn-sm btn-outline-danger remove-product-unit"><i class="bi bi-trash"></i></button></td>
     `;
     tbody.appendChild(row);
+    initializeCurrencyInputs(row);
     productUnitIndex++;
     refreshProductUnitRows();
 }

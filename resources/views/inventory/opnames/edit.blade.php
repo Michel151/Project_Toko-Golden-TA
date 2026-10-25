@@ -47,9 +47,17 @@
                     </td>
                     <td class="text-end fw-semibold opname-difference"><span class="item-difference"></span>
                         @if(auth()->user()->isOwner() && app(\App\Services\MovingAverageCostService::class)->canTrack($item->product))
+                            @php
+                                $valuationCost = old('items.'.$item->id.'.valuation_unit_cost', $item->valuation_unit_cost);
+                                if (is_string($valuationCost) && str_contains($valuationCost, '.')) {
+                                    $valuationCost = rtrim(rtrim($valuationCost, '0'), '.');
+                                }
+                            @endphp
                             <div data-valuation-field>
                             <label class="d-block small fw-normal mt-1" for="opnameCost{{ $item->id }}">Nilai perolehan penambahan / satuan dasar (Rp)</label>
-                            <input id="opnameCost{{ $item->id }}" name="items[{{ $item->id }}][valuation_unit_cost]" type="number" min="0.0000000001" step="0.0000000001" class="form-control form-control-sm" value="{{ old('items.'.$item->id.'.valuation_unit_cost',$item->valuation_unit_cost) }}">
+                            <input id="opnameCost{{ $item->id }}" type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end" data-valuation-display aria-describedby="opnameCostHelp{{ $item->id }}">
+                            <input type="hidden" name="items[{{ $item->id }}][valuation_unit_cost]" value="{{ $valuationCost }}" data-valuation-value>
+                            <div id="opnameCostHelp{{ $item->id }}" class="small text-muted fw-normal">Contoh: 2.300 atau 2.300,50</div>
                             </div>
                         @endif
                     </td>

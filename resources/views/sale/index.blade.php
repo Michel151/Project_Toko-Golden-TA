@@ -83,13 +83,21 @@
                     <td class="text-end fw-semibold">Rp {{ number_format($sale->total_amount, 0, ',', '.') }}</td>
                     <td class="text-muted small">{{ $sale->createdBy->name ?? '-' }}</td>
                     <td class="text-center">
+                        <div class="d-inline-flex align-items-center gap-1 text-nowrap">
                         <a href="{{ route('sale.sales.show', $sale) }}" class="btn btn-sm btn-outline-info py-0 px-2"><i class="bi bi-eye"></i></a>
                         @if($sale->status === 'pending')
                             @if(auth()->user()->canAccessRoute('sale.sales.edit')) <a href="{{ route('sale.sales.edit', $sale) }}" class="btn btn-sm btn-outline-warning py-0 px-2" title="Ubah transaksi"><i class="bi bi-pencil"></i></a> @endif
+                            @if(auth()->user()->canAccessRoute('sale.sales.cancel'))
+                                <form method="POST" action="{{ route('sale.sales.cancel', $sale) }}" class="m-0" data-confirm="Batalkan transaksi {{ $sale->sale_number }} dan kembalikan stok?" data-confirm-title="Batalkan Transaksi?" data-confirm-label="Batalkan Transaksi">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-danger app-icon-action" title="Batalkan transaksi {{ $sale->sale_number }}" aria-label="Batalkan transaksi {{ $sale->sale_number }}"><i class="bi bi-x-circle" aria-hidden="true"></i></button>
+                                </form>
+                            @endif
                         @endif
                         @if($sale->status === 'paid')
                             <a href="{{ route('sale.sales.print', ['sale' => $sale, 'popup' => 1]) }}" class="btn btn-sm btn-outline-secondary py-0 px-2 js-print-popup" title="Cetak Nota"><i class="bi bi-printer"></i></a>
                         @endif
+                        </div>
                     </td>
                 </tr>
                 @empty

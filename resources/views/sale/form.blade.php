@@ -35,6 +35,10 @@
 .catalog-product { height:100%; border:1px solid #e2e6ed; border-radius:11px; background:#fff; padding:.85rem; text-align:left; transition:.15s ease; }
 .catalog-product:hover { border-color:#198754; box-shadow:0 4px 14px rgba(25,135,84,.12); transform:translateY(-1px); }
 .catalog-product .product-name { color:#172039; font-weight:700; }
+.catalog-product.catalog-added { border-color:#198754; background:#edf8f0; animation:catalog-added .3s ease-out; }
+.catalog-product.catalog-stock-warning { border-color:#b58105; background:#fff8df; }
+@keyframes catalog-added { from { transform:scale(.97); } to { transform:scale(1); } }
+@media(prefers-reduced-motion:reduce) { .catalog-product.catalog-added { animation:none; } }
 .product-search-wrap { position:relative; }
 .pos-items-scroll.product-search-open { overflow:visible; }
 .product-results { position:absolute; top:100%; left:0; right:0; z-index:1055; max-height:260px; overflow-y:auto; margin-top:.25rem; border:1px solid #d7deea; border-radius:8px; background:#fff; box-shadow:0 10px 26px rgba(15,23,42,.16); }
@@ -190,7 +194,10 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal"><i class="bi bi-check-lg me-1"></i>Selesai</button></div>
+            <div class="modal-footer">
+                <div id="catalogFeedback" class="small me-auto text-break" style="flex:1 1 220px;min-width:0" role="status" aria-live="polite" aria-atomic="true"></div>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal"><i class="bi bi-check-lg me-1"></i>Selesai</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1074,6 +1081,31 @@ document.getElementById('catalogCategories').addEventListener('click', function(
     renderCatalogProducts();
 });
 
+let catalogFeedbackTimer;
+let highlightedCatalogCard;
+function showCatalogFeedback(product, row, stockError) {
+    clearTimeout(catalogFeedbackTimer);
+    highlightedCatalogCard?.classList.remove('catalog-added', 'catalog-stock-warning');
+    const card = [...document.querySelectorAll('#catalogProducts [data-product-id]')].find(button => button.dataset.productId == product.id);
+    if (card) {
+        void card.offsetWidth;
+        card.classList.add(stockError ? 'catalog-stock-warning' : 'catalog-added');
+        highlightedCatalogCard = card;
+        catalogFeedbackTimer = setTimeout(() => card.classList.remove('catalog-added', 'catalog-stock-warning'), 1200);
+    }
+    const feedback = document.getElementById('catalogFeedback');
+    const unit = row.querySelector('.product-unit-select').selectedOptions[0]?.textContent || '';
+    const quantity = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(Number(row.querySelector('.qty-input').value));
+    const icon = document.createElement('i');
+    icon.className = `bi ${stockError ? 'bi-exclamation-triangle' : 'bi-check-circle-fill'} me-1`;
+    icon.setAttribute('aria-hidden', 'true');
+    const message = document.createElement('span');
+    message.textContent = `${product.name} ditambahkan · Jumlah: ${quantity} ${unit}${stockError ? '. Periksa stok sebelum menyimpan.' : ''}`;
+    feedback.classList.toggle('text-success', !stockError);
+    feedback.classList.toggle('text-warning', stockError);
+    feedback.replaceChildren(icon, message);
+}
+
 document.getElementById('catalogProducts').addEventListener('click', function(event) {
     const button = event.target.closest('[data-product-id]');
     if (!button) return;
@@ -1138,6 +1170,7 @@ function addProductToCart(product) {
     const stockError = target.classList.contains('has-stock-error');
     status.className = `small scanner-status mt-1 ${stockError ? 'text-danger' : 'text-success'}`;
     status.textContent = stockError ? `${product.name} · Stok perlu diperiksa` : `${product.name} · Qty ${target.querySelector('.qty-input').value}${merged ? ' (ditambah)' : ''}`;
+    if (document.getElementById('productCatalogModal').classList.contains('show')) showCatalogFeedback(product, target, stockError);
     document.getElementById('barcodeScanner').value = '';
     closeEntryResults();
     if (!document.getElementById('productCatalogModal').classList.contains('show')) {
@@ -1171,6 +1204,7 @@ document.getElementById('entryResults').addEventListener('click', event => {
 });
 document.getElementById('barcodeScanner').addEventListener('blur', () => setTimeout(closeEntryResults, 150));
 document.getElementById('openCatalog').addEventListener('click', () => {
+    document.getElementById('catalogFeedback').replaceChildren();
     activeCatalogRow = null;
     activeCatalogCategory = 'all';
     document.getElementById('catalogSearch').value = '';
@@ -1179,6 +1213,11 @@ document.getElementById('openCatalog').addEventListener('click', () => {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('productCatalogModal')).show();
 });
 document.getElementById('productCatalogModal').addEventListener('shown.bs.modal', () => document.getElementById('catalogSearch').focus());
+document.getElementById('productCatalogModal').addEventListener('hidden.bs.modal', () => {
+    clearTimeout(catalogFeedbackTimer);
+    highlightedCatalogCard?.classList.remove('catalog-added', 'catalog-stock-warning');
+    document.getElementById('catalogFeedback').replaceChildren();
+});
 
 document.getElementById('barcodeSearch').addEventListener('click', addProductByBarcode);
 document.getElementById('barcodeScanner').addEventListener('keydown', function (event) {
@@ -1211,6 +1250,6 @@ window.saleDraftConfig = {
     oldId: @json(old('draft_id')), oldVersion: @json((int) old('draft_version', 0)), startFresh: @json(request()->boolean('new')), preferredDraftId: @json(request('draft'))
 };
 </script>
-<script src="{{ asset('js/sale-drafts.js') }}?v=5"></script>
+@include('sale.draft-scripts')
 @endpush
 @endsection

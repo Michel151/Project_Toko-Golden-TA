@@ -85,7 +85,7 @@
 </div>
 @endsection
 @push('scripts')
-<script src="{{ asset('js/dashboard-donuts.js') }}?v=1"></script>
+@include('dashboard.partials.donut-scripts')
 <script>
 const cashierTopbar = document.getElementById('topbar');
 new ResizeObserver(() => {

@@ -1,3 +1,4 @@
+<script>
 (() => {
     const config = window.saleDraftConfig;
     const form = document.getElementById('saleForm');
@@ -359,3 +360,4 @@
         }
     });
 })();
+</script>

@@ -133,9 +133,9 @@
                                                     <span class="input-group-text">Rp</span>
                                                     <input type="text"
                                                            name="products[{{ $product->id }}][buy_price]"
-                                                           class="form-control supplier-product-price js-currency-input"
-                                                           value="{{ number_format((float) $price, 0, ',', '.') }}"
-                                                           inputmode="numeric"
+                                                           class="form-control supplier-product-price js-decimal-currency"
+                                                           value="{{ $price }}"
+                                                           inputmode="decimal"
                                                            {{ $selected ? '' : 'disabled' }}>
                                                 </div>
                                             </td>

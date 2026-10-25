@@ -1,3 +1,4 @@
+<script>
 (() => {
     const modal = document.getElementById('transferItemsModal');
     if (!modal) return;
@@ -28,3 +29,4 @@
     modal.addEventListener('shown.bs.modal', () => search.focus());
     search.addEventListener('input', filterItems);
 })();
+</script>

@@ -119,5 +119,5 @@
         permissionForm.querySelectorAll('.permission-check').forEach(input => input.checked = false);
     });
 </script>
-<script src="{{ asset('js/permission-layout.js') }}"></script>
+@include('permissions.scripts')
 @endpush

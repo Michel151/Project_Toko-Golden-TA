@@ -1,3 +1,4 @@
+<script>
 (() => {
     const element = document.getElementById('appDialog');
     const modal = bootstrap.Modal.getOrCreateInstance(element);
@@ -78,3 +79,4 @@
         } finally { pending.delete(form); }
     }, true);
 })();
+</script>

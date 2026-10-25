@@ -2,6 +2,35 @@
 (() => {
     const form = document.getElementById('opnameForm');
     if (!form) return;
+    form.querySelectorAll('[data-valuation-field]').forEach(field => {
+        const display = field.querySelector('[data-valuation-display]');
+        const raw = field.querySelector('[data-valuation-value]');
+        const sync = () => {
+            const entered = display.value;
+            const cursor = display.selectionStart ?? entered.length;
+            const position = entered.slice(0, cursor).replace(/\./g, '').length;
+            if (!/^[\d.]*(,\d*)?$/.test(entered)) {
+                display.setCustomValidity('Gunakan angka, titik untuk ribuan, dan koma untuk desimal.');
+                raw.value = '';
+                return;
+            }
+            const [whole = '', fraction] = entered.replace(/\./g, '').split(',');
+            const digits = whole.replace(/^0+(?=\d)/, '') || (fraction !== undefined ? '0' : '');
+            display.value = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (fraction === undefined ? '' : ',' + fraction);
+            raw.value = digits + (fraction ? '.' + fraction : '');
+            const invalid = raw.value && (Number(raw.value) <= 0 || Number(raw.value) > 999999999999.99 || (fraction?.length ?? 0) > 10);
+            display.setCustomValidity(invalid ? 'Nilai harus lebih dari nol, maksimal 999.999.999.999,99 dengan paling banyak 10 angka desimal.' : '');
+            let index = 0, count = 0;
+            while (index < display.value.length && count < position) {
+                if (display.value[index] !== '.') count++;
+                index++;
+            }
+            if (document.activeElement === display) display.setSelectionRange(index, index);
+        };
+        display.value = raw.value.replace('.', ',');
+        sync();
+        display.addEventListener('input', sync);
+    });
     const number = value => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(value);
     const round = value => Math.round((value + Number.EPSILON) * 10000) / 10000;
     const formatQuantity = (value, units, difference = false) => {
@@ -46,7 +75,7 @@
         const valuation = main.querySelector('[data-valuation-field]');
         if (valuation) {
             valuation.hidden = difference <= 0;
-            valuation.querySelector('input').disabled = difference <= 0;
+            valuation.querySelectorAll('input').forEach(input => { input.disabled = difference <= 0; });
         }
     }
     function bindQuantity(widget, id) {

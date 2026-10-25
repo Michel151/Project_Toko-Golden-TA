@@ -19,6 +19,7 @@ const assert = require('node:assert/strict');
             if (url.pathname === '/__transfer-report-many') return route.fulfill({ contentType: 'text/html', body: fs.readFileSync(path.join(directory, 'transfer-many.html'), 'utf8') });
             if (url.pathname === '/__transfer-index') return route.fulfill({ contentType: 'text/html', body: fs.readFileSync(path.join(directory, url.searchParams.has('search') ? 'transfer-index-filtered.html' : 'transfer-index.html'), 'utf8') });
             if (url.hostname === 'cdn.jsdelivr.net') return route.continue();
+            if (url.pathname.endsWith('.js')) return route.abort();
             const file = path.resolve(publicRoot, '.' + decodeURIComponent(url.pathname));
             if (file.startsWith(publicRoot + path.sep) && fs.existsSync(file) && /\.(js|css)$/.test(file)) return route.fulfill({ contentType: file.endsWith('.js') ? 'application/javascript' : 'text/css', body: fs.readFileSync(file) });
             return route.abort();

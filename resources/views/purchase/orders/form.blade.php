@@ -76,7 +76,7 @@
                                             </select>
                                         </td>
                                         <td><input type="number" name="items[{{ $i }}][quantity_ordered]" class="form-control form-control-sm" value="{{ $item->quantity_ordered }}" min="0.01" step="0.01" required></td>
-                                        <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[{{ $i }}][buy_price]" class="form-control js-currency-input" value="{{ number_format((float) $item->buy_price, 0, ',', '.') }}" inputmode="numeric" required></div></td>
+                                        <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[{{ $i }}][buy_price]" class="form-control js-decimal-currency" value="{{ $item->buy_price }}" inputmode="decimal" required></div></td>
                                         <td><button type="button" class="btn btn-sm btn-outline-danger py-0 remove-item"><i class="bi bi-trash"></i></button></td>
                                     </tr>
                                     @endforeach
@@ -92,7 +92,7 @@
                                     </td>
                                     <td><select name="items[0][product_unit_id]" class="form-select form-select-sm product-unit-select" required><option value="">Pilih satuan</option></select></td>
                                     <td><input type="number" name="items[0][quantity_ordered]" class="form-control form-control-sm" min="0.01" step="0.01" value="1" required></td>
-                                    <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[0][buy_price]" class="form-control js-currency-input" inputmode="numeric" value="0" required></div></td>
+                                    <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[0][buy_price]" class="form-control js-decimal-currency" inputmode="decimal" value="0" required></div></td>
                                     <td><button type="button" class="btn btn-sm btn-outline-danger py-0 remove-item"><i class="bi bi-trash"></i></button></td>
                                 </tr>
                                 @endif
@@ -160,7 +160,7 @@ function updateUnitOptions(row, selectedUnitId = '') {
     const unitSelect = row.querySelector('.product-unit-select');
     unitSelect.innerHTML = buildUnitOptions(product, selectedUnitId);
     const selectedUnit = unitSelect.options[unitSelect.selectedIndex];
-    row.querySelector('[name$="[buy_price]"]').value = formatCurrencyValue(selectedUnit?.dataset.price || product?.price || 0);
+    row.querySelector('[name$="[buy_price]"]').value = formatDecimalCurrencyValue(selectedUnit?.dataset.price || product?.price || 0);
 }
 
 function createItemRow(index) {
@@ -175,11 +175,11 @@ function createItemRow(index) {
         </td>
         <td><select name="items[${index}][product_unit_id]" class="form-select form-select-sm product-unit-select" required><option value="">Pilih satuan</option></select></td>
         <td><input type="number" name="items[${index}][quantity_ordered]" class="form-control form-control-sm" min="0.01" step="0.01" value="1" required></td>
-        <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[${index}][buy_price]" class="form-control js-currency-input" inputmode="numeric" value="0" required></div></td>
+        <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[${index}][buy_price]" class="form-control js-decimal-currency" inputmode="decimal" value="0" required></div></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger py-0 remove-item"><i class="bi bi-trash"></i></button></td>
     `;
     bindEvents(row);
-    initializeCurrencyInputs(row);
+    initializeDecimalCurrencyInputs(row);
     return row;
 }
 
@@ -201,7 +201,7 @@ function bindEvents(container = document) {
     container.querySelectorAll('.product-unit-select').forEach(sel => {
         sel.addEventListener('change', function() {
             const row  = this.closest('tr');
-            row.querySelector('[name$="[buy_price]"]').value = formatCurrencyValue(this.options[this.selectedIndex]?.dataset.price || 0);
+            row.querySelector('[name$="[buy_price]"]').value = formatDecimalCurrencyValue(this.options[this.selectedIndex]?.dataset.price || 0);
         });
     });
     container.querySelectorAll('.remove-item').forEach(btn => {

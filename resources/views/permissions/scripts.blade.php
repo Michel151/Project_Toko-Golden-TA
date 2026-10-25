@@ -1,3 +1,4 @@
+<script>
 (() => {
     const form = document.getElementById('permissionForm');
     if (!form) return;
@@ -23,3 +24,4 @@
     summary();
     filter();
 })();
+</script>

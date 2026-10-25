@@ -91,7 +91,7 @@
 </div>
 @endsection
 @push('scripts')
-<script src="{{ asset('js/dashboard-donuts.js') }}?v=1"></script>
+@include('dashboard.partials.donut-scripts')
 <script>
 const warehouseTopbar=document.getElementById('topbar');
 new ResizeObserver(()=>document.querySelector('.warehouse-dashboard').style.setProperty('--warehouse-topbar-height',`${warehouseTopbar.offsetHeight}px`)).observe(warehouseTopbar);

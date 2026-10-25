@@ -732,7 +732,7 @@
         <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-dialog-cancel data-bs-dismiss="modal">Batal</button><button type="button" class="btn btn-primary" data-dialog-confirm></button></div>
     </div></div>
 </div>
-<script src="{{ asset('js/app-dialogs.js') }}?v=1"></script>
+@include('layouts.partials.dialog-scripts')
 <script>
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
@@ -864,6 +864,9 @@
 
     function initializeCurrencyInputs(container = document) {
         container.querySelectorAll('.js-currency-input').forEach((input) => {
+            if (input.dataset.currencyInitialized) return;
+            input.dataset.currencyInitialized = 'true';
+            input.classList.add('text-end');
             input.value = formatCurrencyValue(input.value);
 
             input.addEventListener('input', function() {
@@ -886,7 +889,8 @@
 
     initializeCurrencyInputs();
 </script>
-<script src="{{ asset('js/app-presentation.js') }}"></script>
+@include('layouts.partials.decimal-currency')
+@include('layouts.partials.presentation-scripts')
 @stack('scripts')
 @if(session('completed_sale_draft'))
 <script>

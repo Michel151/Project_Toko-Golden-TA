@@ -22,5 +22,5 @@
     </div></div>
 </div>
 @push('scripts')
-<script src="{{ asset('js/transfer-report.js') }}"></script>
+@include('components.transfer-items-scripts')
 @endpush

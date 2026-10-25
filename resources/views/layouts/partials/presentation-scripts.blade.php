@@ -1,3 +1,4 @@
+<script>
 (() => {
     const root = document.querySelector('.page-content');
     if (!root) return;
@@ -50,3 +51,4 @@
         if (changes.some(change => [...change.addedNodes].some(node => node.nodeType === Node.ELEMENT_NODE))) enhance(root);
     }).observe(root, { childList: true, subtree: true });
 })();
+</script>

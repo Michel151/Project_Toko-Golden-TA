@@ -1,3 +1,4 @@
+<script>
 (() => {
     document.querySelectorAll('[data-donut]').forEach(donut => {
         const panel = donut.closest('section');
@@ -71,3 +72,4 @@
         window.addEventListener('resize', clear);
     });
 })();
+</script>
