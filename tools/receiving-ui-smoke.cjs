@@ -15,6 +15,8 @@ const assert = require('node:assert/strict');
             const request = route.request();
             const url = new URL(request.url());
             if (request.method() !== 'GET') return route.abort();
+            // Reproduce hosting where the separate receiving script is unavailable.
+            if (url.pathname === '/js/purchase-receiving.js') return route.abort();
             if (url.pathname.startsWith('/__receiving-ui/')) {
                 const name = url.pathname.split('/').pop();
                 if (!['blank', 'filled'].includes(name)) return route.abort();
@@ -56,6 +58,15 @@ const assert = require('node:assert/strict');
             assert.equal(await page.locator('#receivingForm').evaluate(form => form.reportValidity()), false);
             assert(await detail.isVisible(), 'Invalid hidden detail must open');
             assert.equal(await page.locator('#receiptSearch').inputValue(), '');
+            const plainItem = page.locator('.inspection-row').nth(2);
+            await plainItem.locator('.good-qty').fill('5');
+            assert.equal(await plainItem.locator('.allocation-qty').inputValue(), '5');
+            assert.equal(await plainItem.getAttribute('data-status'), 'ready');
+            const payload = await page.locator('#receivingForm').evaluate(form => Object.fromEntries(new FormData(form)));
+            assert.equal(payload['items[2][quantity_received]'], '5');
+            assert.equal(payload['items[2][allocations][0][quantity]'], '5');
+            assert(payload['items[2][allocations][0][location_id]']);
+            await plainItem.locator('.good-qty').fill('0');
             await detail.locator('.batch-expiry').fill('2027-01-01');
             await page.locator('#receiptFilter').selectOption('ready');
             assert.equal(await page.locator('.inspection-row:visible').count(), 1);

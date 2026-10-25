@@ -138,6 +138,6 @@
 <div class="receiving-footer">@if($selectedOrder)<button class="btn btn-primary" type="submit"><i class="bi bi-check-circle me-1"></i>Simpan Penerimaan</button>@endif<a class="btn btn-outline-secondary" href="{{ route('purchase.receipts.index') }}">Kembali</a></div>
 </form>
 @push('scripts')
-<script src="{{ asset('js/purchase-receiving.js') }}"></script>
+@include('purchase.receipts.scripts')
 @endpush
 @endsection

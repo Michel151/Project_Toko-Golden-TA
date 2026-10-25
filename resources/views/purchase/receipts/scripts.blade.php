@@ -1,3 +1,4 @@
+<script>
 (() => {
     const form = document.getElementById('receivingForm');
     if (!form) return;
@@ -173,3 +174,4 @@
     updateAll();
     for (const row of rows) if (row.dataset.startOpen === 'true') setExpanded(row, true);
 })();
+</script>
