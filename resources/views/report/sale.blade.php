@@ -3,10 +3,11 @@
 @section('page-title', 'Laporan Penjualan')
 @push('styles')
 <style>
-.sale-report-overview .card-body, .sale-margin-scroll { min-height:0;max-height:360px;overflow:auto; }
+.sale-report-overview .card-body { min-height:0;max-height:600px;overflow:auto; }
+.sale-margin-scroll { min-height:0;max-height:360px;overflow:auto; }
 .sale-report-overview thead th, #productMarginTable thead th { position:sticky;top:0;z-index:1;background:#eef2ec; }
 @media(min-width:992px) {
-    .sale-report-overview > div > .card { min-height:0;height:360px; }
+    .sale-report-overview > div > .card { min-height:0;height:640px; }
 }
 </style>
 @endpush
