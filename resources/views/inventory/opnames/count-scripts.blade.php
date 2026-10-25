@@ -1,3 +1,4 @@
+<script>
 (() => {
     const form = document.getElementById('opnameForm');
     if (!form) return;
@@ -128,3 +129,4 @@
         form.requestSubmit();
     });
 })();
+</script>

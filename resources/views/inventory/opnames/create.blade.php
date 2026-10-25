@@ -52,5 +52,5 @@
 </div>
 @endsection
 @push('scripts')
-<script src="{{ asset('js/opname-participants.js') }}"></script>
+@include('inventory.opnames.participant-scripts')
 @endpush

@@ -67,7 +67,12 @@ class MultiProductTransferTest extends TestCase
         }
         $this->get(route('inventory.transfers.show', StockTransfer::first()))->assertOk()->assertSee('Produk A')->assertSee('Produk B');
         $this->get(route('inventory.transfers.index', ['product_id' => $data['items'][1]['product_id']]))->assertOk()->assertSee(StockTransfer::first()->transfer_number);
-        $this->get(route('inventory.transfers.create'))->assertOk()->assertSee('Tambah Barang');
+        $form = $this->get(route('inventory.transfers.create'))->assertOk()->assertSee('Tambah Barang');
+        if (getenv('CAPTURE_TRANSFER_UI') === '1') {
+            $directory = storage_path('framework/testing/transfer');
+            if (!is_dir($directory)) mkdir($directory, 0777, true);
+            file_put_contents($directory.'/form.html', $form->getContent());
+        }
         $this->get(route('report.transfer'))->assertOk()->assertSee('Produk A')->assertSee('Produk B');
         $pdf = view('report.pdf.transfer', ['transfers' => StockTransfer::with('items.product')->get(), 'from' => today()->toDateString(), 'to' => today()->toDateString()])->render();
         $this->assertStringContainsString('Produk A', $pdf);

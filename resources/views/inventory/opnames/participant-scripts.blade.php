@@ -1,3 +1,4 @@
+<script>
 (() => {
     const select = document.getElementById('opnameParticipants');
     if (!select || !window.bootstrap?.Dropdown) return;
@@ -96,3 +97,4 @@
     select.form.addEventListener('reset', () => setTimeout(refresh, 0));
     refresh();
 })();
+</script>

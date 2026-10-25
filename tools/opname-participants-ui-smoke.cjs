@@ -15,6 +15,8 @@ const assert = require('node:assert/strict');
         await page.route('**/*', route => {
             const url = new URL(route.request().url());
             if (route.request().method() !== 'GET') return route.abort();
+            // Simulate hosting without the separate participant picker script.
+            if (url.pathname === '/js/opname-participants.js') return route.abort();
             if (url.pathname.startsWith('/__opname-participants/')) {
                 const name = url.pathname.split('/').pop();
                 if (!['create','restored','edit','show','legacy'].includes(name)) return route.abort();

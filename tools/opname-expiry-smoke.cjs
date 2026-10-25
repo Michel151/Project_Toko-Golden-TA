@@ -9,16 +9,24 @@ const path = require('node:path');
         const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
         const errors = [];
         page.on('pageerror', error => errors.push(error.message));
-        await page.goto('http://127.0.0.1:8000/login');
-        await page.locator('[name=email]').fill('gudang@tokogolden.com');
-        await page.locator('[name=password]').fill('password');
-        await Promise.all([page.waitForURL('**/dashboard'), page.locator('button[type=submit]').click()]);
         const directory = path.join(__dirname, '../storage/framework/testing/opname-expiry');
+        const publicRoot = path.resolve(__dirname, '../public');
         let posted;
-        await page.route('**/inventory/opnames/**', route => {
+        await page.route('**/*', route => {
             if (route.request().method() !== 'GET') {
                 posted = { url: route.request().url(), data: new URLSearchParams(route.request().postData()) };
                 return route.fulfill({ status: 200, contentType: 'text/html', body: '<p>Pengujian selesai.</p>' });
+            }
+            const requestUrl = new URL(route.request().url());
+            // Reproduce hosting without the separate counting script.
+            if (requestUrl.pathname === '/js/opname-counts.js') return route.abort();
+            if (!requestUrl.pathname.startsWith('/inventory/opnames/')) {
+                if (requestUrl.hostname === 'cdn.jsdelivr.net') return route.continue();
+                const file = path.resolve(publicRoot, '.' + decodeURIComponent(requestUrl.pathname));
+                if (file.startsWith(publicRoot + path.sep) && fs.existsSync(file) && /\.(js|css)$/.test(file)) {
+                    return route.fulfill({ contentType: file.endsWith('.js') ? 'application/javascript' : 'text/css', body: fs.readFileSync(file) });
+                }
+                return route.abort();
             }
             const name = route.request().url().includes('test-large') ? 'show-large' : route.request().url().includes('test-multi') ? 'multi-edit' : route.request().url().includes('test-show') ? 'show' : 'edit';
             const html = fs.readFileSync(path.join(directory, name + '.html'), 'utf8').replaceAll('http://localhost/', 'http://127.0.0.1:8000/');
@@ -53,6 +61,14 @@ const path = require('node:path');
         assert.equal(await multiDetail.locator('[data-expiry-row]').last().locator('.qty-unit').count(), 3);
         await page.setViewportSize({ width:1440, height:1000 });
         await page.goto(url);
+        const ordinary = page.locator('[data-opname-item]').filter({ hasText: 'B Barang Tanpa Kedaluwarsa' });
+        for (const [quantity, expected] of [['31', '+1 Pcs'], ['29', '-1 Pcs'], ['30', '0 Pcs']]) {
+            await ordinary.locator('.qty-base').fill(quantity);
+            assert.equal(await ordinary.locator('.item-difference').innerText(), expected);
+            assert.equal(await ordinary.locator('.physical-value').inputValue(), quantity);
+            assert.equal(await ordinary.locator('.item-difference').evaluate(node => node.classList.contains('text-danger')), Number(quantity) < 30);
+            assert.equal(await ordinary.locator('.item-difference').evaluate(node => node.classList.contains('text-success')), Number(quantity) > 30);
+        }
         const detail = page.locator('[data-expiry-item]').first();
         const id = await detail.getAttribute('data-expiry-item');
         const main = page.locator(`[data-opname-item="${id}"]`);
@@ -81,7 +97,7 @@ const path = require('node:path');
         assert.equal(await main.locator('.item-physical').inputValue(), '10');
         await detail.locator('.add-expiry').click();
         await main.locator('.expiry-toggle').click();
-        await page.getByRole('button', { name: 'Simpan Draft' }).click();
+        await page.locator('#opnameForm button[type="submit"]').click();
         assert(await detail.isVisible());
         assert(page.url().endsWith('/edit'));
         await detail.locator('[data-expiry-row]').last().locator('.remove-expiry').click();
@@ -91,7 +107,7 @@ const path = require('node:path');
             assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
             await page.screenshot({ path: path.join(directory, `edit-${width}.png`), fullPage: true });
         }
-        await page.getByRole('button', { name: 'Simpan Draft' }).click();
+        await page.locator('#opnameForm button[type="submit"]').click();
         await page.waitForURL(/\/inventory\/opnames\/\d+$/);
         assert.equal(posted.data.get('_method'), 'PUT');
         assert.equal(posted.data.get(`items[${id}][expiries][0][physical_quantity]`), '0');

@@ -89,5 +89,7 @@
         <a href="{{ route('inventory.opnames.index') }}" class="btn btn-outline-secondary">Batal</a>
     </div>
 </form>
-@push('scripts')<script src="{{ asset('js/opname-counts.js') }}"></script>@endpush
+@push('scripts')
+@include('inventory.opnames.count-scripts')
+@endpush
 @endsection

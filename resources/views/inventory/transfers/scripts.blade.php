@@ -1,3 +1,4 @@
+<script>
 (() => {
 const config = window.stockTransferConfig;
 const products = config.products;
@@ -531,3 +532,4 @@ updateDestinationOptions();
 updateTransferState();
 if (acceptedSource && transferItems.length) refreshSource(acceptedSource);
 })();
+</script>

@@ -139,6 +139,6 @@ window.stockTransferConfig = {
     availabilityUrl: {{ Illuminate\Support\Js::from(route('inventory.transfers.availability')) }}
 };
 </script>
-<script src="{{ asset('js/stock-transfer.js') }}?v={{ filemtime(public_path('js/stock-transfer.js')) }}"></script>
+@include('inventory.transfers.scripts')
 @endpush
 @endsection
