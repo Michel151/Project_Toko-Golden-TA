@@ -17,25 +17,33 @@
 
 {{-- Summary cards --}}
 <div class="row g-3 mb-3">
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-md-4 col-xl">
         <div class="card report-stat h-100" style="--stat-color:#198754"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-cash-stack"></i></div><div>
             <div class="text-muted small">Total Penjualan</div>
             <div class="fw-bold">Rp {{ number_format($totalAmount, 0, ',', '.') }}</div>
         </div></div></div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-md-4 col-xl">
+        <div class="card report-stat h-100" style="--stat-color:#6f42c1"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-calculator"></i></div><div>
+            <div class="text-muted small">Laba Kotor</div>
+            <div class="fw-bold {{ $grossProfit !== null && $grossProfit < 0 ? 'text-danger' : '' }}">{{ $grossProfit === null ? 'Belum lengkap' : 'Rp '.number_format($grossProfit, 0, ',', '.') }}</div>
+            <div class="small text-muted">{{ $incompleteCostCount ? $incompleteCostCount.' transaksi dengan HPP belum lengkap' : 'Penjualan lunas − HPP tercatat' }}</div>
+            <div class="small text-muted">Belum dikurangi biaya operasional</div>
+        </div></div></div>
+    </div>
+    <div class="col-6 col-md-4 col-xl">
         <div class="card report-stat h-100" style="--stat-color:#0d6efd"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-receipt"></i></div><div>
             <div class="text-muted small">Jumlah Transaksi</div>
             <div class="fw-bold">{{ $totalTrx }}</div>
         </div></div></div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-md-4 col-xl">
         <div class="card report-stat h-100" style="--stat-color:#c8960c"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-cash"></i></div><div>
             <div class="text-muted small">Tunai</div>
             <div class="fw-bold text-success">Rp {{ number_format($totalTunai, 0, ',', '.') }}</div>
         </div></div></div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-md-4 col-xl">
         <div class="card report-stat h-100" style="--stat-color:#0dcaf0"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-bank"></i></div><div>
             <div class="text-muted small">Transfer</div>
             <div class="fw-bold text-info">Rp {{ number_format($totalTransfer, 0, ',', '.') }}</div>
@@ -87,4 +95,28 @@
         </div>
     </div>
 </div>
+<section class="card table-card mt-3" aria-labelledby="productMarginHeading">
+    <div class="card-header bg-white border-0 pt-3">
+        <h6 id="productMarginHeading" class="fw-bold mb-1">Margin per Produk</h6>
+        <div class="small text-muted">Penjualan lunas pada periode terpilih. Margin = laba kotor ÷ omzet × 100%, sebelum biaya operasional.</div>
+    </div>
+    <div class="card-body p-0 table-responsive">
+        <table id="productMarginTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
+            <thead><tr><th>Barang</th><th class="text-end">Omzet</th><th class="text-end">HPP</th><th class="text-end">Laba Kotor</th><th class="text-end">Margin</th></tr></thead>
+            <tbody>
+                @forelse($productMargins as $margin)
+                <tr>
+                    <td class="fw-semibold">{{ $margin->name }}</td>
+                    <td class="text-end">Rp {{ number_format($margin->revenue, 0, ',', '.') }}</td>
+                    <td class="text-end">{{ $margin->cost === null ? 'Belum lengkap' : 'Rp '.number_format($margin->cost, 0, ',', '.') }}</td>
+                    <td class="text-end {{ $margin->gross_profit !== null && $margin->gross_profit < 0 ? 'text-danger' : '' }}">{{ $margin->gross_profit === null ? 'Belum lengkap' : 'Rp '.number_format($margin->gross_profit, 0, ',', '.') }}</td>
+                    <td class="text-end fw-semibold {{ $margin->margin_percentage !== null && $margin->margin_percentage < 0 ? 'text-danger' : '' }}">{{ $margin->cost === null ? 'Belum lengkap' : ($margin->margin_percentage === null ? '—' : number_format($margin->margin_percentage, 2, ',', '.').'%') }}</td>
+                </tr>
+                @empty
+                <tr><td colspan="5" class="report-empty">Tidak ada penjualan produk pada periode ini.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</section>
 @endsection
