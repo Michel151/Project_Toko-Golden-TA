@@ -3,8 +3,10 @@
 @section('page-title', 'Laporan Penjualan')
 @push('styles')
 <style>
+.sale-report-overview .card-body, .sale-margin-scroll { min-height:0;max-height:360px;overflow:auto; }
+.sale-report-overview thead th, #productMarginTable thead th { position:sticky;top:0;z-index:1;background:#eef2ec; }
 @media(min-width:992px) {
-    .sale-report-overview > div > .card { min-height:320px;height:100%; }
+    .sale-report-overview > div > .card { min-height:0;height:360px; }
 }
 </style>
 @endpush
@@ -62,7 +64,7 @@
     <div class="col-md-8">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Daftar Transaksi</h6></div>
-            <div class="card-body p-0 table-responsive">
+            <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Daftar transaksi penjualan, gulir untuk melihat transaksi lainnya">
                 <table class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
                     <thead><tr><th>No. Invoice</th><th>Tanggal</th><th>Pelanggan / Kasir</th><th class="text-center">Bayar</th><th class="text-end">Total</th></tr></thead>
                     <tbody>
@@ -85,7 +87,7 @@
     <div class="col-md-4">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Produk Terlaris</h6></div>
-            <div class="card-body p-0">
+            <div class="card-body p-0" tabindex="0" role="region" aria-label="Produk terlaris, gulir untuk melihat produk lainnya">
                 <table class="table table-sm mb-0">
                     <thead><tr><th>#</th><th>Barang</th><th class="text-end">Total</th></tr></thead>
                     <tbody>
@@ -107,7 +109,7 @@
         <h6 id="productMarginHeading" class="fw-bold mb-1">Margin per Produk</h6>
         <div class="small text-muted">Penjualan lunas pada periode terpilih. Margin = laba kotor ÷ omzet × 100%, sebelum biaya operasional.</div>
     </div>
-    <div class="card-body p-0 table-responsive">
+    <div class="card-body p-0 table-responsive sale-margin-scroll" tabindex="0" role="region" aria-label="Margin per produk, gulir untuk melihat produk lainnya">
         <table id="productMarginTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
             <thead><tr><th>Barang</th><th class="text-end">Omzet</th><th class="text-end">HPP</th><th class="text-end">Laba Kotor</th><th class="text-end">Margin</th></tr></thead>
             <tbody>
