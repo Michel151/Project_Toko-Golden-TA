@@ -137,9 +137,12 @@ class DashboardController extends Controller
             ->join('product_units as sale_unit', 'sale_unit.id', '=', 'sale_items.product_unit_id')
             ->orderByDesc(DB::raw('SUM(sale_items.quantity * sale_unit.conversion_to_base)'))->limit(5)
             ->get(['products.id','products.name',DB::raw('SUM(sale_items.quantity * sale_unit.conversion_to_base) as base_quantity')]);
-        $rankedProducts = Product::with('productUnits.unit')->whereIn('id', $topQuantityProducts->pluck('id'))->get()->keyBy('id');
+        $rankedProducts = Product::with(['productUnits.unit', 'buyUnit', 'retailUnit'])->whereIn('id', $topQuantityProducts->pluck('id'))->get()->keyBy('id');
         $topQuantityProducts->each(function ($item) use ($rankedProducts) {
-            $item->base_unit = $rankedProducts[$item->id]?->productUnits->firstWhere('is_base_unit', true)?->unit?->name ?? 'satuan dasar';
+            $product = $rankedProducts->get($item->id);
+            $item->base_unit = $product?->productUnits->firstWhere('is_base_unit', true)?->unit?->name ?? 'satuan dasar';
+            $item->display_quantity = $product?->displayStock((float) $item->base_quantity)
+                ?? number_format($item->base_quantity, 2, ',', '.').' '.$item->base_unit;
         });
 
         $paymentMethods = (clone $monthSalesQuery)

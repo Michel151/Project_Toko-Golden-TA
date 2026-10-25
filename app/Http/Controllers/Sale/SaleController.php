@@ -431,7 +431,10 @@ class SaleController extends Controller
     {
         $this->ensureSaleIsAccessible($sale);
         $this->normalizeCurrencyInputs($request);
+        $settlePayment = $request->input('sale_status', 'pending') === 'paid';
         $request->validate([
+            'sale_status' => 'sometimes|required|in:pending,paid',
+            'amount_paid' => $settlePayment ? 'required|numeric|min:1' : 'nullable|numeric|min:0',
             'draft_id' => 'nullable|uuid',
             'draft_version' => 'required_with:draft_id|nullable|integer|min:0',
             'transaction_confirmed' => 'accepted',
@@ -450,7 +453,13 @@ class SaleController extends Controller
             'sale_date.before_or_equal' => 'Tanggal penjualan tidak boleh melewati hari ini (WIB).',
             'sale_date.date_format' => 'Tanggal penjualan harus berupa tanggal yang valid.',
             'transaction_confirmed.accepted' => 'Centang konfirmasi sebelum menyimpan perubahan.',
+            'amount_paid.min' => 'Jumlah bayar harus lebih dari 0.',
         ]);
+
+        $totalAmount = collect($request->items)->sum(fn ($item) => $item['quantity'] * $item['unit_price']);
+        if ($settlePayment && (float) $request->amount_paid < $totalAmount) {
+            return back()->withErrors(['amount_paid' => 'Jumlah bayar harus mencukupi total transaksi setelah perubahan.'])->withInput();
+        }
 
         foreach ($request->items as $item) {
             $allocated = collect($item['sources'] ?? [])->sum(fn ($source) => (float) ($source['quantity'] ?? 0));
@@ -462,7 +471,7 @@ class SaleController extends Controller
         }
 
         try {
-            $result = DB::transaction(function () use ($request, $sale) {
+            $result = DB::transaction(function () use ($request, $sale, $settlePayment, $totalAmount) {
                 app(\App\Services\MovingAverageCostService::class)->lock();
                 $locked = Sale::whereKey($sale->id)->lockForUpdate()->firstOrFail();
                 if ($locked->status !== 'pending') {
@@ -478,7 +487,6 @@ class SaleController extends Controller
                 $locked->items()->delete();
 
                 $customerName = trim((string) $request->input('customer_name'));
-                $totalAmount = collect($request->items)->sum(fn ($item) => $item['quantity'] * $item['unit_price']);
                 $locked->update([
                     'customer_name' => $customerName !== '' ? $customerName : null,
                     'sale_date' => $request->sale_date,
@@ -490,13 +498,25 @@ class SaleController extends Controller
 
                 $this->createSaleItems($locked, $request->items);
 
+                if ($settlePayment) {
+                    app(\App\Services\MovingAverageCostService::class)->finalizeSale($locked);
+                    $locked->update([
+                        'status' => 'paid',
+                        'amount_paid' => $request->amount_paid,
+                        'change_amount' => (float) $request->amount_paid - $totalAmount,
+                        'hold_until' => null,
+                    ]);
+
+                    return 'paid';
+                }
+
                 return 'updated';
             });
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage())->withInput();
         }
 
-        if ($result !== 'updated') {
+        if (! in_array($result, ['updated', 'paid'], true)) {
             $message = $result === 'late'
                 ? 'Batas pukul 18.00 WIB sudah lewat. Transaksi dibatalkan otomatis dan stok dikembalikan.'
                 : 'Transaksi ini sudah tidak menunggu pembayaran.';
@@ -506,7 +526,7 @@ class SaleController extends Controller
 
         return redirect()->route('sale.sales.show', $sale)
             ->with('completed_sale_draft', $request->input('draft_id'))
-            ->with('success', 'Transaksi menunggu pembayaran berhasil diperbarui.');
+            ->with('success', $result === 'paid' ? 'Perubahan transaksi disimpan dan pembayaran berhasil diselesaikan.' : 'Transaksi menunggu pembayaran berhasil diperbarui.');
     }
 
     public function destroy(Sale $sale)

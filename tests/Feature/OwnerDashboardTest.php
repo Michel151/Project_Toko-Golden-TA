@@ -74,6 +74,7 @@ class OwnerDashboardTest extends TestCase
         }
         $this->actingAs($user)->get(route('dashboard'))->assertOk()
             ->assertViewHas('topQuantityProducts',fn($rows)=>(float)$rows->first()->base_quantity===27.0 && $rows->first()->base_unit==='Pcs')
+            ->assertSee('2 Dus 3 Pcs')
             ->assertViewHas('grossProfit',13500);
     }
 }

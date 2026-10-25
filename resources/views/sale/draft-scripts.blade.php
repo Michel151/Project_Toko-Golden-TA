@@ -233,7 +233,7 @@
         const radio = form.querySelector(`input[type="radio"][name="sale_status"][value="${payload.sale_status === 'pending' ? 'pending' : 'paid'}"]`);
         if (radio) radio.checked = true;
         updateSaleStatus();
-        document.getElementById('amountPaid').value = config.saleId || payload.sale_status === 'pending' ? '0' : formatNumber(payload.amount_paid || 0);
+        document.getElementById('amountPaid').value = payload.sale_status === 'pending' ? '0' : formatNumber(payload.amount_paid || 0);
         document.getElementById('transactionConfirmed').checked = false;
         updateItemCounter();
         updateTotal();

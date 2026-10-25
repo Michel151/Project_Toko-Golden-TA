@@ -270,4 +270,93 @@ class HeldSaleTest extends TestCase
         $this->assertEquals(2, $sale->items()->first()->quantity);
         $this->assertEquals(8, $stock->fresh()->quantity);
     }
+
+    private function editPaymentPayload(Product $product, ProductUnit $unit, Location $location, float $quantity, int $paid): array
+    {
+        return ['sale_status'=>'paid','sale_date'=>'2026-09-29','transaction_confirmed'=>1,
+            'payment_method'=>'tunai','amount_paid'=>$paid,'items'=>[[
+                'product_id'=>$product->id,'product_unit_id'=>$unit->id,'quantity'=>$quantity,'unit_price'=>1200,
+                'sources'=>[['location_id'=>$location->id,'quantity'=>$quantity]],
+            ]]];
+    }
+
+    public function test_edit_can_add_another_product_and_settle_payment_without_double_deducting_stock(): void
+    {
+        $this->travelTo(now('Asia/Jakarta')->setDate(2026,9,29)->setTime(16,0));
+        [$product,$unit,$location,$stock,$batch] = $this->setupSale();
+        $sale = $this->hold($product,$unit,$location);
+        $extra = Product::create(['name'=>'Barang Tambahan','category_id'=>$product->category_id,'buy_unit_id'=>$unit->unit_id,
+            'buy_price'=>300,'sell_price_wholesale'=>500,'is_active'=>true,'is_expirable'=>false]);
+        $extraUnit = ProductUnit::create(['product_id'=>$extra->id,'unit_id'=>$unit->unit_id,'conversion_to_base'=>1,
+            'buy_price'=>300,'sell_price'=>500,'is_base_unit'=>true,'is_default_purchase'=>true,'is_default_sale'=>true]);
+        Stock::create(['product_id'=>$extra->id,'location_id'=>$location->id,'quantity'=>5]);
+        $page = $this->get(route('sale.sales.edit',$sale))->assertOk();
+        if (getenv('CAPTURE_EDIT_PAYMENT_UI') === '1') {
+            $directory = storage_path('framework/testing/edit-payment');
+            if (!is_dir($directory)) mkdir($directory,0777,true);
+            file_put_contents($directory.'/edit.html',$page->getContent());
+        }
+        $payload = $this->editPaymentPayload($product,$unit,$location,4,6000);
+        $payload['items'][] = ['product_id'=>$extra->id,'product_unit_id'=>$extraUnit->id,'quantity'=>1,'unit_price'=>500,
+            'sources'=>[['location_id'=>$location->id,'quantity'=>1]]];
+        $this->put(route('sale.sales.update',$sale),$payload)->assertSessionHasNoErrors()->assertSessionMissing('error')
+            ->assertRedirect(route('sale.sales.show',$sale));
+        $this->assertSame('paid',$sale->fresh()->status);
+        $this->assertNull($sale->fresh()->hold_until);
+        $this->assertEquals(5300,$sale->fresh()->total_amount);
+        $this->assertEquals(6000,$sale->fresh()->amount_paid);
+        $this->assertEquals(700,$sale->fresh()->change_amount);
+        $this->assertSame(2,$sale->items()->count());
+        $this->assertEquals(6,$stock->fresh()->quantity);
+        $this->assertEquals(6,$batch->fresh()->quantity_remaining);
+        $this->assertDatabaseHas('stocks',['product_id'=>$extra->id,'location_id'=>$location->id,'quantity'=>4]);
+        $movements = StockMovement::count();
+        $this->put(route('sale.sales.update',$sale),$payload)->assertRedirect(route('sale.sales.index'));
+        $this->assertEquals(6,$stock->fresh()->quantity);
+        $this->assertSame($movements,StockMovement::count());
+    }
+
+    public function test_short_payment_or_missing_confirmation_leaves_edit_and_stock_unchanged(): void
+    {
+        $this->travelTo(now('Asia/Jakarta')->setDate(2026,9,29)->setTime(16,0));
+        [$product,$unit,$location,$stock] = $this->setupSale(false);
+        $sale = $this->hold($product,$unit,$location);
+        $payload = $this->editPaymentPayload($product,$unit,$location,4,2000);
+        $this->from(route('sale.sales.edit',$sale))->put(route('sale.sales.update',$sale),$payload)
+            ->assertSessionHasErrors('amount_paid');
+        $payload['amount_paid'] = 5000;
+        unset($payload['transaction_confirmed']);
+        $this->put(route('sale.sales.update',$sale),$payload)->assertSessionHasErrors('transaction_confirmed');
+        $this->assertSame('pending',$sale->fresh()->status);
+        $this->assertEquals(2000,$sale->fresh()->total_amount);
+        $this->assertEquals(0,$sale->fresh()->amount_paid);
+        $this->assertEquals(2,$sale->items()->first()->quantity);
+        $this->assertEquals(8,$stock->fresh()->quantity);
+    }
+
+    public function test_failed_stock_check_rolls_back_combined_edit_and_payment(): void
+    {
+        $this->travelTo(now('Asia/Jakarta')->setDate(2026,9,29)->setTime(16,0));
+        [$product,$unit,$location,$stock] = $this->setupSale(false);
+        $sale = $this->hold($product,$unit,$location);
+        $this->put(route('sale.sales.update',$sale),$this->editPaymentPayload($product,$unit,$location,20,30000))
+            ->assertSessionHas('error');
+        $this->assertSame('pending',$sale->fresh()->status);
+        $this->assertEquals(0,$sale->fresh()->amount_paid);
+        $this->assertEquals(2,$sale->items()->first()->quantity);
+        $this->assertEquals(8,$stock->fresh()->quantity);
+    }
+
+    public function test_overdue_combined_edit_and_payment_cancels_instead_of_accepting_payment(): void
+    {
+        $this->travelTo(now('Asia/Jakarta')->setDate(2026,9,29)->setTime(16,0));
+        [$product,$unit,$location,$stock] = $this->setupSale(false);
+        $sale = $this->hold($product,$unit,$location);
+        $this->travel(2)->hours();
+        $this->put(route('sale.sales.update',$sale),$this->editPaymentPayload($product,$unit,$location,4,5000))
+            ->assertRedirect(route('sale.sales.index'));
+        $this->assertSame('cancelled_auto',$sale->fresh()->status);
+        $this->assertEquals(0,$sale->fresh()->amount_paid);
+        $this->assertEquals(10,$stock->fresh()->quantity);
+    }
 }

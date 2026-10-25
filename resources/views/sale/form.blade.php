@@ -134,20 +134,19 @@
                         <div class="col-12"><label class="form-label small fw-semibold">Nama Pelanggan</label><input type="text" name="customer_name" class="form-control form-control-sm" value="{{ old('customer_name', $editing ? $sale->customer_name : '') }}" placeholder="Pelanggan umum (opsional)"></div>
                     </div>
                     @if($editing)
-                    <input type="hidden" name="sale_status" value="pending">
-                    <div class="alert alert-warning py-2 small">Status: <strong>Menunggu Pembayaran</strong>. Batas pembayaran {{ $sale->hold_until->format('H:i') }} WIB.</div>
-                    @else
-                    <label class="form-label small fw-semibold">Status Transaksi</label>
+                    <div class="alert alert-warning py-2 small">Status saat ini: <strong>Menunggu Pembayaran</strong>. Batas pembayaran {{ $sale->hold_until->format('H:i') }} WIB.</div>
+                    @endif
+                    <label class="form-label small fw-semibold">{{ $editing ? 'Status Setelah Disimpan' : 'Status Transaksi' }}</label>
                     <div class="btn-group w-100 mb-3" role="group" aria-label="Status transaksi">
-                        <input type="radio" class="btn-check" name="sale_status" id="salePaid" value="paid" @checked(old('sale_status', 'paid') === 'paid')>
+                        <input type="radio" class="btn-check" name="sale_status" id="salePaid" value="paid" @checked(old('sale_status', $editing ? 'pending' : 'paid') === 'paid')>
                         <label class="btn btn-outline-success" for="salePaid">Bayar Sekarang</label>
-                        <input type="radio" class="btn-check" name="sale_status" id="salePending" value="pending" @checked(old('sale_status') === 'pending')>
+                        <input type="radio" class="btn-check" name="sale_status" id="salePending" value="pending" @checked(old('sale_status', $editing ? 'pending' : 'paid') === 'pending')>
                         <label class="btn btn-outline-warning" for="salePending">Menunggu Pembayaran</label>
                     </div>
-                    @endif
                     <div class="small text-muted mb-3" id="pendingNotice" hidden>Stok langsung berkurang. Jika belum dibayar pukul 18.00 WIB, transaksi dibatalkan otomatis dan stok dikembalikan.</div>
                     <label class="form-label small fw-semibold">Jumlah Bayar <span class="text-danger">*</span></label>
                     <div class="input-group mb-3"><span class="input-group-text">Rp</span><input type="text" name="amount_paid" id="amountPaid" class="form-control fw-semibold js-currency-input" value="{{ number_format((float) old('amount_paid', 0), 0, ',', '.') }}" inputmode="numeric" required><button type="button" id="exactPayment" class="btn btn-outline-success" title="Isi pembayaran sejumlah total">Uang Pas</button></div>
+                    @error('amount_paid')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
                     <div class="pos-change d-flex justify-content-between align-items-center mb-3"><div><div class="small text-muted">Kembalian</div><div class="small text-success"><i class="bi bi-check-circle me-1"></i>Hitung otomatis</div></div><div class="d-flex align-items-center"><span class="text-success me-1">Rp</span><input type="text" id="changeAmount" class="form-control text-end" value="0" readonly style="width:120px"></div></div>
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" name="transaction_confirmed" value="1" id="transactionConfirmed" required>
@@ -279,8 +278,9 @@ function updateSaleStatus() {
     if (pending) amount.value = '0';
     const label = document.getElementById('transactionConfirmationLabel');
     label.textContent = @json($editing)
-        ? 'Saya sudah memeriksa perubahan transaksi ini'
+        ? (pending ? 'Saya sudah memeriksa perubahan transaksi ini' : 'Pembayaran sudah diterima dan perubahan transaksi sudah diperiksa')
         : (pending ? 'Simpan sebagai menunggu pembayaran dan kurangi stok' : 'Pembayaran sudah diterima dari pelanggan');
+    if (@json($editing)) document.getElementById('saveSaleButton').innerHTML = `<i class="bi bi-check-circle me-1" aria-hidden="true"></i>${pending ? 'Simpan Perubahan' : 'Simpan & Selesaikan Pembayaran'}`;
     document.getElementById('transactionConfirmed').checked = false;
     updateTotal();
 }
@@ -424,7 +424,7 @@ function confirmSaleSubmission() {
     const pendingInput = document.getElementById('salePending');
     const pending = pendingInput ? pendingInput.checked : true;
     const message = @json($editing)
-        ? 'Simpan perubahan transaksi ini? Stok akan dihitung ulang.'
+        ? (pending ? 'Simpan perubahan transaksi ini? Stok akan dihitung ulang.' : 'Simpan perubahan dan lunasi transaksi ini? Pastikan pembayaran sudah diterima sesuai total yang baru.')
         : (pending
             ? 'Simpan sebagai menunggu pembayaran? Stok akan langsung dikurangi.'
             : 'Pastikan pembayaran sudah diterima. Simpan transaksi ini?');

@@ -53,6 +53,27 @@ class MovingAverageCostTest extends TestCase
         return Sale::latest('id')->firstOrFail();
     }
 
+    public function test_combined_pending_edit_and_payment_finalizes_cost_exactly_once(): void
+    {
+        $this->activate();
+        $sale = $this->sale(5, 'pending');
+        $payload = ['sale_status'=>'paid','sale_date'=>'2026-10-21','transaction_confirmed'=>1,
+            'payment_method'=>'tunai','amount_paid'=>250000,'items'=>[[
+                'product_id'=>$this->product->id,'product_unit_id'=>$this->unit->id,'quantity'=>10,'unit_price'=>20000,
+                'sources'=>[['location_id'=>$this->location->id,'quantity'=>10]],
+            ]]];
+        $this->put(route('sale.sales.update',$sale),$payload)->assertSessionHasNoErrors()->assertSessionMissing('error');
+        $this->assertSame('paid',$sale->fresh()->status);
+        $this->assertEquals(50000,$sale->fresh()->change_amount);
+        $this->assertEquals(100000,$sale->items()->sum('cost_subtotal'));
+        $this->assertEquals(90,Stock::first()->quantity);
+        $this->balance(90,900000,10000);
+        $entries = DB::table('inventory_cost_entries')->count();
+        $this->put(route('sale.sales.update',$sale),$payload)->assertRedirect(route('sale.sales.index'));
+        $this->assertSame($entries,DB::table('inventory_cost_entries')->count());
+        $this->balance(90,900000,10000);
+    }
+
     private function receipt(float $quantity = 100, int $price = 12000, ?PurchaseOrderItem $source = null, string $date = '2026-10-21'): PurchaseReceiptItem
     {
         $supplier = Supplier::firstOrCreate(['name' => 'Supplier']);
