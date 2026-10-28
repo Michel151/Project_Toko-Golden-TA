@@ -116,6 +116,11 @@
                         </table>
                     </div>
                 </div>
+                <div class="card-footer bg-white border-top p-3">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addItemBottom" {{ old('supplier_id', $order->supplier_id ?? '') ? '' : 'disabled' }}>
+                        <i class="bi bi-plus-circle me-1"></i> Tambah Barang
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -135,6 +140,7 @@
 const productsBySupplier = {!! json_encode($supplierProductsJson) !!};
 const supplierSelect = document.getElementById('supplierSelect');
 const addItemButton = document.getElementById('addItem');
+const addItemBottomButton = document.getElementById('addItemBottom');
 let rowIndex = {{ isset($order) ? $order->items->count() : 1 }};
 let activeSupplierId = supplierSelect.value;
 let changingSupplier = false;
@@ -215,14 +221,18 @@ function createItemRow(index) {
     return row;
 }
 
-addItemButton.addEventListener('click', () => {
+function addItemRow() {
     if (! supplierSelect.value) {
         return;
     }
-    document.getElementById('itemsBody').appendChild(createItemRow(rowIndex));
+    const row = createItemRow(rowIndex);
+    document.getElementById('itemsBody').appendChild(row);
     initializeProductSearch();
     rowIndex++;
-});
+    requestAnimationFrame(() => addItemBottomButton.scrollIntoView({ block: 'end', behavior: 'instant' }));
+}
+addItemButton.addEventListener('click', addItemRow);
+addItemBottomButton.addEventListener('click', addItemRow);
 
 function bindEvents(container = document) {
     container.querySelectorAll('select.product-select').forEach(sel => {
@@ -265,6 +275,7 @@ supplierSelect.addEventListener('change', async () => {
         window.purchaseSearch.setValue(supplierSelect, next);
         activeSupplierId = next;
         addItemButton.disabled = ! next;
+        addItemBottomButton.disabled = ! next;
         rowIndex = 0;
         const tbody = document.getElementById('itemsBody');
         window.purchaseSearch.destroy(tbody);
