@@ -2,7 +2,7 @@
 @section('title', isset($order) ? 'Ubah PO' : 'Buat Purchase Order')
 @section('page-title', isset($order) ? 'Ubah Purchase Order' : 'Buat Purchase Order')
 @push('styles')
-<link href="{{ asset('vendor/tom-select-2.4.3/tom-select.bootstrap5.min.css') }}" rel="stylesheet">
+<style data-po-search-styles>{!! file_get_contents(public_path('vendor/tom-select-2.4.3/tom-select.bootstrap5.min.css')) !!}</style>
 <style>
 #itemsTable { min-width:800px; }
 #itemsTable .input-group { flex-wrap:nowrap; }

@@ -98,7 +98,9 @@ class PurchaseSupplierPriceTest extends TestCase
         for ($i=0; $i<35; $i++) Supplier::create(['name'=>'Pemasok Pencarian '.str_pad($i,2,'0',STR_PAD_LEFT)]);
         $response = $this->get(route('purchase.orders.create'))->assertOk()
             ->assertSee('data-po-search-library',false)
-            ->assertSee('vendor/tom-select-2.4.3/tom-select.bootstrap5.min.css',false)
+            ->assertSee('data-po-search-styles',false)
+            ->assertDontSee('<link href="'.asset('vendor/tom-select-2.4.3/tom-select.bootstrap5.min.css').'"',false)
+            ->assertSee('.ts-wrapper',false)
             ->assertSee('data-po-search-controls',false);
         $data = $response->viewData('supplierProductsJson');
         $this->assertCount(321,$data[$this->two->id]);

@@ -16,6 +16,8 @@ Form PO menyediakan pencarian supplier berdasarkan nama dan barang berdasarkan n
 
 Aset pencarian disimpan lokal. Saat memasang perubahan ini, unggah juga `public/js/purchase-search.js` dan seluruh folder `public/vendor/tom-select-2.4.3/`, beserta perubahan view form PO dan layanan harga. Setelah pemasangan dan pembersihan cache, muat ulang browser dengan Ctrl+F5.
 
+CSS dan JavaScript pencarian disertakan langsung pada hasil render halaman. Browser tidak perlu meminta aset Tom Select melalui URL terpisah; ini menghindari dropdown ganda dan posisi menu yang rusak ketika jalur aset publik di hosting berbeda. File sumber aset tetap harus tersedia pada folder `public` proyek Laravel.
+
 Unggah pembaruan kode aplikasi ke Hostinger, lalu jalankan dari folder proyek Laravel:
 
 ```bash
