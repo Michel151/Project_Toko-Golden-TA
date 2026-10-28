@@ -124,7 +124,7 @@ class PurchaseSupplierPriceTest extends TestCase
         $payload['items'][0]['buy_price'] = '63000';
         $this->put(route('purchase.orders.update',$order),$payload)->assertSessionHasNoErrors();
         $this->assertEquals(63000,$order->items()->first()->buy_price);
-        $this->delete(route('purchase.orders.destroy',$order))->assertSessionHasNoErrors();
+        $this->delete(route('purchase.orders.destroy',$order), ['reason'=>'Draf pengujian tidak dilanjutkan'])->assertSessionHasNoErrors();
         $this->assertSame($before,DB::table('product_units')->get()->toJson());
         $this->assertSame($suppliers,DB::table('product_supplier')->get()->toJson());
         $this->assertEquals(66000,$this->product->fresh()->buy_price);

@@ -52,7 +52,7 @@
     <input type="hidden" name="submitted_role" value="{{ $role }}">
     @php
         $chosen = old('submitted_role') === $role ? old('permissions', []) : $selected;
-        $actionLabels = ['view' => 'Melihat', 'create' => 'Menambah', 'edit' => 'Mengubah / Menyelesaikan', 'delete' => 'Menghapus / Membatalkan', 'import' => 'Impor', 'approve' => 'Menyetujui / Menolak', 'dispatch' => 'Menyerahkan Retur'];
+        $actionLabels = ['view' => 'Melihat', 'create' => 'Menambah', 'edit' => 'Mengubah / Menyelesaikan', 'delete' => 'Menghapus / Membatalkan', 'import' => 'Impor', 'approve' => 'Menyetujui / Menolak', 'dispatch' => 'Menyerahkan Retur', 'confirm' => 'Mengonfirmasi PO'];
     @endphp
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h6 class="mb-0">{{ $roles[$role] }}</h6>

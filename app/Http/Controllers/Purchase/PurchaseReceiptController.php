@@ -55,6 +55,7 @@ class PurchaseReceiptController extends Controller
         if ($request->filled('order_id') || old('purchase_order_id')) {
             $selectedOrder = PurchaseOrder::with(['supplier', 'items.product.buyUnit', 'items.productUnit.unit'])
                 ->findOrFail(old('purchase_order_id', $request->order_id));
+            abort_unless(in_array($selectedOrder->status, ['pending', 'partial'], true), 409, 'PO ini belum dikonfirmasi, dibatalkan, ditutup, atau sudah selesai.');
         }
 
         $locations = Location::orderBy('name')->get();
@@ -115,6 +116,7 @@ class PurchaseReceiptController extends Controller
     // AJAX: get PO items untuk form penerimaan
     public function getOrderItems(PurchaseOrder $order)
     {
+        abort_unless(in_array($order->status, ['pending', 'partial'], true), 409, 'PO ini tidak dapat diproses penerimaan.');
         $order->load(['items' => function ($q) {
             $q->with('product.buyUnit')
                 ->with('productUnit.unit')

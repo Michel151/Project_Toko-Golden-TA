@@ -17,6 +17,13 @@
     <tr><td class="label-cell">Tanggal PO</td><td class="value-cell">{{ $order->order_date?->format('d/m/Y') ?? '-' }}</td><td class="label-cell">Telepon</td><td class="value-cell">{{ $order->supplier?->phone ?: '-' }}</td></tr>
     <tr><td class="label-cell">Dibuat oleh</td><td class="value-cell">{{ $order->createdBy?->name ?? '-' }}</td><td class="label-cell">Alamat</td><td class="value-cell">{{ $order->supplier?->address ?: '-' }}</td></tr>
 </table>
+@if(in_array($order->status, ['draft', 'cancelled', 'closed'], true))
+<div class="notice"><strong>Status: {{ $order->status_label }}</strong>
+@if($order->status === 'draft')<br>DRAF — belum dikonfirmasi dan belum dapat diproses penerimaan barang.@endif
+@if($order->cancellation_reason)<br>Alasan pembatalan: {{ $order->cancellation_reason }}@endif
+@if($order->closure_reason)<br>Alasan penutupan sisa pesanan: {{ $order->closure_reason }}@endif
+</div>
+@endif
 @if($order->root_purchase_order_id)
 <div class="notice"><strong>PO RETUR - TANPA TAGIHAN TAMBAHAN</strong><br>PO Asal: {{ $order->rootOrder?->po_number ?? '-' }}</div>
 @endif

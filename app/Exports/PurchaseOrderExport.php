@@ -24,6 +24,10 @@ class PurchaseOrderExport extends ReportExport
             'Telepon: '.($order->supplier?->phone ?: '-'),
             'Dibuat oleh: '.($order->createdBy?->name ?? '-'),
         ];
+        if (in_array($order->status, ['draft', 'cancelled', 'closed'], true)) $metadata[]='Status: '.$order->status_label;
+        if ($order->status === 'draft') $metadata[]='DRAF - belum dikonfirmasi dan belum dapat diproses penerimaan barang.';
+        if ($order->cancellation_reason) $metadata[]='Alasan pembatalan: '.$order->cancellation_reason;
+        if ($order->closure_reason) $metadata[]='Alasan penutupan sisa pesanan: '.$order->closure_reason;
         if ($order->root_purchase_order_id) {
             $metadata[]='PO Asal: '.($order->rootOrder?->po_number ?? '-');
             $metadata[]='PO RETUR - TANPA TAGIHAN TAMBAHAN';

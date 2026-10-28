@@ -52,7 +52,7 @@
                     <td>{{ $po->supplier->name }}</td>
                     <td>{{ $po->order_date->format('d/m/Y') }}</td>
                     <td class="text-center">
-                        @php $colors = ['pending'=>'warning','partial'=>'info','completed'=>'success'] @endphp
+                        @php $colors = \App\Models\PurchaseOrder::STATUS_COLORS @endphp
                         <span class="badge bg-{{ $colors[$po->status] }}">{{ $po->status_label }}</span>
                     </td>
                     <td class="text-end">Rp {{ number_format($po->totalValue(), 0, ',', '.') }}</td>

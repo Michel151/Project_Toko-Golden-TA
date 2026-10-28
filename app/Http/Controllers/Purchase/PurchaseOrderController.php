@@ -32,7 +32,9 @@ class PurchaseOrderController extends Controller
         }
 
         $summaryOrders = (clone $query)->get();
-        $totalOrderValue = $summaryOrders->sum(fn ($order) => $order->totalValue());
+        $totalOrderValue = $summaryOrders->whereNotIn('status', ['draft', 'cancelled'])->sum(fn ($order) => $order->totalValue());
+        $draftCount = $summaryOrders->where('status', 'draft')->count();
+        $cancelledCount = $summaryOrders->where('status', 'cancelled')->count();
         $pendingCount = $summaryOrders->where('status', 'pending')->count();
         $partialCount = $summaryOrders->where('status', 'partial')->count();
         $completedCount = $summaryOrders->where('status', 'completed')->count();
@@ -41,7 +43,7 @@ class PurchaseOrderController extends Controller
 
         return view('purchase.orders.index', compact(
             'orders', 'suppliers', 'totalOrderValue', 'pendingCount',
-            'partialCount', 'completedCount'
+            'partialCount', 'completedCount', 'draftCount', 'cancelledCount'
         ));
     }
 
@@ -62,6 +64,7 @@ class PurchaseOrderController extends Controller
         $this->normalizeItemPrices($request);
 
         $validated = $request->validate([
+            'intent' => 'sometimes|required|in:draft,confirm',
             'supplier_id' => 'required|exists:suppliers,id',
             'order_date'  => 'required|date',
             'items'       => 'required|array|min:1',
@@ -83,12 +86,13 @@ class PurchaseOrderController extends Controller
                 ->withInput();
         }
 
-        DB::transaction(function () use ($validated) {
+        if (($validated['intent'] ?? 'draft') === 'confirm') abort_unless(auth()->user()->canAccessRoute('purchase.orders.confirm'), 403);
+        $po = DB::transaction(function () use ($validated) {
             $po = PurchaseOrder::create([
                 'po_number'   => PurchaseOrder::generatePoNumber(),
                 'supplier_id' => $validated['supplier_id'],
                 'order_date'  => $validated['order_date'],
-                'status'      => 'pending',
+                'status'      => 'draft',
                 'created_by'  => auth()->id(),
             ]);
 
@@ -104,15 +108,17 @@ class PurchaseOrderController extends Controller
                 ]);
 
             }
+            if (($validated['intent'] ?? 'draft') === 'confirm') app(\App\Services\PurchaseOrderLifecycleService::class)->confirm($po, auth()->user());
+            return $po;
         });
 
-        return redirect()->route('purchase.orders.index')
-                         ->with('success', 'Purchase Order berhasil dibuat.');
+        return redirect()->route('purchase.orders.show', $po)
+                         ->with('success', $po->fresh()->status === 'draft' ? 'Draf PO berhasil disimpan.' : 'PO berhasil dikonfirmasi dan siap untuk penerimaan barang.');
     }
 
     public function show(PurchaseOrder $order)
     {
-        $order->load(['supplier', 'createdBy', 'items.product.buyUnit', 'items.productUnit.unit', 'receipts.items.location', 'receipts.receivedBy', 'replacementOrders', 'rootOrder']);
+        $order->load(['supplier', 'createdBy', 'confirmedBy', 'cancelledBy', 'closedBy', 'items.product.buyUnit', 'items.productUnit.unit', 'receipts.items.location', 'receipts.receivedBy', 'replacementOrders', 'rootOrder']);
         return view('purchase.orders.show', compact('order'));
     }
 
@@ -139,6 +145,7 @@ class PurchaseOrderController extends Controller
         $this->normalizeItemPrices($request);
 
         $validated = $request->validate([
+            'intent' => 'sometimes|required|in:draft,confirm',
             'supplier_id' => 'required|exists:suppliers,id',
             'order_date'  => 'required|date',
             'items'       => 'required|array|min:1',
@@ -160,6 +167,7 @@ class PurchaseOrderController extends Controller
                 ->withInput();
         }
 
+        if (($validated['intent'] ?? 'draft') === 'confirm') abort_unless(auth()->user()->canAccessRoute('purchase.orders.confirm'), 403);
         DB::transaction(function () use ($validated, $order) {
             $order = PurchaseOrder::lockForUpdate()->findOrFail($order->id);
             abort_unless($order->canModify(), 409, 'PO sudah diproses dan tidak dapat diubah.');
@@ -182,6 +190,7 @@ class PurchaseOrderController extends Controller
                 ]);
 
             }
+            if (($validated['intent'] ?? 'draft') === 'confirm') app(\App\Services\PurchaseOrderLifecycleService::class)->confirm($order, auth()->user());
         });
 
         return redirect()->route('purchase.orders.show', $order)
@@ -190,16 +199,28 @@ class PurchaseOrderController extends Controller
 
     public function destroy(PurchaseOrder $order)
     {
-        if (! $order->canModify()) {
-            return back()->with('error', 'Hanya PO berstatus pending yang bisa dihapus.');
-        }
-        DB::transaction(function () use ($order) {
-            $order = PurchaseOrder::lockForUpdate()->findOrFail($order->id);
-            abort_unless($order->canModify(), 409, 'PO sudah diproses dan tidak dapat dihapus.');
-            $order->delete();
-        });
-        return redirect()->route('purchase.orders.index')
-                         ->with('success', 'Purchase Order berhasil dihapus.');
+        if (!$order->canCancel()) return back()->with('error', 'PO yang sudah diproses tidak dapat dibatalkan.');
+        return $this->cancel(request(), $order);
+    }
+
+    public function confirm(PurchaseOrder $order)
+    {
+        app(\App\Services\PurchaseOrderLifecycleService::class)->confirm($order, auth()->user());
+        return back()->with('success', 'PO berhasil dikonfirmasi. Rincian PO sudah dikunci.');
+    }
+
+    public function cancel(Request $request, PurchaseOrder $order)
+    {
+        $data = $request->validate(['reason'=>'required|string|max:2000']);
+        app(\App\Services\PurchaseOrderLifecycleService::class)->cancel($order, auth()->user(), $data['reason']);
+        return redirect()->route('purchase.orders.show', $order)->with('success', 'PO dibatalkan. Dokumen dan riwayat tetap tersimpan.');
+    }
+
+    public function closeRemainder(Request $request, PurchaseOrder $order)
+    {
+        $data = $request->validate(['reason'=>'required|string|max:2000']);
+        app(\App\Services\PurchaseOrderLifecycleService::class)->closeRemainder($order, auth()->user(), $data['reason']);
+        return redirect()->route('purchase.orders.show', $order)->with('success', 'Sisa pesanan ditutup. Penerimaan yang sudah tercatat tetap dipertahankan.');
     }
 
     public function generatePdf(PurchaseOrder $order)

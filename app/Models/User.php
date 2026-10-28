@@ -93,7 +93,7 @@ class User extends Authenticatable
     public function hasTransactionHistory(): bool
     {
         $references = [
-            'purchase_orders' => ['created_by'],
+            'purchase_orders' => ['created_by', 'confirmed_by', 'cancelled_by', 'closed_by'],
             'purchase_receipts' => ['received_by'],
             'sales' => ['created_by'],
             'stock_transfers' => ['created_by'],

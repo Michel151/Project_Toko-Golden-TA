@@ -30,6 +30,9 @@ class PurchaseFulfillmentService
 
                 return $existing;
             }
+            if (!in_array($order->status, ['pending', 'partial'], true)) {
+                $this->invalid('purchase_order_id', 'PO harus sudah dikonfirmasi dan belum dibatalkan atau ditutup untuk menerima barang.');
+            }
             $receipt = $order->receipts()->create([
                 'receipt_date' => $data['receipt_date'], 'received_by' => $userId, 'notes' => $data['notes'] ?? null,
                 'submission_token' => $data['submission_token'] ?? null,

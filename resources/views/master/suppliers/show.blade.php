@@ -83,7 +83,7 @@
                             <td>{{ $po->order_date->format('d/m/Y') }}</td>
                             <td class="text-center">
                                 @php
-                                    $colors = ['pending' => 'warning', 'partial' => 'info', 'completed' => 'success'];
+                                    $colors = \App\Models\PurchaseOrder::STATUS_COLORS;
                                 @endphp
                                 <span class="badge bg-{{ $colors[$po->status] ?? 'secondary' }}">
                                     {{ $po->status_label }}

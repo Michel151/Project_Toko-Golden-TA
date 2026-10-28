@@ -115,6 +115,9 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
         Route::get('orders/suppliers/{supplier}/products', [PurchaseOrderController::class, 'productsBySupplier'])
              ->name('orders.supplier-products');
         Route::resource('orders',   PurchaseOrderController::class);
+        Route::post('orders/{order}/confirm', [PurchaseOrderController::class, 'confirm'])->name('orders.confirm');
+        Route::post('orders/{order}/cancel', [PurchaseOrderController::class, 'cancel'])->name('orders.cancel');
+        Route::post('orders/{order}/close-remainder', [PurchaseOrderController::class, 'closeRemainder'])->name('orders.close-remainder');
         Route::get('orders/{order}/pdf', [PurchaseOrderController::class, 'generatePdf'])
              ->name('orders.pdf');
         Route::get('orders/{order}/excel', [PurchaseOrderController::class, 'generateExcel'])

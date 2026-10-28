@@ -61,6 +61,9 @@ class AuditLogFormatter
         'opname_date' => 'Tanggal Opname',
         'status' => 'Status',
         'created_by' => 'Dibuat Oleh',
+        'confirmed_by' => 'Dikonfirmasi Oleh', 'confirmed_at' => 'Waktu Konfirmasi',
+        'cancelled_by' => 'Dibatalkan Oleh', 'cancelled_at' => 'Waktu Pembatalan', 'cancellation_reason' => 'Alasan Pembatalan',
+        'closed_by' => 'Ditutup Oleh', 'closed_at' => 'Waktu Penutupan', 'closure_reason' => 'Alasan Penutupan Sisa Pesanan',
     ];
 
     private const RELATIONS = [
@@ -70,6 +73,7 @@ class AuditLogFormatter
         'supplier_id' => [Supplier::class, 'name'],
         'purchase_order_id' => [PurchaseOrder::class, 'po_number'],
         'created_by' => [User::class, 'name'],
+        'confirmed_by' => [User::class, 'name'], 'cancelled_by' => [User::class, 'name'], 'closed_by' => [User::class, 'name'],
         'received_by' => [User::class, 'name'],
         'product_id' => [Product::class, 'name'],
         'product_unit_id' => [ProductUnit::class, 'id'],
@@ -144,6 +148,7 @@ class AuditLogFormatter
                 'partial' => 'Diterima Sebagian',
                 'completed' => 'Selesai',
                 'cancelled' => 'Dibatalkan',
+                'closed' => 'Sisa Pesanan Ditutup',
                 default => ucfirst(str_replace('_', ' ', (string) $value)),
             };
         }

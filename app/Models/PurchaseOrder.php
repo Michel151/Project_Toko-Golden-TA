@@ -15,15 +15,41 @@ class PurchaseOrder extends Model
         'status',
         'created_by',
         'root_purchase_order_id',
+        'confirmed_by', 'confirmed_at', 'cancelled_by', 'cancelled_at', 'cancellation_reason',
+        'closed_by', 'closed_at', 'closure_reason',
     ];
 
     protected $casts = [
         'order_date' => 'date',
+        'confirmed_at' => 'datetime', 'cancelled_at' => 'datetime', 'closed_at' => 'datetime',
     ];
 
     public function getStatusLabelAttribute(): string
     {
-        return ['pending'=>'Menunggu', 'partial'=>'Diterima Sebagian', 'completed'=>'Selesai'][$this->status] ?? $this->status;
+        return self::STATUS_LABELS[$this->status] ?? $this->status;
+    }
+
+    public const STATUS_LABELS = ['draft'=>'Draf', 'pending'=>'Menunggu', 'partial'=>'Diterima Sebagian', 'completed'=>'Selesai', 'cancelled'=>'Dibatalkan', 'closed'=>'Sisa Pesanan Ditutup'];
+    public const STATUS_COLORS = ['draft'=>'secondary', 'pending'=>'warning', 'partial'=>'info', 'completed'=>'success', 'cancelled'=>'danger', 'closed'=>'secondary'];
+
+    public function confirmedBy() { return $this->belongsTo(User::class, 'confirmed_by'); }
+    public function cancelledBy() { return $this->belongsTo(User::class, 'cancelled_by'); }
+    public function closedBy() { return $this->belongsTo(User::class, 'closed_by'); }
+
+    public function canCancel(): bool
+    {
+        return in_array($this->status, ['draft', 'pending'], true) && !$this->root_purchase_order_id
+            && !$this->receipts()->exists() && !$this->replacementOrders()->exists()
+            && !$this->items()->where(fn ($q) => $q->where('quantity_received', '>', 0)->orWhere('quantity_reserved', '>', 0))->exists();
+    }
+
+    public function canCloseRemainder(): bool
+    {
+        return $this->status === 'partial' && !$this->root_purchase_order_id
+            && !$this->items()->where('quantity_reserved', '>', 0)->exists()
+            && $this->items()->where('quantity_received', '>', 0)->exists()
+            && $this->items()->whereColumn('quantity_received', '<', 'quantity_ordered')->exists()
+            && !$this->replacementOrders()->whereIn('status', ['pending', 'partial'])->exists();
     }
 
     public function supplier()
@@ -51,7 +77,7 @@ class PurchaseOrder extends Model
 
     public function canModify(): bool
     {
-        return $this->status === 'pending' && ! $this->root_purchase_order_id
+        return $this->status === 'draft' && ! $this->root_purchase_order_id
             && ! $this->receipts()->exists() && ! $this->replacementOrders()->exists();
     }
 
@@ -69,6 +95,7 @@ class PurchaseOrder extends Model
     // Update status berdasarkan item yang sudah diterima
     public function updateStatus(): void
     {
+        if (in_array($this->status, ['draft', 'cancelled', 'closed'], true)) return;
         $allCompleted = $this->items->every(fn($item) =>
             $item->quantity_received >= $item->quantity_ordered
         );

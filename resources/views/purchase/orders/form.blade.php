@@ -70,45 +70,35 @@
                                 </tr>
                             </thead>
                             <tbody id="itemsBody">
-                                @if(isset($order) && $order->items->count())
-                                    @foreach($order->items as $i => $item)
+                                @php
+                                    $formItems = old('items', isset($order) ? $order->items->map(fn ($item) => $item->only(['product_id', 'product_unit_id', 'quantity_ordered', 'buy_price']))->all() : []);
+                                    $formItems = is_array($formItems) ? array_values(array_filter($formItems, 'is_array')) : [];
+                                    if (!$formItems) $formItems = [['product_id'=>'', 'product_unit_id'=>'', 'quantity_ordered'=>1, 'buy_price'=>0]];
+                                @endphp
+                                    @foreach($formItems as $i => $item)
+                                    @php $rowProduct = $products->firstWhere('id', $item['product_id'] ?? null); @endphp
                                     <tr class="item-row">
                                         <td>
                                             <select name="items[{{ $i }}][product_id]" class="form-select form-select-sm product-select" required>
                                                 <option value="">-- Pilih Barang --</option>
                                                 @foreach($products as $p)
-                                                <option value="{{ $p->id }}" {{ $item->product_id == $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
+                                                <option value="{{ $p->id }}" @selected(($item['product_id'] ?? '') == $p->id)>{{ $p->name }}</option>
                                                 @endforeach
                                             </select>
                                         </td>
                                         <td>
                                             <select name="items[{{ $i }}][product_unit_id]" class="form-select form-select-sm product-unit-select" required>
-                                                @foreach($item->product->productUnits->sortByDesc('conversion_to_base') as $productUnit)
-                                                <option value="{{ $productUnit->id }}" data-price="{{ $productUnit->buy_price }}" @selected($item->product_unit_id == $productUnit->id)>{{ $productUnit->unit->name }}</option>
+                                                <option value="">Pilih satuan</option>
+                                                @foreach($rowProduct?->productUnits->sortByDesc('conversion_to_base') ?? [] as $productUnit)
+                                                <option value="{{ $productUnit->id }}" data-price="{{ $productUnit->buy_price }}" @selected(($item['product_unit_id'] ?? '') == $productUnit->id)>{{ $productUnit->unit->name }}</option>
                                                 @endforeach
                                             </select>
                                         </td>
-                                        <td><input type="number" name="items[{{ $i }}][quantity_ordered]" class="form-control form-control-sm" value="{{ $item->quantity_ordered }}" min="0.01" step="0.01" required></td>
-                                        <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[{{ $i }}][buy_price]" class="form-control js-decimal-currency" value="{{ $item->buy_price }}" inputmode="decimal" required></div></td>
+                                        <td><input type="number" name="items[{{ $i }}][quantity_ordered]" class="form-control form-control-sm" value="{{ $item['quantity_ordered'] ?? 1 }}" min="0.01" step="0.01" required></td>
+                                        <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[{{ $i }}][buy_price]" class="form-control js-decimal-currency" value="{{ $item['buy_price'] ?? 0 }}" inputmode="decimal" required></div></td>
                                         <td><button type="button" class="btn btn-sm btn-outline-danger py-0 remove-item"><i class="bi bi-trash"></i></button></td>
                                     </tr>
                                     @endforeach
-                                @else
-                                <tr class="item-row">
-                                    <td>
-                                        <select name="items[0][product_id]" class="form-select form-select-sm product-select" required>
-                                            <option value="">-- Pilih Barang --</option>
-                                            @foreach($products as $p)
-                                            <option value="{{ $p->id }}">{{ $p->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </td>
-                                    <td><select name="items[0][product_unit_id]" class="form-select form-select-sm product-unit-select" required><option value="">Pilih satuan</option></select></td>
-                                    <td><input type="number" name="items[0][quantity_ordered]" class="form-control form-control-sm" min="0.01" step="0.01" value="1" required></td>
-                                    <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[0][buy_price]" class="form-control js-decimal-currency" inputmode="decimal" value="0" required></div></td>
-                                    <td><button type="button" class="btn btn-sm btn-outline-danger py-0 remove-item"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                @endif
                             </tbody>
                         </table>
                     </div>
@@ -121,10 +111,13 @@
             </div>
         </div>
 
-        <div class="col-12 d-flex gap-2">
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-save me-1"></i>{{ isset($order) ? 'Simpan Perubahan PO' : 'Simpan PO' }}
+        <div class="col-12 d-flex flex-wrap gap-2">
+            <button type="submit" name="intent" value="draft" class="btn btn-outline-primary">
+                <i class="bi bi-save me-1"></i>Simpan Draf
             </button>
+            @if(auth()->user()->canAccessRoute('purchase.orders.confirm'))
+            <button type="submit" name="intent" value="confirm" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i>Konfirmasi PO</button>
+            @endif
             <a href="{{ route('purchase.orders.index') }}" class="btn btn-outline-secondary">Batal</a>
         </div>
     </div>
@@ -137,7 +130,7 @@
 const productsBySupplier = {!! json_encode($supplierProductsJson) !!};
 const supplierSelect = document.getElementById('supplierSelect');
 const addItemBottomButton = document.getElementById('addItemBottom');
-let rowIndex = {{ isset($order) ? $order->items->count() : 1 }};
+let rowIndex = {{ count($formItems) }};
 let activeSupplierId = supplierSelect.value;
 let changingSupplier = false;
 
@@ -315,12 +308,33 @@ document.querySelectorAll('.item-row').forEach(row => {
         if (!unitSelect.value) updateUnitOptions(row);
         else {
             unitSelect.innerHTML = buildUnitOptions(selectedProduct(row), unitSelect.value);
-            showPriceSource(row, 'Harga PO tersimpan');
+            showPriceSource(row, {{ Js::from(old('items') ? 'Harga PO (belum disimpan)' : 'Harga PO tersimpan') }});
         }
     }
 });
 window.purchaseSearch.attach(supplierSelect);
 initializeProductSearch();
+const orderForm = supplierSelect.closest('form');
+let confirmationAccepted = false;
+let confirmingOrder = false;
+orderForm.addEventListener('submit', async event => {
+    if (confirmationAccepted) return;
+    if (confirmingOrder) { event.preventDefault(); return; }
+    if (event.submitter?.value !== 'confirm') return;
+    event.preventDefault();
+    confirmingOrder = true;
+    try {
+        const accepted = await window.appDialog.confirm({
+            title: 'Konfirmasi Purchase Order?',
+            text: 'Periksa kembali barang, jumlah, dan harga. Setelah dikonfirmasi, rincian PO tidak dapat diubah dan barang dapat diproses penerimaan.',
+            details: [['Supplier', supplierSelect.selectedOptions[0]?.textContent || '-'], ['Jumlah Baris Barang', String(document.querySelectorAll('.item-row').length)]],
+            confirmText: 'Ya, Konfirmasi PO',
+        });
+        if (!accepted || !orderForm.reportValidity()) return;
+        confirmationAccepted = true;
+        orderForm.requestSubmit(event.submitter);
+    } finally { confirmingOrder = false; confirmationAccepted = false; }
+});
 </script>
 @endpush
 @endsection

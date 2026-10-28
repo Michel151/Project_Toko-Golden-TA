@@ -17,7 +17,7 @@ class PurchaseReportController extends Controller
     {
         $filters = $request->validate(['supplier_id'=>'nullable|integer|exists:suppliers,id']);
 
-        return PurchaseOrder::whereDate('order_date', '>=', $from)->whereDate('order_date', '<=', $to)
+        return PurchaseOrder::whereNotIn('status', ['draft', 'cancelled'])->whereDate('order_date', '>=', $from)->whereDate('order_date', '<=', $to)
             ->when($filters['supplier_id'] ?? null, fn ($query, $id) => $query->where('supplier_id', $id));
     }
 

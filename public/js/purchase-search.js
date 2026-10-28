@@ -26,7 +26,6 @@
         if (!select.id) select.id = `poProductSearch${++nextId}`;
         const control = new TomSelect(select, {
             create: false, maxItems: 1, maxOptions: null, closeAfterSelect: true,
-            plugins: ['dropdown_input'],
             dropdownParent: 'body', copyClassesToDropdown: false,
             searchField: supplier ? ['text'] : ['text', 'barcode'], placeholder: label,
             render: {
@@ -43,7 +42,6 @@
         control.wrapper.dataset.poSearch = supplier ? 'supplier' : 'product';
         control.dropdown.classList.add('po-search-dropdown');
         control.control_input.setAttribute('aria-label', label);
-        control.control.querySelector('input')?.setAttribute('aria-label', supplier ? 'Pilih supplier' : 'Pilih barang');
         instances.add(control);
         control.on('destroy', () => instances.delete(control));
     }
@@ -53,7 +51,10 @@
     }
 
     function setValue(select, value) {
-        if (select.tomselect) select.tomselect.setValue(value, true);
+        if (select.tomselect) {
+            select.tomselect.setValue(value, true);
+            select.tomselect.close();
+        }
         else select.value = value;
     }
 
