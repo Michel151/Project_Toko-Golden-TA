@@ -420,7 +420,8 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->assertSame('RT/2026/11/000001',$november->fresh()->return_number);
         $this->assertSame('RT-2026-000999',$legacy->fresh()->return_number);
         $this->assertSame('RT/2026/10/000002',$return->fresh()->return_number);
-        $this->get(route('purchase.returns.index'))->assertOk()->assertSee($november->return_number)->assertSee($legacy->return_number);
+        $this->get(route('purchase.returns.index'))->assertOk()->assertSee($november->return_number)->assertDontSee($legacy->return_number);
+        $this->get(route('purchase.returns.index', ['from'=>'2026-10-01', 'to'=>'2026-11-01']))->assertOk()->assertSee($november->return_number)->assertSee($legacy->return_number);
         $this->get(route('purchase.returns.show',$november))->assertOk()->assertSee($november->return_number)->assertSee('PO/R/2026/10/000001');
     }
 

@@ -20,11 +20,14 @@ class OpnameController extends Controller
 {
     public function __construct(protected StockService $stockService) {}
 
-    public function index()
+    public function index(Request $request)
     {
+        ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
         $opnames = StockOpname::with(['location', 'createdBy'])
-                              ->latest()->paginate(15);
-        return view('inventory.opnames.index', compact('opnames'));
+            ->when($from, fn ($query)=>$query->whereDate('opname_date', '>=', $from))
+            ->when($to, fn ($query)=>$query->whereDate('opname_date', '<=', $to))
+            ->latest()->paginate(15)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
+        return view('inventory.opnames.index', compact('opnames', 'from', 'to'));
     }
 
     public function create()

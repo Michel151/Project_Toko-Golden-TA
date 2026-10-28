@@ -18,6 +18,15 @@
     </a> @endif
 </div>
 
+<form method="GET" class="app-filter-bar mb-3">
+    @include('components.date-range', ['prefix'=>'opnameList', 'fromValue'=>$from, 'toValue'=>$to])
+    <div class="app-filter-actions">
+        <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
+        @if(request()->hasAny(['from','to']))
+        <a href="{{ route('inventory.opnames.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise"></i></a>
+        @endif
+    </div>
+</form>
 <div class="card table-card">
     <div class="card-body p-0 table-responsive">
         <table class="table table-hover mb-0">

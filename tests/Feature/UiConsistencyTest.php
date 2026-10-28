@@ -210,6 +210,47 @@ class UiConsistencyTest extends TestCase
         }
     }
 
+    public function test_opname_and_supplier_return_history_support_monthly_defaults_and_other_periods(): void
+    {
+        $order = $this->order('PO-ASAL-PERIODE-LAMA', ['order_date'=>'2026-09-30']);
+        $receipt = \App\Models\PurchaseReceipt::create(['purchase_order_id'=>$order->id, 'receipt_date'=>'2026-09-30', 'received_by'=>auth()->id()]);
+        $dates = array_merge(['2026-09-30', '2026-10-01', '2026-10-17', '2026-10-18'], array_fill(0, 20, '2026-10-17'));
+        foreach ($dates as $i=>$date) {
+            \App\Models\StockOpname::create(['opname_number'=>'OPN-PERIOD-'.$i, 'location_id'=>$this->from->id,
+                'opname_date'=>$date, 'status'=>'draft', 'created_by'=>auth()->id(), 'created_at'=>'2026-08-01 09:00:00']);
+            \App\Models\PurchaseReturn::create(['return_number'=>'RT-PERIOD-'.$i, 'purchase_receipt_id'=>$receipt->id,
+                'status'=>$i===1 ? 'approved' : 'draft', 'created_by'=>auth()->id(), 'created_at'=>$date.' 23:59:59']);
+        }
+        foreach (['inventory.opnames.index'=>'opnames', 'purchase.returns.index'=>'returns'] as $route=>$key) {
+            $page = $this->get(route($route))->assertOk()->assertViewHas('from', '2026-10-01')->assertViewHas('to', '2026-10-17');
+            $page->assertSee('value="2026-10-01"', false)->assertSee('value="2026-10-17"', false);
+            $this->assertSame(22, $page->viewData($key)->total());
+            $this->capture('monthly-'.$key.'-default.html', $page->getContent());
+            parse_str(parse_url($page->viewData($key)->url(2), PHP_URL_QUERY), $query);
+            $this->assertSame('2026-10-01', $query['from']);
+            $this->assertSame('2026-10-17', $query['to']);
+            $this->get($page->viewData($key)->url(2))->assertOk()->assertViewHas($key, fn ($rows)=>$rows->total()===22);
+            $custom = $this->get(route($route, ['from'=>'2026-09-01', 'to'=>'2026-09-30']))->assertOk()->assertViewHas($key, fn ($rows)=>$rows->total()===1);
+            $this->capture('monthly-'.$key.'-custom.html', $custom->getContent());
+            $all = $this->get(route($route, ['from'=>'', 'to'=>'']))->assertOk()->assertViewHas($key, fn ($rows)=>$rows->total()===24);
+            $this->capture('monthly-'.$key.'-all.html', $all->getContent());
+            $this->get(route($route, ['from'=>'', 'to'=>'2026-09-30']))->assertOk()->assertViewHas($key, fn ($rows)=>$rows->total()===1);
+            $this->get(route($route, ['from'=>'2026-10-18', 'to'=>'']))->assertOk()->assertViewHas($key, fn ($rows)=>$rows->total()===1);
+            $this->get(route($route, ['from'=>'2026-10-17', 'to'=>'2026-10-01']))->assertSessionHasErrors('to');
+            $this->get(route($route))->assertViewHas('from', '2026-10-01')->assertViewHas('to', '2026-10-17');
+        }
+        $filtered = $this->get(route('purchase.returns.index', ['status'=>'draft']))->assertOk();
+        $this->assertSame(21, $filtered->viewData('returns')->total());
+        parse_str(parse_url($filtered->viewData('returns')->url(2), PHP_URL_QUERY), $query);
+        $this->assertSame('draft', $query['status']);
+        $this->assertSame('2026-10-01', $query['from']);
+        $this->get(route('purchase.returns.index', ['status'=>'approved']))->assertOk()->assertViewHas('returns', fn ($rows)=>$rows->total()===1);
+        $this->travelTo(\Carbon\Carbon::parse('2027-01-01 00:15:00', 'Asia/Jakarta'));
+        foreach (['inventory.opnames.index', 'purchase.returns.index'] as $route) {
+            $this->get(route($route))->assertOk()->assertViewHas('from', '2027-01-01')->assertViewHas('to', '2027-01-01');
+        }
+    }
+
     public function test_filter_pages_keep_explicit_labels_and_shared_controls(): void
     {
         foreach (['products-list'=>'master.products.index','returns-list'=>'purchase.returns.index','sales-list'=>'sale.sales.index'] as $name => $route) {

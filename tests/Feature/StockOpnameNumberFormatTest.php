@@ -52,7 +52,8 @@ class StockOpnameNumberFormatTest extends TestCase
         $this->assertSame('OPN/2027/01/000001',StockOpname::generateOpnameNumber(Carbon::parse('2027-01-01','Asia/Jakarta')));
         $this->assertSame('OPN-2026-000999',$legacy->fresh()->opname_number);
         $this->assertSame('OPN/2026/10/000002',$opname->fresh()->opname_number);
-        $this->get(route('inventory.opnames.index'))->assertOk()->assertSee($legacy->opname_number)->assertSee($november->opname_number);
+        $this->get(route('inventory.opnames.index'))->assertOk()->assertDontSee($legacy->opname_number)->assertSee($november->opname_number);
+        $this->get(route('inventory.opnames.index', ['from'=>'2026-10-01', 'to'=>'2026-11-01']))->assertOk()->assertSee($legacy->opname_number)->assertSee($november->opname_number);
         $this->get(route('inventory.opnames.edit',$november))->assertOk()->assertSee($november->opname_number);
         $this->get(route('inventory.opnames.show',$november))->assertOk()->assertSee($november->opname_number);
         $this->get(route('inventory.opnames.show',$legacy))->assertOk()->assertSee($legacy->opname_number);

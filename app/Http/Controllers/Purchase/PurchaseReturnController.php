@@ -18,13 +18,16 @@ class PurchaseReturnController extends Controller
 
     public function index(Request $request)
     {
+        ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
         $query = PurchaseReturn::with(['purchaseReceipt.purchaseOrder.supplier', 'replacementOrder']);
+        $query->when($from, fn ($query)=>$query->whereDate('created_at', '>=', $from))
+            ->when($to, fn ($query)=>$query->whereDate('created_at', '<=', $to));
         if (in_array($request->status, ['draft', 'approved', 'rejected'], true)) {
             $query->where('status', $request->status);
         }
-        $returns = $query->latest('id')->paginate(20)->withQueryString();
+        $returns = $query->latest('id')->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
 
-        return view('purchase.returns.index', compact('returns'));
+        return view('purchase.returns.index', compact('returns', 'from', 'to'));
     }
 
     public function create(Request $request)
