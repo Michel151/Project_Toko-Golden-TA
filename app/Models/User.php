@@ -106,6 +106,7 @@ class User extends Authenticatable
             'inventory_cost_entries' => ['created_by'],
             'stock_movements' => ['created_by'],
             'product_import_runs' => ['user_id'],
+            'supplier_import_runs' => ['user_id'],
             'audit_logs' => ['user_id'],
         ];
 

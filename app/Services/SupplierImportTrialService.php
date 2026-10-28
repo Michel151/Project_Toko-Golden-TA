@@ -13,7 +13,7 @@ class SupplierImportTrialService
         'Referensi Barang'=>['id_barang','barcode','nama_barang','satuan_tersedia'],
     ];
 
-    public function preview(array $sheets, bool $canReadProducts = false): array
+    public function preview(array $sheets, bool $canReadProducts = false, bool $full = false, bool $matchExistingByName = false): array
     {
         $errors=[]; $warnings=[]; $errorCount=0;
         $fail=function($sheet,$row,$message) use (&$errors,&$errorCount){
@@ -99,7 +99,7 @@ class SupplierImportTrialService
             $internalRows[]=array_merge($row,['kode_barang'=>$code]);
         }
         $data['Supplier Barang']=$internalRows;
-        $result=app(SupplierImportPreviewService::class)->preview($data,$products,$resolved,true,$fail,$warn);
+        $result=app(SupplierImportPreviewService::class)->preview($data,$products,$resolved,true,$fail,$warn,$full,$matchExistingByName);
         foreach($result['supplier_links'] as &$link){
             $product=$byId[(int)$link['product_code']];
             $existing=$link['supplier_id'] ? $product->suppliers->firstWhere('id',$link['supplier_id']) : null;
@@ -107,6 +107,17 @@ class SupplierImportTrialService
             $link['relationship_status']=$existing ? 'Sudah terhubung (tidak diubah)' : 'Hubungan baru (uji coba)';
             $link['existing_price']=$existing ? (float)$existing->pivot->buy_price : null;
             $link['existing_unit']=$product->productUnits->firstWhere('is_default_purchase',true)?->unit?->name ?? $product->buyUnit?->name;
+            $purchaseUnit = $product->productUnits->firstWhere('is_default_purchase',true);
+            $purchaseConversion = $purchaseUnit?->conversion_to_base
+                ?? ($product->can_retail ? $product->conversion_factor : 1);
+            $inputConversion = $resolved[(string) $product->id]['units'][$key($link['unit'])]['conversion'];
+            $link['input_conversion'] = (string) $inputConversion;
+            $link['purchase_conversion'] = (string) $purchaseConversion;
+            $link['purchase_price'] = (string) \Brick\Math\BigDecimal::of((string) $link['price'])
+                ->multipliedBy((string) $purchaseConversion)->dividedBy((string) $inputConversion, 2, \Brick\Math\RoundingMode::HalfUp);
+            if (!$link['existing_unit'] || (float) $purchaseConversion <= 0 || (float) $link['purchase_price'] > 9999999999999.99) {
+                $fail('Supplier Barang',$link['row'],'Satuan atau harga pembelian default barang tidak valid. Perbaiki Master Barang terlebih dahulu.');
+            }
         }
         unset($link);
         if(!$data['Master Supplier'] && !$internalRows && !$errorCount) $fail('Master Supplier',2,'Isi minimal satu supplier atau satu hubungan barang-supplier.');

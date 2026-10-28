@@ -92,6 +92,7 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
         Route::get('suppliers/import', [\App\Http\Controllers\MasterData\SupplierImportTrialController::class, 'create'])->middleware('permission:master.suppliers')->name('suppliers.import');
         Route::get('suppliers/import/template', [\App\Http\Controllers\MasterData\SupplierImportTrialController::class, 'template'])->middleware('permission:master.suppliers')->name('suppliers.import.template');
         Route::post('suppliers/import', [\App\Http\Controllers\MasterData\SupplierImportTrialController::class, 'preview'])->middleware('permission:master.suppliers')->name('suppliers.import.preview');
+        Route::post('suppliers/import/store', [\App\Http\Controllers\MasterData\SupplierImportTrialController::class, 'store'])->middleware('permission:master.suppliers')->name('suppliers.import.store');
         Route::resource('suppliers',  SupplierController::class)->middleware('permission:master.suppliers');
         Route::get('users/password-reset-result', [UserController::class, 'resetResult'])->middleware('role:owner')->name('users.reset-password-result');
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware(['role:owner', 'throttle:10,1'])->name('users.reset-password');

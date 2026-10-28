@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Validator;
 
 class SupplierImportPreviewService
 {
-    public function preview(array $data, array $products, array $resolved, bool $canReadSuppliers, callable $fail, callable $warn): array
+    public function preview(array $data, array $products, array $resolved, bool $canReadSuppliers, callable $fail, callable $warn, bool $full = false, bool $matchExistingByName = false): array
     {
         $key = fn ($value) => mb_strtolower(trim((string)$value));
         $existing = $canReadSuppliers && ($data['Master Supplier'] || $data['Supplier Barang'])
@@ -26,6 +26,12 @@ class SupplierImportPreviewService
             if (preg_match('/^sup-([1-9][0-9]*)$/i', $code, $match)) {
                 if ($id && $id !== (int)$match[1]) { $fail('Master Supplier',$row['_row'],'Kode SUP-ID tidak sesuai id_supplier.'); continue; }
                 $id = (int)$match[1];
+            }
+            if (!$id && $matchExistingByName && filled($row['nama_supplier'])) {
+                $nameKey = fn ($name) => mb_strtolower(preg_replace('/\s+/u', ' ', trim((string) $name)));
+                $matches = $existing->filter(fn ($supplier) => $nameKey($supplier->name) === $nameKey($row['nama_supplier']));
+                if ($matches->count() > 1) { $fail('Master Supplier',$row['_row'],'Nama supplier tidak unik. Isi id_supplier yang tepat.'); continue; }
+                $id = $matches->first()?->id;
             }
             if ($id) {
                 if (!$canReadSuppliers) { $fail('Master Supplier',$row['_row'],'Referensi supplier terdaftar membutuhkan hak akses Master Supplier.'); continue; }
@@ -76,7 +82,7 @@ class SupplierImportPreviewService
                 'unit'=>$unit['satuan'],'price'=>(float)$row['harga_beli'],'base_price'=>$baseCost,'base'=>$resolved[$productCode]['base'],'row'=>$row['_row']];
         }
         $uniqueSuppliers = collect($suppliers)->unique('identity')->values();
-        return ['suppliers'=>$uniqueSuppliers->take(200)->all(),'supplier_links'=>array_slice($links,0,200),
+        return ['suppliers'=>($full ? $uniqueSuppliers : $uniqueSuppliers->take(200))->all(),'supplier_links'=>$full ? $links : array_slice($links,0,200),
             'supplier_count'=>$uniqueSuppliers->count(),'supplier_link_count'=>count($links)];
     }
 }
