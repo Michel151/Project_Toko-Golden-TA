@@ -2,9 +2,19 @@
 @section('title', isset($order) ? 'Ubah PO' : 'Buat Purchase Order')
 @section('page-title', isset($order) ? 'Ubah Purchase Order' : 'Buat Purchase Order')
 @push('styles')
+<link href="{{ asset('vendor/tom-select-2.4.3/tom-select.bootstrap5.min.css') }}" rel="stylesheet">
 <style>
 #itemsTable { min-width:800px; }
 #itemsTable .input-group { flex-wrap:nowrap; }
+.po-search-select { width:100%;min-width:0; }
+.po-search-select .ts-control { border-color:var(--app-border);border-radius:6px;min-height:38px; }
+#itemsTable .po-search-select .ts-control { min-height:32px;padding:4px 28px 4px 8px; }
+.po-search-select .ts-control > .item { min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%; }
+.po-search-select.focus .ts-control { border-color:#198754;box-shadow:0 0 0 .2rem rgba(25,135,84,.15); }
+.po-search-dropdown { z-index:1040;border:1px solid var(--app-border);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.12); }
+.po-search-dropdown .ts-dropdown-content { max-height:260px; }
+.po-search-dropdown .option { padding:8px 12px;overflow-wrap:anywhere; }
+.po-search-dropdown .active { background:#e6f1eb;color:#153a2b; }
 </style>
 @endpush
 
@@ -22,7 +32,7 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Supplier <span class="text-danger">*</span></label>
+                            <label for="supplierSelect" class="form-label fw-semibold">Supplier <span class="text-danger">*</span></label>
                             <select name="supplier_id" id="supplierSelect" class="form-select @error('supplier_id') is-invalid @enderror" required>
                                 <option value="">-- Pilih Supplier --</option>
                                 @foreach($suppliers as $s)
@@ -119,6 +129,8 @@
 </form>
 
 @push('scripts')
+<script data-po-search-library>{!! file_get_contents(public_path('vendor/tom-select-2.4.3/tom-select.complete.min.js')) !!}</script>
+<script data-po-search-controls>{!! file_get_contents(public_path('js/purchase-search.js')) !!}</script>
 <script>
 const productsBySupplier = {!! json_encode($supplierProductsJson) !!};
 const supplierSelect = document.getElementById('supplierSelect');
@@ -159,7 +171,7 @@ function buildUnitOptions(product, selectedId = '') {
 }
 
 function selectedProduct(row) {
-    const productId = row.querySelector('.product-select').value;
+    const productId = row.querySelector('select.product-select').value;
     return currentProducts().find(product => String(product.id) === String(productId));
 }
 
@@ -208,11 +220,12 @@ addItemButton.addEventListener('click', () => {
         return;
     }
     document.getElementById('itemsBody').appendChild(createItemRow(rowIndex));
+    initializeProductSearch();
     rowIndex++;
 });
 
 function bindEvents(container = document) {
-    container.querySelectorAll('.product-select').forEach(sel => {
+    container.querySelectorAll('select.product-select').forEach(sel => {
         sel.addEventListener('change', function() {
             const row  = this.closest('tr');
             updateUnitOptions(row);
@@ -228,6 +241,7 @@ function bindEvents(container = document) {
     container.querySelectorAll('.remove-item').forEach(btn => {
         btn.addEventListener('click', function() {
             if (document.querySelectorAll('.item-row').length > 1) {
+                window.purchaseSearch.destroy(this.closest('tr'));
                 this.closest('tr').remove();
             }
         });
@@ -239,29 +253,37 @@ function bindEvents(container = document) {
 
 supplierSelect.addEventListener('change', async () => {
     const next = supplierSelect.value;
-    supplierSelect.value = activeSupplierId;
+    window.purchaseSearch.setValue(supplierSelect, activeSupplierId);
     if (changingSupplier || next === activeSupplierId) return;
     changingSupplier = true;
     try {
-        const populated = [...document.querySelectorAll('.product-select')].some(select => select.value);
+        const populated = [...document.querySelectorAll('select.product-select')].some(select => select.value);
         if (populated) {
             const accepted = await window.appDialog.confirm({ title: 'Ganti Supplier?', text: 'Daftar barang dan harga PO saat ini akan dikosongkan.', confirmText: 'Ganti Supplier', tone: 'danger' });
             if (!accepted) return;
         }
-        supplierSelect.value = next;
+        window.purchaseSearch.setValue(supplierSelect, next);
         activeSupplierId = next;
         addItemButton.disabled = ! next;
         rowIndex = 0;
         const tbody = document.getElementById('itemsBody');
+        window.purchaseSearch.destroy(tbody);
         tbody.innerHTML = '';
         tbody.appendChild(createItemRow(rowIndex));
+        initializeProductSearch();
         rowIndex++;
     } finally { changingSupplier = false; }
 });
 
 bindEvents();
+function initializeProductSearch() {
+    document.querySelectorAll('select.product-select').forEach(select => {
+        select.disabled = !supplierSelect.value;
+        window.purchaseSearch.attach(select, currentProducts());
+    });
+}
 document.querySelectorAll('.item-row').forEach(row => {
-    if (row.querySelector('.product-select')?.value) {
+    if (row.querySelector('select.product-select')?.value) {
         const unitSelect = row.querySelector('.product-unit-select');
         if (!unitSelect.value) updateUnitOptions(row);
         else {
@@ -270,6 +292,8 @@ document.querySelectorAll('.item-row').forEach(row => {
         }
     }
 });
+window.purchaseSearch.attach(supplierSelect);
+initializeProductSearch();
 </script>
 @endpush
 @endsection

@@ -81,6 +81,32 @@ class PurchaseSupplierPriceTest extends TestCase
         $this->assertEquals([0,0,0],array_column($zero->viewData('supplierProductsJson')[$this->two->id][0]['units'],'buy_price'));
     }
 
+    public function test_po_search_assets_and_large_supplier_specific_product_catalog_are_available(): void
+    {
+        for ($i=0; $i<320; $i++) {
+            $product = $this->product->replicate();
+            $product->name = 'Barang Pencarian '.str_pad($i,3,'0',STR_PAD_LEFT);
+            $product->barcode = 'FIND'.str_pad($i,5,'0',STR_PAD_LEFT);
+            $product->save();
+            foreach ([$this->box,$this->bottle] as $source) {
+                $unit = $source->replicate();
+                $unit->product_id = $product->id;
+                $unit->save();
+            }
+            $this->two->products()->attach($product->id,['buy_price'=>65000]);
+        }
+        for ($i=0; $i<35; $i++) Supplier::create(['name'=>'Pemasok Pencarian '.str_pad($i,2,'0',STR_PAD_LEFT)]);
+        $response = $this->get(route('purchase.orders.create'))->assertOk()
+            ->assertSee('data-po-search-library',false)
+            ->assertSee('vendor/tom-select-2.4.3/tom-select.bootstrap5.min.css',false)
+            ->assertSee('data-po-search-controls',false);
+        $data = $response->viewData('supplierProductsJson');
+        $this->assertCount(321,$data[$this->two->id]);
+        $this->assertCount(1,$data[$this->one->id]);
+        $this->assertSame('FIND00319',collect($data[$this->two->id])->firstWhere('name','Barang Pencarian 319')['barcode']);
+        $this->capture('search-many',$response);
+    }
+
     public function test_storing_editing_and_deleting_pending_po_never_updates_master_or_supplier_prices(): void
     {
         $before = DB::table('product_units')->get()->toJson();

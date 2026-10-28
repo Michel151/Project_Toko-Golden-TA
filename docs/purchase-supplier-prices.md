@@ -12,6 +12,10 @@
 
 ## Pemasangan
 
+Form PO menyediakan pencarian supplier berdasarkan nama dan barang berdasarkan nama atau barcode. Pilihan barang tetap dibatasi pada supplier yang dipilih. Pencarian juga tersedia untuk baris tambahan dan saat mengedit PO.
+
+Aset pencarian disimpan lokal. Saat memasang perubahan ini, unggah juga `public/js/purchase-search.js` dan seluruh folder `public/vendor/tom-select-2.4.3/`, beserta perubahan view form PO dan layanan harga. Setelah pemasangan dan pembersihan cache, muat ulang browser dengan Ctrl+F5.
+
 Unggah pembaruan kode aplikasi ke Hostinger, lalu jalankan dari folder proyek Laravel:
 
 ```bash

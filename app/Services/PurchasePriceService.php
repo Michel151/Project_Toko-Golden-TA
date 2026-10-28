@@ -16,7 +16,7 @@ class PurchasePriceService
         $price = $supplierPrice ?? $purchase?->buy_price ?? $product->buy_price;
         $hasSupplierPrice = $supplierPrice !== null;
         return [
-            'id'=>$product->id, 'name'=>$product->name,
+            'id'=>$product->id, 'name'=>$product->name, 'barcode'=>$product->barcode,
             'unit'=>$purchase?->unit?->name ?? $product->buyUnit?->name,
             'price'=>(float) $price, 'price_source'=>$hasSupplierPrice ? 'supplier' : 'master',
             'units'=>$product->productUnits->sortByDesc('conversion_to_base')->map(fn ($unit) => [
