@@ -78,6 +78,47 @@ class ReportKpiTest extends TestCase
         $this->capture('stock-empty',$page);
     }
 
+    public function test_stock_pagination_preserves_filters_full_totals_and_exports(): void
+    {
+        $category = Category::create(['name'=>'Kategori Pagination']);
+        for ($i = 1; $i <= 60; $i++) {
+            $product = Product::create(['name'=>'Produk Halaman '.str_pad($i, 3, '0', STR_PAD_LEFT), 'category_id'=>$category->id,
+                'buy_unit_id'=>$this->normal->buy_unit_id, 'buy_price'=>10, 'sell_price_wholesale'=>20, 'min_stock_total'=>0]);
+            Stock::create(['product_id'=>$product->id,'location_id'=>$this->a->id,'quantity'=>2]);
+        }
+        $filters = ['category_id'=>$category->id,'location_id'=>$this->a->id,'expiry_status'=>''];
+        $page = $this->get(route('report.stock', $filters))->assertOk()
+            ->assertViewHas('products', fn ($rows) => $rows->count() === 25 && $rows->total() === 60 && $rows->first()->name === 'Produk Halaman 001')
+            ->assertViewHas('stockSummary', ['products'=>60,'value'=>1200.0,'low'=>0,'empty'=>0])
+            ->assertSee('60 Barang')->assertSee('TOTAL NILAI STOK SESUAI FILTER')->assertSee('Rp 1.200')->assertDontSee('Produk Halaman 026');
+        $this->capture('stock-paginated', $page);
+        $last = $this->get(route('report.stock', $filters + ['page'=>3,'per_page'=>25]))->assertOk()
+            ->assertViewHas('products', fn ($rows) => $rows->count() === 10 && $rows->first()->name === 'Produk Halaman 051')
+            ->assertViewHas('stockSummary', ['products'=>60,'value'=>1200.0,'low'=>0,'empty'=>0]);
+        parse_str(parse_url($last->viewData('products')->url(2), PHP_URL_QUERY), $query);
+        $this->assertEquals(array_filter($filters, fn ($value) => $value !== '') + ['page'=>2,'per_page'=>25], $query);
+        foreach ([50=>50,100=>60] as $size=>$count) {
+            $this->get(route('report.stock', $filters + ['per_page'=>$size]))->assertOk()
+                ->assertViewHas('products', fn ($rows) => $rows->count() === $count && $rows->perPage() === $size);
+        }
+        $empty = $this->get(route('report.stock', array_replace($filters, ['expiry_status'=>'expired'])))->assertOk()
+            ->assertViewHas('products', fn ($rows) => $rows->total() === 0)->assertSee('Tidak ada data stok');
+        $this->capture('stock-paginated-empty', $empty);
+        foreach ([0,26,500,'invalid'] as $size) {
+            $this->getJson(route('report.stock', ['per_page'=>$size]))->assertUnprocessable()->assertJsonValidationErrors('per_page');
+        }
+        \Maatwebsite\Excel\Facades\Excel::fake();
+        $this->get(route('report.stock.excel', $filters + ['page'=>3,'per_page'=>25]))->assertOk();
+        \Maatwebsite\Excel\Facades\Excel::assertDownloaded('Laporan-Stok-2026-10-17.xlsx',
+            fn ($export) => count(array_slice($export->array(), 4)) === 60);
+        $pdf = \Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+        $pdf->shouldReceive('setPaper')->once()->with('a4', 'landscape')->andReturnSelf();
+        $pdf->shouldReceive('stream')->once()->andReturn(response('full-stock-pdf'));
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('loadView')->once()->with('report.pdf.stock',
+            \Mockery::on(fn ($data) => $data['products']->count() === 60))->andReturn($pdf);
+        $this->get(route('report.stock.pdf', $filters + ['page'=>3,'per_page'=>25]))->assertOk()->assertSee('full-stock-pdf');
+    }
+
     public function test_transfer_kpis_count_distinct_products_and_locations_within_the_period(): void
     {
         $c=Location::create(['name'=>'Gudang C']);

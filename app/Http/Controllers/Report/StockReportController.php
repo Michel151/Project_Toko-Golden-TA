@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Stock;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\ReportExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -23,6 +24,7 @@ class StockReportController extends Controller
 
     public function index(Request $request)
     {
+        $filters = $request->validate(['per_page'=>'nullable|integer|in:25,50,100']);
         $locations  = Location::orderBy('name')->get();
         $categories = Category::orderBy('name')->get();
 
@@ -30,7 +32,7 @@ class StockReportController extends Controller
 
         $this->applyFilters($query, $request);
 
-        $products = $query->orderBy('name')->get();
+        $products = $query->orderBy('name')->orderBy('id')->get();
         $expiryFilters = self::EXPIRY_FILTERS;
         $expiryFilterLabel = $this->expiryFilterLabel($request);
         $stockSummary = ['products'=>$products->count(), 'value'=>0.0, 'low'=>0, 'empty'=>0];
@@ -43,6 +45,13 @@ class StockReportController extends Controller
                 $stockSummary['low']++;
             }
         }
+
+        $perPage = (int) ($filters['per_page'] ?? 25);
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $products = (new LengthAwarePaginator(
+            $products->forPage($page, $perPage)->values(), $products->count(), $perPage, $page,
+            ['path'=>LengthAwarePaginator::resolveCurrentPath()]
+        ))->withQueryString();
 
         return view('report.stock', compact('products', 'locations', 'categories', 'expiryFilters', 'expiryFilterLabel', 'stockSummary'));
     }

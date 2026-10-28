@@ -3,7 +3,7 @@
 @section('page-title', 'Laporan Transfer Stok')
 
 @section('content')
-<div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-arrow-left-right"></i></div><div><h5 class="fw-bold mb-1">Laporan Transfer Stok</h5><div class="text-white-50 small">Lacak perpindahan barang antar lokasi penyimpanan</div></div></div><span class="badge bg-info text-dark">{{ $transfers->count() }} Transfer</span></div>
+<div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-arrow-left-right"></i></div><div><h5 class="fw-bold mb-1">Laporan Transfer Stok</h5><div class="text-white-50 small">Lacak perpindahan barang antar lokasi penyimpanan</div></div></div><span class="badge bg-info text-dark">{{ $transfers->total() }} Transfer</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="d-flex flex-wrap gap-2 align-items-end" method="GET">
         @include('components.date-range',['prefix'=>'transferReport','fromValue'=>$from,'toValue'=>$to])
@@ -14,6 +14,9 @@
         <div><label class="form-label small mb-1" for="transferToLocation">Lokasi Tujuan</label><select class="form-select form-select-sm" id="transferToLocation" name="to_location_id">
             <option value="">Semua Lokasi Tujuan</option>
             @foreach($locations as $location)<option value="{{ $location->id }}" @selected((string) request('to_location_id') === (string) $location->id)>{{ $location->name }}</option>@endforeach
+        </select></div>
+        <div><label for="transferReportPerPage" class="d-block">Per Halaman</label><select id="transferReportPerPage" name="per_page" class="form-select form-select-sm">
+            @foreach([25, 50, 100] as $size)<option value="{{ $size }}" @selected($transfers->perPage() === $size)>{{ $size }}</option>@endforeach
         </select></div>
         <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
     </form>
@@ -50,6 +53,7 @@
             </tbody>
         </table>
     </div>
+    <div class="card-footer bg-white">{{ $transfers->links() }}</div>
 </div>
 @include('components.transfer-items-templates')
 @include('components.transfer-items-modal')

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\ReportExport;
@@ -15,6 +16,7 @@ class SaleReportController extends Controller
 {
     public function index(Request $request)
     {
+        $filters = $request->validate(['per_page'=>'nullable|integer|in:25,50,100']);
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());
 
@@ -59,6 +61,13 @@ class SaleReportController extends Controller
             ->orderByDesc('total_amount')
             ->limit(10)
             ->get();
+
+        $perPage = (int) ($filters['per_page'] ?? 25);
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $sales = (new LengthAwarePaginator(
+            $sales->forPage($page, $perPage)->values(), $sales->count(), $perPage, $page,
+            ['path'=>LengthAwarePaginator::resolveCurrentPath()]
+        ))->withQueryString();
 
         return view('report.sale', compact(
             'sales', 'from', 'to',
