@@ -1,6 +1,14 @@
 @extends('layouts.app')
 @section('title','Purchase Order')
 @section('page-title','Purchase Order')
+@push('styles')
+<style>
+.procurement-table tbody td:last-child .btn {
+    margin: 3px 4px;
+    min-width: 32px;
+}
+</style>
+@endpush
 
 @section('content')
 <div class="procurement-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3"><div class="d-flex align-items-center gap-3"><div class="heading-icon"><i class="bi bi-cart-check"></i></div><div><h5 class="fw-bold mb-1">Purchase Order</h5><div class="small text-white-50">Kelola pemesanan dan pantau progres penerimaan barang</div></div></div>@if(auth()->user()->canAccessRoute('purchase.orders.create')) <a href="{{ route('purchase.orders.create') }}" class="btn btn-primary btn-sm px-3"><i class="bi bi-plus-circle me-1"></i>Buat PO Baru</a> @endif</div>

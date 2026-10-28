@@ -55,9 +55,6 @@
             <div class="card table-card">
                 <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
                     <h6 class="fw-bold mb-0"><i class="bi bi-list-ul me-2"></i>Daftar Barang</h6>
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="addItem" {{ old('supplier_id', $order->supplier_id ?? '') ? '' : 'disabled' }}>
-                        <i class="bi bi-plus-circle me-1"></i> Tambah Barang
-                    </button>
                 </div>
                 @error('items')<div class="alert alert-danger mx-3 mb-0">{{ $message }}</div>@enderror
                 <div class="card-body p-0">
@@ -139,7 +136,6 @@
 <script>
 const productsBySupplier = {!! json_encode($supplierProductsJson) !!};
 const supplierSelect = document.getElementById('supplierSelect');
-const addItemButton = document.getElementById('addItem');
 const addItemBottomButton = document.getElementById('addItemBottom');
 let rowIndex = {{ isset($order) ? $order->items->count() : 1 }};
 let activeSupplierId = supplierSelect.value;
@@ -231,13 +227,34 @@ function addItemRow() {
     rowIndex++;
     requestAnimationFrame(() => addItemBottomButton.scrollIntoView({ block: 'end', behavior: 'instant' }));
 }
-addItemButton.addEventListener('click', addItemRow);
 addItemBottomButton.addEventListener('click', addItemRow);
 
 function bindEvents(container = document) {
     container.querySelectorAll('select.product-select').forEach(sel => {
-        sel.addEventListener('change', function() {
+        let previousProductId = sel.value;
+        let confirmingDuplicate = false;
+        sel.addEventListener('change', async function() {
             const row  = this.closest('tr');
+            const nextProductId = this.value;
+            window.purchaseSearch.setValue(this, previousProductId);
+            if (confirmingDuplicate || nextProductId === previousProductId) return;
+            const duplicate = nextProductId && [...document.querySelectorAll('select.product-select')]
+                .some(select => select !== this && select.value === nextProductId);
+            if (duplicate) {
+                confirmingDuplicate = true;
+                try {
+                    const product = currentProducts().find(item => String(item.id) === nextProductId);
+                    const accepted = await window.appDialog.confirm({
+                        title: 'Barang Sudah Ada',
+                        text: `${product?.name || 'Barang ini'} sudah ada dalam daftar PO. Yakin ingin menambahkannya pada baris terpisah?`,
+                        confirmText: 'Ya, Tambahkan',
+                        tone: 'danger',
+                    });
+                    if (!accepted || !row.isConnected) return;
+                } finally { confirmingDuplicate = false; }
+            }
+            window.purchaseSearch.setValue(this, nextProductId);
+            previousProductId = nextProductId;
             updateUnitOptions(row);
         });
     });
@@ -274,7 +291,6 @@ supplierSelect.addEventListener('change', async () => {
         }
         window.purchaseSearch.setValue(supplierSelect, next);
         activeSupplierId = next;
-        addItemButton.disabled = ! next;
         addItemBottomButton.disabled = ! next;
         rowIndex = 0;
         const tbody = document.getElementById('itemsBody');
