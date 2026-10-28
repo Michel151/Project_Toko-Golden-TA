@@ -81,10 +81,23 @@ class SaleReportGrossProfitTest extends TestCase
         $this->report()->assertViewHas('grossProfit',-5000.0)->assertSee('Rp -5.000')->assertSee('-33,33%');
     }
 
+    public function test_transaction_table_has_natural_height_and_keeps_pagination(): void
+    {
+        for ($i = 0; $i < 30; $i++) $this->sale('paid','2026-10-21',10000,6000);
+        $page = $this->report()->assertViewHas('sales', fn ($rows) => $rows->count() === 25 && $rows->total() === 30)
+            ->assertSee('id="saleTransactionsTable"', false)->assertDontSee('height:640px', false)->assertDontSee('max-height:600px', false)
+            ->assertDontSee('Daftar transaksi penjualan, gulir untuk melihat transaksi lainnya');
+        $document = new \DOMDocument;
+        @$document->loadHTML($page->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(25, $xpath->query('//table[@id="saleTransactionsTable"]/tbody/tr')->length);
+        $this->assertGreaterThan(0, $xpath->query('//div[contains(@class,"card-footer")]//a[contains(@href,"page=2")]')->length);
+    }
+
     public function test_empty_period_displays_zero_gross_profit(): void
     {
         $this->report()->assertViewHas('grossProfit',0.0)->assertViewHas('incompleteCostCount',0)->assertSee('Rp 0')
-            ->assertViewHas('productMargins',fn ($rows) => $rows->isEmpty());
+            ->assertViewHas('productMargins',fn ($rows) => $rows->isEmpty())->assertSee('Tidak ada penjualan produk pada periode ini.');
     }
 
     public function test_product_margin_covers_every_sold_product_and_isolates_missing_costs(): void

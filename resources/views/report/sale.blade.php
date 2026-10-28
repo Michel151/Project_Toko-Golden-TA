@@ -3,12 +3,8 @@
 @section('page-title', 'Laporan Penjualan')
 @push('styles')
 <style>
-.sale-report-overview .card-body { min-height:0;max-height:600px;overflow:auto; }
 .sale-margin-scroll { min-height:0;max-height:360px;overflow:auto; }
-.sale-report-overview thead th, #productMarginTable thead th { position:sticky;top:0;z-index:1;background:#eef2ec; }
-@media(min-width:992px) {
-    .sale-report-overview > div > .card { min-height:0;height:640px; }
-}
+#productMarginTable thead th { position:sticky;top:0;z-index:1;background:#eef2ec; }
 </style>
 @endpush
 
@@ -64,12 +60,12 @@
     </div>
 </div>
 
-<div class="row g-3 sale-report-overview">
+<div class="row g-3 align-items-start sale-report-overview">
     <div class="col-md-8">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Daftar Transaksi</h6></div>
-            <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Daftar transaksi penjualan, gulir untuk melihat transaksi lainnya">
-                <table class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
+            <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Daftar transaksi penjualan">
+                <table id="saleTransactionsTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
                     <thead><tr><th>No. Invoice</th><th>Tanggal</th><th>Pelanggan / Kasir</th><th class="text-center">Bayar</th><th class="text-end">Total</th></tr></thead>
                     <tbody>
                         @forelse($sales as $sale)
@@ -92,17 +88,19 @@
     <div class="col-md-4">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Produk Terlaris</h6></div>
-            <div class="card-body p-0" tabindex="0" role="region" aria-label="Produk terlaris, gulir untuk melihat produk lainnya">
+            <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Produk terlaris">
                 <table class="table table-sm mb-0">
                     <thead><tr><th>#</th><th>Barang</th><th class="text-end">Total</th></tr></thead>
                     <tbody>
-                        @foreach($topProducts as $i => $tp)
+                        @forelse($topProducts as $i => $tp)
                         <tr>
                             <td class="text-muted">{{ $i + 1 }}</td>
                             <td class="small">{{ $tp->product->name ?? '-' }}</td>
                             <td class="text-end small">Rp {{ number_format($tp->total_amount, 0, ',', '.') }}</td>
                         </tr>
-                        @endforeach
+                        @empty
+                        <tr><td colspan="3" class="report-empty">Tidak ada penjualan produk pada periode ini.</td></tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
