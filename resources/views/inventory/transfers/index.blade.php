@@ -35,7 +35,7 @@
                    placeholder="Nomor, barang, lokasi..."
                    value="{{ request('search') }}" autocomplete="off">
         </div></div>
-        @include('components.date-range',['prefix'=>'transferList'])
+        @include('components.date-range',['prefix'=>'transferList', 'fromValue'=>$from, 'toValue'=>$to])
         <div class="app-filter-field"><label for="transferListFromLocation">Lokasi Asal</label><select class="form-select form-select-sm" id="transferListFromLocation" name="from_location_id">
             <option value="">Semua Lokasi Asal</option>
             @foreach($locations as $location)<option value="{{ $location->id }}" @selected((string) request('from_location_id') === (string) $location->id)>{{ $location->name }}</option>@endforeach
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const params = new URLSearchParams();
 
         formData.forEach((value, key) => {
-            if (String(value).trim() !== '') {
+            if (String(value).trim() !== '' || key === 'from' || key === 'to') {
                 params.set(key, value);
             }
         });

@@ -17,7 +17,7 @@
 <div class="inventory-heading"><h5><i class="bi bi-cart-check me-2"></i>Transaksi Penjualan</h5></div>
 <div class="app-filter-bar sale-list-toolbar mb-3">
     <form class="sale-list-filters" method="GET">
-        @include('components.date-range',['prefix'=>'saleList'])
+        @include('components.date-range',['prefix'=>'saleList', 'fromValue'=>$from, 'toValue'=>$to])
         <div class="app-filter-field"><label for="salePayment">Pembayaran</label><select id="salePayment" name="payment_method" class="form-select form-select-sm">
             <option value="">Semua Pembayaran</option>
             <option value="tunai"    {{ request('payment_method') == 'tunai'    ? 'selected' : '' }}>Tunai</option>

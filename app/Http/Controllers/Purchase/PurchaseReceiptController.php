@@ -14,6 +14,7 @@ class PurchaseReceiptController extends Controller
 
     public function index(Request $request)
     {
+        ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
         $query = PurchaseReceipt::with(['purchaseOrder.supplier', 'receivedBy', 'items.location']);
         $receivableOrders = PurchaseOrder::with(['supplier', 'items.product', 'items.productUnit.unit'])
             ->whereIn('status', ['pending', 'partial'])
@@ -23,21 +24,22 @@ class PurchaseReceiptController extends Controller
             ->latest('id')
             ->get();
 
-        if ($request->filled('from')) {
-            $query->whereDate('receipt_date', '>=', $request->from);
+        if ($from) {
+            $query->whereDate('receipt_date', '>=', $from);
         }
-        if ($request->filled('to')) {
-            $query->whereDate('receipt_date', '<=', $request->to);
+        if ($to) {
+            $query->whereDate('receipt_date', '<=', $to);
         }
 
         $summaryReceipts = (clone $query)->get();
         $receiptCount = $summaryReceipts->count();
         $allocationCount = $summaryReceipts->sum(fn ($receipt) => $receipt->items->count());
         $supplierCount = $summaryReceipts->pluck('purchaseOrder.supplier_id')->unique()->count();
-        $receipts = $query->latest('receipt_date')->latest('created_at')->latest('id')->paginate(15)->withQueryString();
+        $receipts = $query->latest('receipt_date')->latest('created_at')->latest('id')->paginate(15)->withQueryString()
+            ->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
 
         return view('purchase.receipts.index', compact(
-            'receipts', 'receiptCount', 'allocationCount', 'supplierCount', 'receivableOrders'
+            'receipts', 'receiptCount', 'allocationCount', 'supplierCount', 'receivableOrders', 'from', 'to'
         ));
     }
 

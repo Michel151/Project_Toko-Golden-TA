@@ -96,7 +96,8 @@ class MultiProductTransferTest extends TestCase
         $this->assertSame('TRF/2026/11/000002',StockTransfer::generateTransferNumber());
         $this->assertSame('TRF/2027/01/000001',StockTransfer::generateTransferNumber(\Carbon\Carbon::parse('2027-01-01','Asia/Jakarta')));
         $this->assertSame('TRF/2026/10/000001',StockTransfer::oldest('id')->first()->transfer_number);
-        $this->get(route('inventory.transfers.index'))->assertOk()->assertSee('TRF/2026/10/000001')->assertSee($november->transfer_number);
+        $this->get(route('inventory.transfers.index'))->assertOk()->assertDontSee('TRF/2026/10/000001')->assertSee($november->transfer_number);
+        $this->get(route('inventory.transfers.index', ['from'=>'2026-10-01','to'=>'2026-11-01']))->assertOk()->assertSee('TRF/2026/10/000001')->assertSee($november->transfer_number);
         $this->get(route('inventory.transfers.show',$november))->assertOk()->assertSee($november->transfer_number);
     }
 

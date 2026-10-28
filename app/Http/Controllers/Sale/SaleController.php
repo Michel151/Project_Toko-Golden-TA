@@ -20,17 +20,18 @@ class SaleController extends Controller
 
     public function index(Request $request)
     {
+        ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
         $query = Sale::with(['createdBy']);
 
         if (auth()->user()->isKasir()) {
             $query->where('created_by', auth()->id());
         }
 
-        if ($request->filled('from')) {
-            $query->whereDate('sale_date', '>=', $request->from);
+        if ($from) {
+            $query->whereDate('sale_date', '>=', $from);
         }
-        if ($request->filled('to')) {
-            $query->whereDate('sale_date', '<=', $request->to);
+        if ($to) {
+            $query->whereDate('sale_date', '<=', $to);
         }
         if ($request->filled('payment_method')) {
             $query->where('payment_method', $request->payment_method);
@@ -39,10 +40,10 @@ class SaleController extends Controller
             $query->where('status', $request->status);
         }
 
-        $sales = $query->latest()->paginate(20)->withQueryString();
+        $sales = $query->latest()->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
         $totalAmount = (clone $query)->paid()->sum('total_amount');
 
-        return view('sale.index', compact('sales', 'totalAmount'));
+        return view('sale.index', compact('sales', 'totalAmount', 'from', 'to'));
     }
 
     public function create()

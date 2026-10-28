@@ -16,6 +16,7 @@ class PurchaseOrderController extends Controller
 {
     public function index(Request $request)
     {
+        ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
         $query = PurchaseOrder::with(['supplier', 'createdBy', 'items']);
 
         if ($request->filled('status')) {
@@ -24,11 +25,11 @@ class PurchaseOrderController extends Controller
         if ($request->filled('supplier_id')) {
             $query->where('supplier_id', $request->supplier_id);
         }
-        if ($request->filled('from')) {
-            $query->whereDate('order_date', '>=', $request->from);
+        if ($from) {
+            $query->whereDate('order_date', '>=', $from);
         }
-        if ($request->filled('to')) {
-            $query->whereDate('order_date', '<=', $request->to);
+        if ($to) {
+            $query->whereDate('order_date', '<=', $to);
         }
 
         $summaryOrders = (clone $query)->get();
@@ -38,12 +39,13 @@ class PurchaseOrderController extends Controller
         $pendingCount = $summaryOrders->where('status', 'pending')->count();
         $partialCount = $summaryOrders->where('status', 'partial')->count();
         $completedCount = $summaryOrders->where('status', 'completed')->count();
-        $orders    = $query->latest('order_date')->latest('created_at')->latest('id')->paginate(15)->withQueryString();
+        $orders    = $query->latest('order_date')->latest('created_at')->latest('id')->paginate(15)->withQueryString()
+            ->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
         $suppliers = Supplier::orderBy('name')->get();
 
         return view('purchase.orders.index', compact(
             'orders', 'suppliers', 'totalOrderValue', 'pendingCount',
-            'partialCount', 'completedCount', 'draftCount', 'cancelledCount'
+            'partialCount', 'completedCount', 'draftCount', 'cancelledCount', 'from', 'to'
         ));
     }
 

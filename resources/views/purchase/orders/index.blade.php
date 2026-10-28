@@ -25,7 +25,7 @@
 <div class="procurement-filter mb-3"><form class="d-flex flex-wrap gap-2 align-items-end" method="GET">
     <div><label>Supplier</label><select name="supplier_id" class="form-select form-select-sm" style="width:180px"><option value="">Semua Supplier</option>@foreach($suppliers as $supplier)<option value="{{ $supplier->id }}" @selected(request('supplier_id')==$supplier->id)>{{ $supplier->name }}</option>@endforeach</select></div>
     <div><label>Status</label><select name="status" class="form-select form-select-sm" style="width:190px"><option value="">Semua Status</option>@foreach(\App\Models\PurchaseOrder::STATUS_LABELS as $status=>$label)<option value="{{ $status }}" @selected(request('status')===$status)>{{ $label }}</option>@endforeach</select></div>
-    <div><label>Dari Tanggal</label><input type="date" name="from" class="form-control form-control-sm" value="{{ request('from') }}"></div><div><label>Sampai Tanggal</label><input type="date" name="to" class="form-control form-control-sm" value="{{ request('to') }}"></div>
+    <div><label>Dari Tanggal</label><input type="date" name="from" class="form-control form-control-sm" value="{{ $from }}"></div><div><label>Sampai Tanggal</label><input type="date" name="to" class="form-control form-control-sm" value="{{ $to }}"></div>
     <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>@if(request()->hasAny(['supplier_id','status','from','to']))<a href="{{ route('purchase.orders.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i></a>@endif
 </form></div>
 

@@ -17,6 +17,7 @@ class TransferController extends Controller
 
     public function index(Request $request)
     {
+        ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
         $filters = $request->validate([
             'from_location_id' => ['nullable', 'integer', 'exists:locations,id'],
             'to_location_id' => ['nullable', 'integer', 'exists:locations,id'],
@@ -25,11 +26,11 @@ class TransferController extends Controller
         $query->when($filters['from_location_id'] ?? null, fn ($query, $id) => $query->where('from_location_id', $id))
             ->when($filters['to_location_id'] ?? null, fn ($query, $id) => $query->where('to_location_id', $id));
 
-        if ($request->filled('from')) {
-            $query->whereDate('transfer_date', '>=', $request->from);
+        if ($from) {
+            $query->whereDate('transfer_date', '>=', $from);
         }
-        if ($request->filled('to')) {
-            $query->whereDate('transfer_date', '<=', $request->to);
+        if ($to) {
+            $query->whereDate('transfer_date', '<=', $to);
         }
         if ($request->filled('product_id')) {
             $query->whereHas('items', fn ($q) => $q->where('product_id', $request->product_id));
@@ -46,11 +47,11 @@ class TransferController extends Controller
             });
         }
 
-        $transfers = $query->latest()->paginate(20)->withQueryString();
+        $transfers = $query->latest()->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
         $products  = Product::orderBy('name')->get();
         $locations = Location::orderBy('name')->get();
 
-        return view('inventory.transfers.index', compact('transfers', 'products', 'locations'));
+        return view('inventory.transfers.index', compact('transfers', 'products', 'locations', 'from', 'to'));
     }
 
     public function create()
