@@ -1,6 +1,12 @@
 @extends('layouts.app')
 @section('title', isset($order) ? 'Ubah PO' : 'Buat Purchase Order')
 @section('page-title', isset($order) ? 'Ubah Purchase Order' : 'Buat Purchase Order')
+@push('styles')
+<style>
+#itemsTable { min-width:800px; }
+#itemsTable .input-group { flex-wrap:nowrap; }
+</style>
+@endpush
 
 @section('content')
 <div class="procurement-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="heading-icon"><i class="bi bi-cart-plus"></i></div><div><h5 class="fw-bold mb-1">{{ isset($order) ? 'Ubah Purchase Order' : 'Purchase Order Baru' }}</h5><div class="small text-white-50">Pilih supplier dan susun daftar barang yang akan dipesan</div></div></div>@isset($order)<span class="badge bg-warning text-dark font-monospace">{{ $order->po_number }}</span>@endisset</div>
@@ -118,6 +124,8 @@ const productsBySupplier = {!! json_encode($supplierProductsJson) !!};
 const supplierSelect = document.getElementById('supplierSelect');
 const addItemButton = document.getElementById('addItem');
 let rowIndex = {{ isset($order) ? $order->items->count() : 1 }};
+let activeSupplierId = supplierSelect.value;
+let changingSupplier = false;
 
 function currentProducts() {
     return productsBySupplier[supplierSelect.value] || [];
@@ -160,7 +168,19 @@ function updateUnitOptions(row, selectedUnitId = '') {
     const unitSelect = row.querySelector('.product-unit-select');
     unitSelect.innerHTML = buildUnitOptions(product, selectedUnitId);
     const selectedUnit = unitSelect.options[unitSelect.selectedIndex];
-    row.querySelector('[name$="[buy_price]"]').value = formatDecimalCurrencyValue(selectedUnit?.dataset.price || product?.price || 0);
+    row.querySelector('[name$="[buy_price]"]').value = formatDecimalCurrencyValue(selectedUnit?.dataset.price ?? product?.price ?? 0);
+    showPriceSource(row, product?.price_source === 'master' ? 'Acuan Master Barang' : 'Harga supplier');
+}
+
+function showPriceSource(row, text) {
+    let label = row.querySelector('[data-price-origin]');
+    if (!label) {
+        label = document.createElement('div');
+        label.dataset.priceOrigin = '';
+        label.className = 'small text-muted mt-1';
+        row.querySelector('[name$="[buy_price]"]').closest('td').appendChild(label);
+    }
+    label.textContent = text;
 }
 
 function createItemRow(index) {
@@ -201,7 +221,8 @@ function bindEvents(container = document) {
     container.querySelectorAll('.product-unit-select').forEach(sel => {
         sel.addEventListener('change', function() {
             const row  = this.closest('tr');
-            row.querySelector('[name$="[buy_price]"]').value = formatDecimalCurrencyValue(this.options[this.selectedIndex]?.dataset.price || 0);
+            row.querySelector('[name$="[buy_price]"]').value = formatDecimalCurrencyValue(this.options[this.selectedIndex]?.dataset.price ?? 0);
+            showPriceSource(row, selectedProduct(row)?.price_source === 'master' ? 'Acuan Master Barang' : 'Harga supplier');
         });
     });
     container.querySelectorAll('.remove-item').forEach(btn => {
@@ -211,21 +232,42 @@ function bindEvents(container = document) {
             }
         });
     });
+    container.querySelectorAll('[name$="[buy_price]"]').forEach(input => {
+        input.addEventListener('input', () => showPriceSource(input.closest('tr'), 'Harga PO (manual)'));
+    });
 }
 
-supplierSelect.addEventListener('change', () => {
-    addItemButton.disabled = ! supplierSelect.value;
-    rowIndex = 0;
-    const tbody = document.getElementById('itemsBody');
-    tbody.innerHTML = '';
-    tbody.appendChild(createItemRow(rowIndex));
-    rowIndex++;
+supplierSelect.addEventListener('change', async () => {
+    const next = supplierSelect.value;
+    supplierSelect.value = activeSupplierId;
+    if (changingSupplier || next === activeSupplierId) return;
+    changingSupplier = true;
+    try {
+        const populated = [...document.querySelectorAll('.product-select')].some(select => select.value);
+        if (populated) {
+            const accepted = await window.appDialog.confirm({ title: 'Ganti Supplier?', text: 'Daftar barang dan harga PO saat ini akan dikosongkan.', confirmText: 'Ganti Supplier', tone: 'danger' });
+            if (!accepted) return;
+        }
+        supplierSelect.value = next;
+        activeSupplierId = next;
+        addItemButton.disabled = ! next;
+        rowIndex = 0;
+        const tbody = document.getElementById('itemsBody');
+        tbody.innerHTML = '';
+        tbody.appendChild(createItemRow(rowIndex));
+        rowIndex++;
+    } finally { changingSupplier = false; }
 });
 
 bindEvents();
 document.querySelectorAll('.item-row').forEach(row => {
-    if (row.querySelector('.product-select')?.value && !row.querySelector('.product-unit-select')?.value) {
-        updateUnitOptions(row);
+    if (row.querySelector('.product-select')?.value) {
+        const unitSelect = row.querySelector('.product-unit-select');
+        if (!unitSelect.value) updateUnitOptions(row);
+        else {
+            unitSelect.innerHTML = buildUnitOptions(selectedProduct(row), unitSelect.value);
+            showPriceSource(row, 'Harga PO tersimpan');
+        }
     }
 });
 </script>

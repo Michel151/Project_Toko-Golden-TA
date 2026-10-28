@@ -103,10 +103,6 @@ class PurchaseOrderController extends Controller
                     'buy_price'         => $item['buy_price'],
                 ]);
 
-                DB::table('product_units')
-                    ->where('id', $item['product_unit_id'])
-                    ->where('product_id', $item['product_id'])
-                    ->update(['buy_price' => $item['buy_price']]);
             }
         });
 
@@ -185,10 +181,6 @@ class PurchaseOrderController extends Controller
                     'buy_price'         => $item['buy_price'],
                 ]);
 
-                DB::table('product_units')
-                    ->where('id', $item['product_unit_id'])
-                    ->where('product_id', $item['product_id'])
-                    ->update(['buy_price' => $item['buy_price']]);
             }
         });
 
@@ -235,22 +227,7 @@ class PurchaseOrderController extends Controller
             ->with(['buyUnit', 'productUnits.unit', 'defaultPurchaseUnit.unit'])
             ->orderBy('name')
             ->get()
-            ->map(fn ($product) => [
-                'id' => $product->id,
-                'name' => $product->name,
-                'unit' => $product->defaultPurchaseUnit?->unit?->name ?? $product->buyUnit->name,
-                'units' => $product->productUnits
-                    ->sortByDesc('conversion_to_base')
-                    ->map(fn ($productUnit) => [
-                        'id' => $productUnit->id,
-                        'name' => $productUnit->unit->name,
-                        'buy_price' => (float) $productUnit->buy_price,
-                        'is_default_purchase' => $productUnit->is_default_purchase,
-                    ])
-                    ->values()
-                    ->all(),
-                'price' => (float) $product->pivot->buy_price,
-            ])
+            ->map(fn ($product) => app(\App\Services\PurchasePriceService::class)->supplierProduct($product))
             ->values());
     }
 
@@ -261,22 +238,7 @@ class PurchaseOrderController extends Controller
             ->mapWithKeys(fn ($supplier) => [
                 $supplier->id => $supplier->products
                     ->sortBy('name')
-                    ->map(fn ($product) => [
-                        'id' => $product->id,
-                        'name' => $product->name,
-                        'unit' => $product->defaultPurchaseUnit?->unit?->name ?? $product->buyUnit->name,
-                        'price' => (float) ($product->defaultPurchaseUnit?->buy_price ?? $product->pivot->buy_price),
-                        'units' => $product->productUnits
-                            ->sortByDesc('conversion_to_base')
-                            ->map(fn ($productUnit) => [
-                                'id' => $productUnit->id,
-                                'name' => $productUnit->unit->name,
-                                'buy_price' => (float) $productUnit->buy_price,
-                                'is_default_purchase' => $productUnit->is_default_purchase,
-                            ])
-                            ->values()
-                            ->all(),
-                    ])
+                    ->map(fn ($product) => app(\App\Services\PurchasePriceService::class)->supplierProduct($product))
                     ->values()
                     ->all(),
             ])

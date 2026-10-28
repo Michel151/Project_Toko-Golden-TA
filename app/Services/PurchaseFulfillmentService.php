@@ -86,7 +86,9 @@ class PurchaseFulfillmentService
                     }
                 }
                 if ($good > 0) {
-                    $product->update(['buy_price' => $item->buy_price]);
+                    if (!$order->root_purchase_order_id && !$item->source_purchase_order_item_id) {
+                        app(PurchasePriceService::class)->updateMaster($item, $receipt);
+                    }
                     $item->increment('quantity_received', $good);
                     // Barang pengganti memenuhi kewajiban yang sama pada seluruh PO induknya.
                     $sourceId = $item->source_purchase_order_item_id;
