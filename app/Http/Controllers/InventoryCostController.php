@@ -14,7 +14,7 @@ class InventoryCostController extends Controller
     {
         $filters = $request->validate(['q' => ['nullable', 'string', 'max:150']]);
         $products = Product::with(['costBalance', 'baseProductUnit.unit', 'buyUnit'])->when($filters['q'] ?? null,
-            fn ($query, $search) => $query->where('name', 'like', '%'.$search.'%'))->orderBy('name')->paginate(25)->withQueryString();
+            fn ($query, $search) => $query->where('name', 'like', '%'.$search.'%'))->orderBy('name')->orderBy('id')->paginate(25)->withQueryString();
         $owned = []; $issues = [];
         foreach ($products as $product) {
             try { $owned[$product->id] = $costs->ownedQuantity($product->id); }

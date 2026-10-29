@@ -13,7 +13,7 @@ class LocationController extends Controller
 {
     public function index()
     {
-        $locations = Location::withCount('stocks')->latest()->paginate(15);
+        $locations = Location::withCount('stocks')->latest()->latest('id')->paginate(15);
         return view('master.locations.index', compact('locations'));
     }
 

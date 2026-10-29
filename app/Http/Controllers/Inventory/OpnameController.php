@@ -26,7 +26,7 @@ class OpnameController extends Controller
         $opnames = StockOpname::with(['location', 'createdBy'])
             ->when($from, fn ($query)=>$query->whereDate('opname_date', '>=', $from))
             ->when($to, fn ($query)=>$query->whereDate('opname_date', '<=', $to))
-            ->latest()->paginate(15)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
+            ->latest()->latest('id')->paginate(15)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
         return view('inventory.opnames.index', compact('opnames', 'from', 'to'));
     }
 

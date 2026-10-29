@@ -13,7 +13,7 @@ class UnitController extends Controller
         $units = Unit::withCount([
             'productsAsBuyUnit as buy_unit_count',
             'productsAsRetailUnit as retail_unit_count',
-        ])->latest()->paginate(15);
+        ])->latest()->latest('id')->paginate(15);
         return view('master.units.index', compact('units'));
     }
 

@@ -138,7 +138,7 @@ class StockController extends Controller
         $priorityBatches = $request->view === 'priorities'
             ? $priorityQuery->orderByRaw('expired_date IS NULL')->orderBy('expired_date')->orderBy('id')->paginate(25)->withQueryString()
             : null;
-        $products = $query->orderBy('name')->paginate(25)->withQueryString();
+        $products = $query->orderBy('name')->orderBy('id')->paginate(25)->withQueryString();
 
         return view('inventory.stock.index', compact(
             'products', 'locations', 'categories', 'totalProducts',

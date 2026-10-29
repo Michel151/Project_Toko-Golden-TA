@@ -10,6 +10,7 @@
 .transfer-search-control > .bi { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--app-muted); pointer-events:none; }
 .transfer-search-control input { padding-left:32px; }
 .transfer-filter-actions { display:flex; gap:8px; }
+#transferTableHeading { scroll-margin-top:80px; }
 @media(max-width:1199px) {
     .transfer-filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
     .transfer-filter-search,.transfer-filter-actions { grid-column:1 / -1; }
@@ -50,6 +51,7 @@
 </div>
 
 <div id="transferTableWrap" class="card table-card">
+    <div class="card-header bg-white border-0 py-3"><h6 id="transferTableHeading" tabindex="-1" class="fw-bold mb-0">Daftar Transfer Stok</h6></div>
     <div class="card-body p-0 table-responsive">
         <table class="table table-hover align-middle mb-0" id="transferListTable">
             <thead>
@@ -111,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return `${action}${query ? `?${query}` : ''}`;
     }
 
-    async function fetchTransfers(url) {
+    async function fetchTransfers(url, focusTable = false) {
         tableWrap.style.opacity = '0.55';
 
         try {
@@ -130,6 +132,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 tableWrap.innerHTML = nextTable.innerHTML;
                 window.history.replaceState({}, '', url);
                 resetFilter?.classList.toggle('d-none', !new URL(url, window.location.origin).search);
+                if (focusTable) {
+                    const heading = tableWrap.querySelector('#transferTableHeading');
+                    heading?.focus({ preventScroll: true });
+                    heading?.scrollIntoView({ block: 'start', behavior: 'instant' });
+                }
             } else {
                 window.location.assign(url);
             }
@@ -149,9 +156,10 @@ document.addEventListener('DOMContentLoaded', function () {
     tableWrap?.addEventListener('click', function (event) {
         const pageLink = event.target.closest('.pagination a');
         if (!pageLink) return;
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
 
         event.preventDefault();
-        fetchTransfers(pageLink.href);
+        fetchTransfers(pageLink.href, true);
     });
 });
 </script>

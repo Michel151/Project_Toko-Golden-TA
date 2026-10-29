@@ -47,7 +47,7 @@ class TransferController extends Controller
             });
         }
 
-        $transfers = $query->latest()->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
+        $transfers = $query->latest()->latest('id')->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
         $products  = Product::orderBy('name')->get();
         $locations = Location::orderBy('name')->get();
 

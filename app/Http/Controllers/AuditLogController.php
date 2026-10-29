@@ -19,7 +19,7 @@ class AuditLogController extends Controller
             ->when($request->filled('from'), fn ($q) => $q->whereDate('created_at', '>=', $request->from))
             ->when($request->filled('to'), fn ($q) => $q->whereDate('created_at', '<=', $request->to));
 
-        $auditLogs = $query->latest()->paginate(30)->withQueryString();
+        $auditLogs = $query->latest()->latest('id')->paginate(30)->withQueryString();
         $auditDetails = $formatter->format($auditLogs->getCollection());
         $users = User::orderBy('name')->get(['id', 'name']);
         $modules = AuditLog::query()->distinct()->orderBy('module')->pluck('module');

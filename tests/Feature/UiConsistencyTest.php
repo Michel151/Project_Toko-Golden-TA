@@ -251,6 +251,108 @@ class UiConsistencyTest extends TestCase
         }
     }
 
+    public function test_movement_tab_defaults_to_month_to_date_and_preserves_date_and_other_filters(): void
+    {
+        $dates = array_merge(['2026-09-30', '2026-10-01', '2026-10-17', '2026-10-18'], array_fill(0,30,'2026-10-17'));
+        foreach ($dates as $i=>$date) {
+            StockMovement::create(['product_id'=>$this->product->id, 'location_id'=>$this->from->id, 'movement_date'=>$date,
+                'movement_type'=>'opname_adjustment', 'quantity'=>$i%2 ? -1 : 1, 'balance_before'=>10,
+                'balance_after'=>$i%2 ? 9 : 11, 'reference_number'=>'MUTASI-PERIODE-'.$i, 'created_by'=>auth()->id()]);
+        }
+        $route = 'inventory.opnames.movements';
+        $page = $this->get(route($route))->assertOk()->assertViewHas('from','2026-10-01')->assertViewHas('to','2026-10-17');
+        $page->assertSee('value="2026-10-01"',false)->assertSee('value="2026-10-17"',false);
+        $this->assertSame(32,$page->viewData('movements')->total());
+        $this->assertSame(16,$page->viewData('totalIn'));
+        $this->assertSame(16,$page->viewData('totalOut'));
+        $this->capture('monthly-movements-default.html',$page->getContent());
+        parse_str(parse_url($page->viewData('movements')->url(2),PHP_URL_QUERY),$query);
+        $this->assertSame('2026-10-01',$query['from']);
+        $this->assertSame('2026-10-17',$query['to']);
+        $this->get($page->viewData('movements')->url(2))->assertOk()->assertViewHas('movements',fn($rows)=>$rows->total()===32 && $rows->count()===7);
+        $custom = $this->get(route($route,['from'=>'2026-09-01','to'=>'2026-09-30']))->assertOk()->assertViewHas('movements',fn($rows)=>$rows->total()===1);
+        $this->assertSame(1,$custom->viewData('totalIn'));
+        $this->assertSame(0,$custom->viewData('totalOut'));
+        $this->capture('monthly-movements-custom.html',$custom->getContent());
+        $all = $this->get(route($route,['from'=>'','to'=>'']))->assertOk()->assertViewHas('movements',fn($rows)=>$rows->total()===34);
+        $this->capture('monthly-movements-all.html',$all->getContent());
+        $this->get(route($route,['product_id'=>$this->product->id,'location_id'=>$this->from->id,'direction'=>'out']))->assertOk()
+            ->assertViewHas('movements',fn($rows)=>$rows->total()===16)->assertViewHas('totalIn',0)->assertViewHas('totalOut',16);
+        $this->get(route($route,['location_id'=>$this->to->id]))->assertOk()->assertViewHas('movements',fn($rows)=>$rows->total()===0);
+        $this->get(route($route,['from'=>'2026-10-17','to'=>'2026-10-01']))->assertSessionHasErrors('to');
+        $this->get(route($route))->assertViewHas('from','2026-10-01')->assertViewHas('to','2026-10-17');
+        $this->assertDatabaseCount('stock_movements',34);
+        $this->assertDatabaseCount('stocks',0);
+    }
+
+    public function test_receivable_orders_and_receipt_history_have_independent_pages_and_keep_filters(): void
+    {
+        $ids=[];
+        for ($i=1;$i<=52;$i++) $ids[]=$this->order('PO-SIAP-'.$i,['order_date'=>'2026-09-30'])->id;
+        for ($i=1;$i<=35;$i++) \App\Models\PurchaseReceipt::create(['purchase_order_id'=>$ids[0],'receipt_date'=>'2026-10-17','received_by'=>auth()->id()]);
+        $filters=['from'=>'2026-10-01','to'=>'2026-10-17','orders_page'=>2,'page'=>2];
+        $response=$this->get(route('purchase.receipts.index',$filters))->assertOk();
+        $ready=$response->viewData('receivableOrders');
+        $history=$response->viewData('receipts');
+        $this->assertSame(52,$ready->total());
+        $this->assertSame(25,$ready->count());
+        $this->assertSame(array_slice(array_reverse($ids),25,25),$ready->pluck('id')->all());
+        $this->assertSame(35,$history->total());
+        $this->assertSame(15,$history->count());
+        $this->assertSame(35,$response->viewData('receiptCount'));
+        parse_str(parse_url($ready->url(3),PHP_URL_QUERY),$readyQuery);
+        $this->assertEquals(array_replace($filters,['orders_page'=>3]),$readyQuery);
+        $this->assertSame('ready-orders',parse_url($ready->url(3),PHP_URL_FRAGMENT));
+        parse_str(parse_url($history->url(3),PHP_URL_QUERY),$historyQuery);
+        $this->assertEquals(array_replace($filters,['page'=>3]),$historyQuery);
+        $this->assertSame('receipt-history',parse_url($history->url(3),PHP_URL_FRAGMENT));
+        $last=$this->get($ready->url(3))->assertOk();
+        $this->assertSame(2,$last->viewData('receivableOrders')->count());
+        $this->assertSame($history->pluck('id')->all(),$last->viewData('receipts')->pluck('id')->all());
+        $this->capture('receipt-independent-pages.html',$response->getContent());
+    }
+
+    public function test_created_at_ties_use_descending_id_across_master_and_transaction_pages(): void
+    {
+        for ($i=1;$i<=21;$i++) {
+            Category::create(['name'=>'Kategori Urutan '.$i]);
+            Location::create(['name'=>'Lokasi Urutan '.$i]);
+            Unit::create(['name'=>'Satuan Urutan '.$i]);
+            Supplier::create(['name'=>'Supplier Urutan '.$i]);
+            User::create(['name'=>'Pengguna Urutan '.$i,'email'=>'sort-'.$i.'@test.com','password'=>'password','role'=>'kasir']);
+            \App\Models\Sale::create(['sale_number'=>'INV-URUTAN-'.$i,'sale_date'=>'2026-10-17','status'=>'paid','payment_method'=>'tunai','total_amount'=>100,'created_by'=>auth()->id()]);
+            StockTransfer::create(['transfer_number'=>'TRF-URUTAN-'.$i,'transfer_date'=>'2026-10-17','product_id'=>$this->product->id,'quantity'=>1,'from_location_id'=>$this->from->id,'to_location_id'=>$this->to->id,'created_by'=>auth()->id()]);
+            \App\Models\StockOpname::create(['opname_number'=>'OPN-URUTAN-'.$i,'opname_date'=>'2026-10-17','location_id'=>$this->from->id,'created_by'=>auth()->id(),'status'=>'draft']);
+        }
+        foreach ([
+            ['master.categories.index','categories',Category::class],['master.locations.index','locations',Location::class],
+            ['master.units.index','units',Unit::class],['master.suppliers.index','suppliers',Supplier::class],
+            ['master.users.index','users',User::class],['sale.sales.index','sales',\App\Models\Sale::class],
+            ['inventory.transfers.index','transfers',StockTransfer::class],['inventory.opnames.index','opnames',\App\Models\StockOpname::class],
+            ['audit-logs.index','auditLogs',\App\Models\AuditLog::class],
+        ] as [$route,$key,$model]) {
+            $expected=$model::orderByDesc('created_at')->orderByDesc('id')->pluck('id')->all();
+            $first=$this->get(route($route))->assertOk()->viewData($key);
+            $actual=$first->pluck('id')->all();
+            for ($page=2;$page<=$first->lastPage();$page++) $actual=array_merge($actual,$this->get(route($route,['page'=>$page]))->assertOk()->viewData($key)->pluck('id')->all());
+            $this->assertSame($expected,$actual,$route);
+        }
+    }
+
+    public function test_equal_product_names_use_ascending_id_for_monitoring_and_valuation_pages(): void
+    {
+        $ids=[];
+        for ($i=1;$i<=28;$i++) {
+            $product=$this->product->replicate();$product->name='Nama Sama Untuk Urutan';$product->save();$ids[]=$product->id;
+        }
+        foreach ([['inventory.stock.index','search'],['inventory.costing.index','q']] as [$route,$searchKey]) {
+            $filters=[$searchKey=>'Nama Sama Untuk Urutan'];
+            $first=$this->get(route($route,$filters))->assertOk()->viewData('products');
+            $second=$this->get(route($route,$filters+['page'=>2]))->assertOk()->viewData('products');
+            $this->assertSame($ids,array_merge($first->pluck('id')->all(),$second->pluck('id')->all()));
+        }
+    }
+
     public function test_filter_pages_keep_explicit_labels_and_shared_controls(): void
     {
         foreach (['products-list'=>'master.products.index','returns-list'=>'purchase.returns.index','sales-list'=>'sale.sales.index'] as $name => $route) {

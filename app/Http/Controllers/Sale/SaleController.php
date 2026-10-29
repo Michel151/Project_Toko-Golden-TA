@@ -40,7 +40,7 @@ class SaleController extends Controller
             $query->where('status', $request->status);
         }
 
-        $sales = $query->latest()->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
+        $sales = $query->latest()->latest('id')->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
         $totalAmount = (clone $query)->paid()->sum('total_amount');
 
         return view('sale.index', compact('sales', 'totalAmount', 'from', 'to'));
