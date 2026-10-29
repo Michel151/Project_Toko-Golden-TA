@@ -6,12 +6,12 @@
     <h4 class="fw-bold">Notifikasi Persediaan</h4>
     <p class="text-muted mb-0">@if($hasAppliedFilters){{ $notifications->total() }} produk sesuai filter dari {{ $totalProducts }} produk perlu perhatian.@else{{ $totalProducts }} produk perlu perhatian.@endif Diurutkan dari kondisi paling mendesak.</p>
 </div>
-<form method="GET" action="{{ route('notifications.index') }}" class="card card-body mb-3">
+<form method="GET" action="{{ route('notifications.index') }}" class="app-unified-filter card card-body mb-3">
     <div class="row g-3 align-items-end">
         <div class="col-md-4"><label for="notificationSearch" class="form-label">Cari produk</label><input id="notificationSearch" name="search" class="form-control" value="{{ $filters['search'] ?? '' }}" maxlength="150" placeholder="Nama atau kode/barcode produk"></div>
         <div class="col-md-3"><label for="notificationCondition" class="form-label">Kondisi</label><select id="notificationCondition" name="condition" class="form-select"><option value="">Semua kondisi</option>@foreach($conditionOptions as $key=>$label)<option value="{{ $key }}" @selected(($filters['condition'] ?? '') === $key)>{{ $label }}</option>@endforeach</select></div>
         <div class="col-md-3"><label for="notificationLocation" class="form-label">Lokasi</label><select id="notificationLocation" name="location_id" class="form-select"><option value="">Semua lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected(($filters['location_id'] ?? '') == $location->id)>{{ $location->name }}</option>@endforeach</select></div>
-        <div class="col-md-2 d-flex flex-wrap gap-2"><button class="btn btn-primary" type="submit">Terapkan</button><a class="btn btn-outline-secondary" href="{{ route('notifications.index') }}">Reset</a></div>
+        <div class="col-md-2 d-flex flex-wrap gap-2"><button class="btn btn-primary" type="submit">Terapkan</button><a class="btn btn-outline-secondary" href="{{ route('notifications.index') }}"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></div>
     </div>
 </form>
 @if(!empty($filters['product_id']))<p class="small text-muted">Menampilkan produk yang dipilih. <a href="{{ route('notifications.index') }}">Tampilkan semua produk</a></p>@endif

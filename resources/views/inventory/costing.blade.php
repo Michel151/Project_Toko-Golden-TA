@@ -8,11 +8,11 @@
 </div>
 <div class="alert alert-light border">Nilai persediaan dihitung dari penerimaan barang. Pengeluaran fisik tetap FEFO. Tidak diperlukan input saldo awal manual.</div>
 <div class="alert alert-warning">Barang yang masih memiliki stok lama tetap menggunakan metode sebelumnya sampai seluruh stok milik toko habis, termasuk reservasi penjualan. Data dan HPP transaksi lama tidak dihitung ulang.</div>
-<form class="d-flex flex-wrap gap-2 mb-3" method="GET">
+<form class="app-unified-filter d-flex flex-wrap gap-2 mb-3" method="GET">
     <label for="costSearch" class="visually-hidden">Cari barang</label>
     <input id="costSearch" class="form-control form-control-sm" style="max-width:320px" name="q" value="{{ request('q') }}" placeholder="Cari barang">
-    <button class="btn btn-sm btn-success"><i class="bi bi-search me-1"></i>Cari</button>
-</form>
+    <button class="btn btn-sm btn-primary"><i class="bi bi-search me-1"></i>Terapkan</button>
+<a href="{{ url()->current() }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
 <div class="table-responsive bg-white">
 <table class="table report-table mb-0" style="min-width:1000px">
     <thead><tr><th style="min-width:180px">Barang</th><th class="text-end">Stok Milik Toko</th><th class="text-end">Nilai Moving Average (Rp)</th><th class="text-end">Rata-rata / Satuan Dasar (Rp)</th><th>Status HPP</th><th class="text-center">Riwayat</th></tr></thead>

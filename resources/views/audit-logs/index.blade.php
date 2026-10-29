@@ -37,14 +37,14 @@
 </div>
 
 <div class="audit-filter mb-3">
-    <form class="row g-2 align-items-end">
+    <form class="app-unified-filter row g-2 align-items-end">
         <div class="col-lg-2"><label>Pencarian</label><input name="search" class="form-control form-control-sm" value="{{ request('search') }}" placeholder="Deskripsi..."></div>
         <div class="col-lg-2"><label>Pengguna</label><select name="user_id" class="form-select form-select-sm"><option value="">Semua Pengguna</option>@foreach($users as $user)<option value="{{ $user->id }}" @selected(request('user_id') == $user->id)>{{ $user->name }}</option>@endforeach</select></div>
         <div class="col-lg-2"><label>Modul</label><select name="module" class="form-select form-select-sm"><option value="">Semua Modul</option>@foreach($modules as $module)<option value="{{ $module }}" @selected(request('module') === $module)>{{ $module }}</option>@endforeach</select></div>
         <div class="col-lg-1"><label>Aksi</label><select name="action" class="form-select form-select-sm"><option value="">Semua</option><option value="created" @selected(request('action') === 'created')>Buat</option><option value="updated" @selected(request('action') === 'updated')>Ubah</option><option value="deleted" @selected(request('action') === 'deleted')>Hapus</option><option value="login" @selected(request('action') === 'login')>Login</option><option value="logout" @selected(request('action') === 'logout')>Logout</option></select></div>
         <div class="col-lg-2"><label for="auditFrom">Dari Tanggal</label><input id="auditFrom" type="date" name="from" value="{{ request('from') }}" class="form-control form-control-sm"></div>
         <div class="col-lg-2"><label for="auditTo">Sampai Tanggal</label><input id="auditTo" type="date" name="to" value="{{ request('to') }}" class="form-control form-control-sm"></div>
-        <div class="col-lg-1 d-flex gap-1"><button class="btn btn-sm btn-primary" title="Terapkan filter"><i class="bi bi-funnel"></i></button><a href="{{ route('audit-logs.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter"><i class="bi bi-arrow-counterclockwise"></i></a></div>
+        <div class="col-lg-1 d-flex gap-1"><button class="btn btn-sm btn-primary" title="Terapkan filter"><i class="bi bi-funnel"></i>Terapkan</button><a href="{{ route('audit-logs.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></div>
     </form>
 </div>
 

@@ -56,7 +56,7 @@
     <a class="btn btn-sm {{ request('view') === 'priorities' ? 'btn-success' : 'btn-outline-secondary' }}" href="{{ route('inventory.stock.index', array_merge(request()->except(['page']), ['view'=>'priorities'])) }}"><i class="bi bi-exclamation-triangle me-1"></i>Perlu Ditindaklanjuti <span class="badge bg-light text-dark ms-1">{{ $priorityCount }}</span></a>
 </nav>
 <div class="mb-3">
-    <form class="app-filter-bar" method="GET">
+    <form class="app-unified-filter app-filter-bar" method="GET">
         @if(request('view') === 'priorities')<input type="hidden" name="view" value="priorities">@endif
         <div class="app-filter-field app-filter-search"><label for="stockSearch">Cari Barang</label><input id="stockSearch" type="search" name="search" class="form-control form-control-sm" placeholder="Nama barang..." value="{{ request('search') }}"></div>
         <div class="app-filter-field"><label for="stockCategory">Kategori</label><select id="stockCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $category)<option value="{{ $category->id }}" @selected(request('category_id') == $category->id)>{{ $category->name }}</option>@endforeach</select></div>
@@ -64,7 +64,7 @@
         <div class="app-filter-field"><label for="stockStatus">Status</label><select id="stockStatus" name="status" class="form-select form-select-sm"><option value="">Semua Status</option><option value="safe" @selected(request('status')==='safe')>Aman</option><option value="low" @selected(request('status')==='low')>Stok Rendah</option><option value="out" @selected(request('status')==='out')>Stok Habis</option></select></div>
         <div class="app-filter-field"><label for="stockExpiry">Kedaluwarsa</label><select id="stockExpiry" name="expiry_status" class="form-select form-select-sm"><option value="">Semua Status</option><option value="expired" @selected(request('expiry_status')==='expired')>Sudah Kedaluwarsa</option><option value="expiring" @selected(request('expiry_status')==='expiring')>Hampir Kedaluwarsa</option><option value="safe" @selected(request('expiry_status')==='safe')>Aman</option><option value="without_date" @selected(request('expiry_status')==='without_date')>Tanpa Tanggal</option><option value="untracked" @selected(request('expiry_status')==='untracked')>Tidak Dilacak</option></select></div>
         <div class="app-filter-actions"><button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        @if(request()->hasAny(['search','category_id','location_id','status','expiry_status']))<a href="{{ route('inventory.stock.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i></a>@endif
+        <a href="{{ route('inventory.stock.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
         </div>
     </form>
 </div>
@@ -115,9 +115,9 @@
                         <span class="text-muted small">Tidak dilacak</span>
                     @endif
                 </td>
-                <td class="text-end"><div class="small text-muted">Fisik: {{ $fmtStock($availability['physical'],$product) }}</div><div class="small text-danger">Kedaluwarsa: {{ $fmtStock($availability['expired'],$product) }}</div><div class="small text-muted">Layak jual</div><div class="fw-bold {{ $isLow?'text-danger':'' }}">{{ $fmtStock($total,$product) }}</div><div class="progress stock-progress"><div class="progress-bar bg-{{ $isOut?'secondary':($isLow?'danger':'success') }}" style="width:{{ $progress }}%"></div></div></td>
+                <td class="text-end"><div class="small text-muted">Fisik: {{ $fmtStock($availability['physical'],$product) }}</div><div class="small text-danger">Kedaluwarsa: {{ $fmtStock($availability['expired'],$product) }}</div><div class="small text-muted">Layak jual</div><div class="fw-bold {{ $isOut?'text-danger':($isLow?'text-warning-emphasis':'') }}">{{ $fmtStock($total,$product) }}</div><div class="progress stock-progress"><div class="progress-bar bg-{{ $isOut?'danger':($isLow?'warning':'success') }}" style="width:{{ $progress }}%"></div></div></td>
                 <td class="text-end text-muted small">{{ $fmtStock($minimum,$product) }}</td>
-                <td class="text-center">@if($isOut)<span class="badge bg-secondary"><span class="status-dot bg-white"></span>Habis</span>@elseif($isLow)<span class="badge bg-danger"><span class="status-dot bg-white"></span>Rendah</span>@else<span class="badge bg-success"><span class="status-dot bg-white"></span>Aman</span>@endif</td>
+                <td class="text-center">@if($isOut)<span class="badge bg-danger"><span class="status-dot bg-white"></span>Habis</span>@elseif($isLow)<span class="badge bg-warning text-dark"><span class="status-dot bg-dark"></span>Rendah</span>@else<span class="badge bg-success"><span class="status-dot bg-white"></span>Aman</span>@endif</td>
                 @if($canTransferStock)
                 <td class="text-center">@if(auth()->user()->canAccessRoute('inventory.transfers.create')) <a href="{{ route('inventory.transfers.create', ['product_id' => $product->id]) }}" class="btn btn-sm btn-outline-primary" title="Transfer {{ $product->name }}"><i class="bi bi-arrow-left-right"></i></a> @endif</td>
                 @endif

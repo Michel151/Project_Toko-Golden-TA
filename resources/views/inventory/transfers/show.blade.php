@@ -11,11 +11,11 @@
     <span>Tanggal: <strong>{{ $transfer->transfer_date->format('d/m/Y') }}</strong></span><span>Dibuat oleh: <strong>{{ $transfer->createdBy->name ?? '-' }}</strong></span><span>Total: <strong>{{ $transfer->items_count }} barang</strong></span>
 </div>
 @if($transfer->notes)<div class="bg-white border-bottom p-3 mb-3"><span class="small text-muted">Catatan</span><div style="white-space:pre-wrap">{{ $transfer->notes }}</div></div>@endif
-<form method="GET" action="{{ route('inventory.transfers.show',$transfer) }}" class="d-flex flex-wrap gap-2 align-items-end mb-3" role="search">
+<form method="GET" action="{{ route('inventory.transfers.show',$transfer) }}" class="app-unified-filter d-flex flex-wrap gap-2 align-items-end mb-3" role="search">
     <div class="app-filter-field flex-grow-1" style="max-width:320px"><label for="transferDetailSearch">Nama Barang</label><input id="transferDetailSearch" name="q" value="{{ $search }}" type="search" class="form-control form-control-sm" placeholder="Cari nama barang..."></div>
     <div class="app-filter-field"><label for="transferDetailSize">Per Halaman</label><select id="transferDetailSize" name="per_page" class="form-select form-select-sm">@foreach([25,50,100] as $size)<option value="{{ $size }}" @selected((int)request('per_page',25)===$size)>{{ $size }}</option>@endforeach</select></div>
     <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-    @if($search!=='')<a href="{{ route('inventory.transfers.show',$transfer) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</a>@endif
+    @if($search!=='')<a href="{{ route('inventory.transfers.show',$transfer) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>@endif
 </form>
 <div class="card table-card">
     <div class="table-responsive app-table-scroll" tabindex="0" role="region" aria-label="Daftar barang transfer">

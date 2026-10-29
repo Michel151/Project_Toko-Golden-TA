@@ -5,7 +5,7 @@
 @section('content')
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-cart-check"></i></div><div><h5 class="fw-bold mb-1">Laporan Pembelian</h5><div class="text-white-50 small">Pantau nilai dan progres seluruh purchase order</div></div></div><span class="badge bg-warning text-dark">{{ $orderCount }} PO</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-    <form class="d-flex gap-2 align-items-end" method="GET">
+    <form class="app-unified-filter d-flex gap-2 align-items-end" method="GET">
         @include('components.date-range',['prefix'=>'purchaseReport','fromValue'=>$from,'toValue'=>$to])
         <div><label for="purchaseReportSupplier">Supplier</label><select id="purchaseReportSupplier" name="supplier_id" class="form-select form-select-sm" style="max-width:260px">
             <option value="">Semua Supplier</option>
@@ -13,7 +13,7 @@
         </select></div>
         <div><label for="purchasePageSize">Per Halaman</label><select id="purchasePageSize" name="per_page" class="form-select form-select-sm">@foreach([25,50,100] as $size)<option value="{{ $size }}" @selected((int)request('per_page',25)===$size)>{{ $size }}</option>@endforeach</select></div>
         <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-    </form>
+    <a href="{{ route('report.purchase') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
     <div class="btn-group btn-group-sm">
         <a href="{{ route('report.purchase.pdf', request()->all()) }}" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-pdf me-1"></i>PDF</a>
         <a href="{{ route('report.purchase.excel', request()->all()) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>

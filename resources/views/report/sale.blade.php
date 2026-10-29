@@ -12,7 +12,7 @@
 @section('content')
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-graph-up-arrow"></i></div><div><h5 class="fw-bold mb-1">Laporan Penjualan</h5><div class="text-white-50 small">Analisis transaksi, pembayaran, dan produk terlaris</div></div></div><span class="badge bg-success">{{ $totalTrx }} Transaksi</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-    <form class="d-flex flex-wrap gap-2 align-items-end" method="GET">
+    <form class="app-unified-filter d-flex flex-wrap gap-2 align-items-end" method="GET">
         <input type="hidden" name="tab" id="saleReportActiveTab" value="{{ $activeTab }}">
         <input type="hidden" name="products_sort" value="{{ $productsSort }}"><input type="hidden" name="products_unit" value="{{ $productsUnit }}">
         @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
@@ -21,7 +21,7 @@
             @foreach([25, 50, 100] as $size)<option value="{{ $size }}" @selected($sales->perPage() === $size)>{{ $size }}</option>@endforeach
         </select></div>
         <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-    </form>
+    <a href="{{ route('report.sale') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
     <div class="btn-group btn-group-sm">
         <a href="{{ route('report.sale.pdf', request()->all()) }}" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-pdf me-1"></i>PDF</a>
         <a href="{{ route('report.sale.excel', request()->all()) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
@@ -99,7 +99,7 @@
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3 d-flex flex-wrap align-items-end justify-content-between gap-3">
                 <div><h6 class="fw-bold mb-1">Produk Terlaris</h6><div class="small text-muted">Semua barang terjual pada periode terpilih. Jumlah ditampilkan dalam multi satuan masing-masing barang.</div></div>
-                <form method="GET" action="{{ route('report.sale') }}" class="d-flex flex-wrap align-items-end gap-2">
+                <form method="GET" action="{{ route('report.sale') }}" class="app-unified-filter d-flex flex-wrap align-items-end gap-2">
                     <input type="hidden" name="from" value="{{ $from }}"><input type="hidden" name="to" value="{{ $to }}">
                     <input type="hidden" name="per_page" value="{{ $sales->perPage() }}"><input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="tab" value="products">
                     <input type="hidden" name="margins_page" value="{{ $productMargins->currentPage() }}">
@@ -107,7 +107,7 @@
                     <div><label for="saleProductsSort" class="form-label small mb-1">Urutkan Berdasarkan</label><select id="saleProductsSort" name="products_sort" class="form-select form-select-sm"><option value="revenue" @selected($productsSort === 'revenue')>Omzet Tertinggi</option><option value="quantity" @selected($productsSort === 'quantity')>Jumlah Kemasan</option></select></div>
                     <div id="saleProductsUnitField" @if($productsSort !== 'quantity') hidden @endif><label for="saleProductsUnit" class="form-label small mb-1">Satuan Jual Utama</label><select id="saleProductsUnit" name="products_unit" class="form-select form-select-sm"><option value="">Semua satuan</option>@foreach($rankingUnits as $unit)<option value="{{ $unit['id'] }}" @selected((string)$productsUnit === (string)$unit['id'])>{{ $unit['name'] }}</option>@endforeach</select></div>
                     <button class="btn btn-sm btn-primary">Terapkan</button>
-                </form>
+                <a href="{{ route('report.sale', ['from'=>$from,'to'=>$to,'category_id'=>$categoryId,'tab'=>'products','per_page'=>$sales->perPage()]) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
             </div>
             <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Produk terlaris">
                 <table id="saleTopProductsTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>

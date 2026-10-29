@@ -3,7 +3,54 @@
     const root = document.querySelector('.page-content');
     if (!root) return;
     let nextId = 0;
+    function normalizeFilters(form) {
+        if (form.dataset.filterLayoutReady) return;
+        form.dataset.filterLayoutReady = 'true';
+        const controls = [...form.querySelectorAll('input:not([type="hidden"]), select')];
+        const hidden = [...form.querySelectorAll('input[type="hidden"]')];
+        const fields = controls.map(control => {
+            const periodGroup = control.closest('[data-pl-period]');
+            if (periodGroup) { periodGroup.classList.add('app-unified-field'); return {field:periodGroup, order:2}; }
+            let field = control.parentElement;
+            if (field === form || field.querySelectorAll('input:not([type="hidden"]),select').length !== 1 || field.querySelector('button,a.btn')) {
+                field = document.createElement('div');
+                const label = control.labels?.[0];
+                if (label && form.contains(label)) { label.classList.remove('visually-hidden'); field.append(label); }
+                field.append(control);
+            } else {
+                while (field.parentElement !== form && field.parentElement.querySelectorAll('input:not([type="hidden"]),select').length === 1 && !field.parentElement.querySelector('button,a.btn')) field = field.parentElement;
+            }
+            field.classList.add('app-unified-field');
+            const search = control.type === 'search' || ['search','q'].includes(control.name);
+            field.classList.toggle('app-unified-search', search);
+            return {field, order: search ? 0 : control.tagName === 'SELECT' ? 1 : 2};
+        });
+        const actions = document.createElement('div');
+        actions.className = 'app-unified-actions';
+        for (const button of form.querySelectorAll('button:not([type="button"]),input[type="submit"]')) {
+            button.classList.add('btn','btn-sm','btn-primary');
+            actions.append(button);
+        }
+        let reset = [...form.querySelectorAll('a')].find(link => link.textContent.trim() === 'Reset');
+        if (!reset) {
+            reset = document.createElement('a');
+            const url = new URL(form.action || window.location.href, window.location.href);
+            url.search = '';
+            for (const name of ['tab','view']) {
+                const input = hidden.find(input => input.name === name);
+                if (input?.value) url.searchParams.set(name, input.value);
+            }
+            reset.href = url.href;
+            reset.textContent = 'Reset';
+        }
+        reset.classList.add('btn','btn-sm','btn-outline-secondary');
+        actions.append(reset);
+        const uniqueFields = fields.filter((item,index) => fields.findIndex(other => other.field === item.field) === index);
+        uniqueFields.sort((a,b) => a.order-b.order);
+        form.replaceChildren(...hidden, ...uniqueFields.map(item => item.field), actions);
+    }
     function enhance(scope) {
+        scope.querySelectorAll('form.app-unified-filter').forEach(normalizeFilters);
         const controls = scope.querySelectorAll('input:not([type="hidden"]),select,textarea');
         for (const input of controls) {
             if (!input.labels?.length && !input.getAttribute('aria-label') && !input.getAttribute('aria-labelledby')) {

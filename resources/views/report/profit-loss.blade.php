@@ -4,12 +4,12 @@
 @section('content')
 <div class="report-heading mb-3"><h5 class="fw-bold mb-0"><i class="bi bi-calculator me-2"></i>Laporan Laba Rugi</h5></div>
 <div class="report-toolbar d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
-    <form method="GET" class="d-flex flex-wrap align-items-end gap-2">
+    <form method="GET" class="app-unified-filter d-flex flex-wrap align-items-end gap-2">
         <div><label for="plPeriod" class="form-label small">Periode</label><select id="plPeriod" name="period_type" class="form-select form-select-sm"><option value="monthly" @selected($periodType === 'monthly')>Bulanan</option><option value="quarterly" @selected($periodType === 'quarterly')>Kuartalan</option><option value="yearly" @selected($periodType === 'yearly')>Tahunan</option></select></div>
         <div data-pl-period="monthly" @if($periodType !== 'monthly') hidden @endif><label for="plMonth" class="form-label small">Bulan</label><input id="plMonth" name="month" type="month" class="form-control form-control-sm" value="{{ $month }}" @disabled($periodType !== 'monthly') @required($periodType === 'monthly')></div>
         <div data-pl-period="quarterly" @if($periodType !== 'quarterly') hidden @endif><label for="plQuarter" class="form-label small">Kuartal</label><select id="plQuarter" name="quarter" class="form-select form-select-sm" @disabled($periodType !== 'quarterly')>@foreach([1=>'Kuartal 1 (Jan-Mar)',2=>'Kuartal 2 (Apr-Jun)',3=>'Kuartal 3 (Jul-Sep)',4=>'Kuartal 4 (Okt-Des)'] as $key=>$label)<option value="{{ $key }}" @selected($quarter === $key)>{{ $label }}</option>@endforeach</select></div>
         <div data-pl-period="quarterly yearly" @if($periodType === 'monthly') hidden @endif><label for="plYear" class="form-label small">Tahun</label><input id="plYear" name="year" type="number" min="1900" max="9999" step="1" class="form-control form-control-sm" style="width:110px" value="{{ $year }}" @disabled($periodType === 'monthly') @required($periodType !== 'monthly')></div>
-        <button class="btn btn-sm btn-success"><i class="bi bi-funnel me-1"></i>Terapkan</button><a href="{{ route('report.profit-loss') }}" class="btn btn-sm btn-outline-secondary">Bulan Ini</a>
+        <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button><a href="{{ route('report.profit-loss') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
     </form>
     <div class="btn-group btn-group-sm"><a class="btn btn-outline-danger" href="{{ route('report.profit-loss.pdf',$exportFilters) }}" target="_blank" rel="noopener"><i class="bi bi-file-pdf me-1"></i>PDF</a><a class="btn btn-outline-success" href="{{ route('report.profit-loss.excel',$exportFilters) }}"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a></div>
 </div>

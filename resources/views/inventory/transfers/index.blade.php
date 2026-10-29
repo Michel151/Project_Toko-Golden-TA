@@ -26,7 +26,7 @@
     </a> @endif
 </div>
 <div class="bg-white border-bottom p-3 mb-3">
-    <form class="transfer-filter-grid" method="GET" id="transferFilterForm">
+    <form class="app-unified-filter transfer-filter-grid" method="GET" id="transferFilterForm">
         @if(request('product_id'))
         <input type="hidden" name="product_id" value="{{ request('product_id') }}">
         @endif
@@ -46,7 +46,7 @@
             @foreach($locations as $location)<option value="{{ $location->id }}" @selected((string) request('to_location_id') === (string) $location->id)>{{ $location->name }}</option>@endforeach
         </select></div>
         <div class="transfer-filter-actions"><button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        <a href="{{ route('inventory.transfers.index') }}" id="transferResetFilter" title="Reset filter" aria-label="Reset filter" class="btn btn-sm btn-outline-secondary {{ request()->hasAny(['search','from','to','product_id','from_location_id','to_location_id']) ? '' : 'd-none' }}"><i class="bi bi-arrow-counterclockwise"></i></a></div>
+        <a href="{{ route('inventory.transfers.index') }}" id="transferResetFilter" title="Reset filter" aria-label="Reset filter" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></div>
     </form>
 </div>
 

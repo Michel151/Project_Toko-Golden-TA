@@ -16,7 +16,7 @@
 @section('content')
 <div class="inventory-heading"><h5><i class="bi bi-cart-check me-2"></i>Transaksi Penjualan</h5></div>
 <div class="app-filter-bar sale-list-toolbar mb-3">
-    <form class="sale-list-filters" method="GET">
+    <form class="app-unified-filter sale-list-filters" method="GET">
         @include('components.date-range',['prefix'=>'saleList', 'fromValue'=>$from, 'toValue'=>$to])
         <div class="app-filter-field"><label for="salePayment">Pembayaran</label><select id="salePayment" name="payment_method" class="form-select form-select-sm">
             <option value="">Semua Pembayaran</option>
@@ -31,9 +31,7 @@
             <option value="cancelled_auto" @selected(request('status') === 'cancelled_auto')>Dibatalkan Otomatis</option>
         </select></div>
         <div class="app-filter-actions"><button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        @if(request()->hasAny(['from','to','payment_method','status']))
-        <a href="{{ route('sale.sales.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise"></i></a>
-        @endif
+        <a href="{{ route('sale.sales.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
         </div>
     </form>
     @if(auth()->user()->canAccessRoute('sale.sales.create')) <a href="{{ route('sale.sales.create') }}" class="btn btn-primary btn-sm">

@@ -166,12 +166,12 @@
 </div>
 @else
 <div class="mb-3">
-    <form class="app-filter-bar">
+    <form class="app-unified-filter app-filter-bar">
         <div class="app-filter-field"><label for="stockCardLocation">Lokasi</label><select id="stockCardLocation" name="location_id" class="form-select form-select-sm"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected($locationId===$location->id)>{{ $location->name }}</option>@endforeach</select></div>
         <div class="app-filter-field"><label for="stockCardFrom">Dari Tanggal</label><input id="stockCardFrom" type="date" name="from" value="{{ $from }}" class="form-control form-control-sm"></div>
         <div class="app-filter-field"><label for="stockCardTo">Sampai Tanggal</label><input id="stockCardTo" type="date" name="to" value="{{ $to }}" class="form-control form-control-sm"></div>
         <div class="app-filter-actions"><button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        <a href="{{ route('inventory.stock-card.show',$product) }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise"></i></a></div>
+        <a href="{{ route('inventory.stock-card.show',$product) }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></div>
     </form>
 </div>
 <div class="card table-card">

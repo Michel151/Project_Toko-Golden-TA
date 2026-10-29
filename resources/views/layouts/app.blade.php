@@ -393,6 +393,28 @@
             backdrop-filter: blur(10px);
         }
         .page-content { padding: 1.35rem; }
+        /* Shared reading hierarchy and table actions. */
+        .page-content { line-height:1.5; }
+        .page-content .small,.page-content small { font-size:.8125rem; }
+        .page-content .badge { font-size:.75rem!important;line-height:1.35;padding:.3em .55em; }
+        .page-content .table th { font-size:.78rem;font-weight:600; }
+        .page-content .table td { vertical-align:middle; }
+        .page-content .table td.text-end { font-variant-numeric:tabular-nums; }
+        .page-content .table .fw-semibold,.page-content .table .fw-bold { font-weight:650!important; }
+        .page-content .report-stat .fw-bold,.page-content .procurement-stat .fs-5 { font-variant-numeric:tabular-nums; }
+        .page-content .text-warning-emphasis { color:#805b00!important; }
+        .page-content .badge.bg-warning { color:#332600!important; }
+        .page-content .table .btn-sm { min-height:36px;min-width:36px;margin:2px; }
+        .page-content .table .app-icon-action { width:36px;height:36px;min-width:36px; }
+        .page-content .table .btn-outline-warning { color:#536159;border-color:#b8c5bd; }
+        .page-content .table .btn-outline-warning:hover { color:#253b2f;background:#eef2ec; }
+        .app-table-exports { display:inline-block;vertical-align:middle;text-align:left; }
+        .app-table-exports summary { list-style:none;cursor:pointer; }
+        .app-table-exports summary::-webkit-details-marker { display:none; }
+        .app-table-export-links { display:flex;flex-wrap:wrap;gap:4px;padding:4px; }
+        .page-content .table a:focus-visible,.app-table-exports summary:focus-visible { outline:3px solid #80ad99;outline-offset:2px; }
+        @media(pointer:coarse){.page-content .table .btn-sm,.page-content .table .app-icon-action{min-width:44px;min-height:44px}}
+
         .card,
         .table-card,
         .stat-card,
@@ -492,6 +514,22 @@
         .app-filter-bar .app-filter-search { flex-basis:260px; }
         .app-filter-bar .form-control,.app-filter-bar .form-select { width:100%;min-height:32px; }
         .app-filter-actions { display:flex;gap:8px;align-items:center; }
+        .page-content form.app-unified-filter { display:flex!important;flex-direction:row;flex-wrap:wrap;align-items:flex-end!important;gap:12px!important;width:100%;margin-left:0;margin-right:0; }
+        .page-content .app-unified-filter .app-unified-field { flex:0 1 180px;width:auto;min-width:0;max-width:100%;padding:0;margin:0;grid-column:auto; }
+        .page-content .app-unified-filter .app-unified-search { flex:1 1 260px; }
+        .page-content .app-unified-filter label { display:block;font-size:12px;font-weight:600;color:var(--app-muted);margin-bottom:4px;letter-spacing:0;text-transform:none; }
+        .page-content .app-unified-filter .form-control,.page-content .app-unified-filter .form-select { width:100%!important;max-width:none!important;min-height:36px;font-size:.875rem; }
+        .page-content .app-unified-actions { display:flex;align-items:center;gap:8px;flex:0 0 auto;margin:0;padding:0; }
+        .page-content .app-unified-actions a.d-none { display:inline-flex!important;align-items:center; }
+        .page-content .app-unified-actions .btn { min-height:36px;white-space:nowrap;padding:.375rem .75rem;font-size:.875rem; }
+        .page-content .app-unified-filter>[hidden] { display:none!important; }
+        @media(max-width:767px){
+            .page-content .app-unified-filter .app-unified-field { flex:1 1 calc(50% - 12px); }
+            .page-content .app-unified-filter .app-unified-search,.page-content .app-unified-actions { flex-basis:100%; }
+            .page-content .app-unified-actions a.d-none { display:inline-flex!important;align-items:center; }
+        .page-content .app-unified-actions .btn { min-height:40px; }
+        }
+        @media(max-width:399px){.page-content .app-unified-filter .app-unified-field{flex-basis:100%}}
         .app-field-required:not(:has(.text-danger))::after { content:' *';color:#b02a37; }
         .app-detail-tools { display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;padding:12px 16px;border-top:1px solid var(--app-border); }
         .app-detail-tools .app-filter-field { flex:0 1 320px;max-width:100%; }

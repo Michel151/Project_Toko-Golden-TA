@@ -21,13 +21,13 @@
 
 <div class="card table-card mb-3">
     <div class="card-body">
-        <form method="GET" class="row g-2 align-items-end">
+        <form method="GET" class="app-unified-filter row g-2 align-items-end">
             <div class="col-md-3"><label class="form-label small text-muted">Barang</label><select name="product_id" class="form-select form-select-sm"><option value="">Semua Barang</option>@foreach($products as $product)<option value="{{ $product->id }}" @selected(request('product_id') == $product->id)>{{ $product->name }}</option>@endforeach</select></div>
             <div class="col-md-2"><label class="form-label small text-muted">Lokasi</label><select name="location_id" class="form-select form-select-sm"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected(request('location_id') == $location->id)>{{ $location->name }}</option>@endforeach</select></div>
             <div class="col-md-2"><label class="form-label small text-muted">Arah Mutasi</label><select name="direction" class="form-select form-select-sm"><option value="">Masuk & Keluar</option><option value="in" @selected(request('direction') === 'in')>Barang Masuk</option><option value="out" @selected(request('direction') === 'out')>Barang Keluar</option></select></div>
             <div class="col-md-2"><label class="form-label small text-muted">Dari</label><input type="date" name="from" value="{{ $from }}" class="form-control form-control-sm"></div>
             <div class="col-md-2"><label class="form-label small text-muted">Sampai</label><input type="date" name="to" value="{{ $to }}" class="form-control form-control-sm"></div>
-            <div class="col-md-1 d-flex gap-1"><button class="btn btn-sm btn-primary" title="Terapkan"><i class="bi bi-search"></i></button><a href="{{ route('inventory.opnames.movements') }}" class="btn btn-sm btn-outline-secondary" title="Reset"><i class="bi bi-arrow-counterclockwise"></i></a></div>
+            <div class="col-md-1 d-flex gap-1"><button class="btn btn-sm btn-primary" title="Terapkan"><i class="bi bi-search"></i>Terapkan</button><a href="{{ route('inventory.opnames.movements') }}" class="btn btn-sm btn-outline-secondary" title="Reset"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></div>
         </form>
     </div>
 </div>

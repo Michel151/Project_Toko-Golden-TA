@@ -6,10 +6,10 @@
 @endpush
 @section('content')
 <div class="procurement-heading mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2"><h5 class="fw-bold mb-0">Retur dan Klaim Supplier</h5>@if(auth()->user()->canAccessRoute('purchase.returns.create'))<a href="{{ route('purchase.returns.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle me-1"></i>Buat Retur/Klaim</a>@endif</div>
-<form method="GET" class="app-filter-bar mb-3">
+<form method="GET" class="app-unified-filter app-filter-bar mb-3">
     @include('components.date-range', ['prefix'=>'returnList', 'fromValue'=>$from, 'toValue'=>$to])
     <div class="app-filter-field"><label for="returnStatus">Status</label><select id="returnStatus" name="status" class="form-select form-select-sm"><option value="">Semua Status</option>@foreach(['draft'=>'Menunggu Persetujuan','approved'=>'Disetujui','rejected'=>'Ditolak'] as $key=>$label)<option value="{{ $key }}" @selected(request('status')===$key)>{{ $label }}</option>@endforeach</select></div>
-    <div class="app-filter-actions"><button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>@if(request()->hasAny(['status','from','to']))<a href="{{ route('purchase.returns.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise"></i></a>@endif</div>
+    <div class="app-filter-actions"><button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button><a href="{{ route('purchase.returns.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></div>
 </form>
 <div class="table-responsive bg-white"><table class="table align-middle mb-0 supplier-return-table"><thead><tr><th>Nomor Dokumen / Tanggal</th><th>PO Asal / Supplier</th><th>Status</th><th>PO Retur</th><th></th></tr></thead><tbody>
 @forelse($returns as $return)

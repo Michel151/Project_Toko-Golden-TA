@@ -16,7 +16,7 @@
 @section('content')
 @include('master._header', ['icon'=>'box-seam', 'title'=>'Data Barang', 'description'=>'Kelola identitas, harga, satuan, barcode, dan persediaan barang.'])
 <div class="app-filter-bar product-list-toolbar mb-3">
-    <form class="product-list-filters" method="GET">
+    <form class="app-unified-filter product-list-filters" method="GET">
         <div class="app-filter-field app-filter-search"><label for="productSearch">Cari Barang</label><input id="productSearch" type="search" name="search" class="form-control form-control-sm"
                placeholder="Nama / barcode..." value="{{ request('search') }}"></div>
         <div class="app-filter-field"><label for="productCategory">Kategori</label><select id="productCategory" name="category_id" class="form-select form-select-sm">
@@ -33,11 +33,7 @@
             <option value="inactive" @selected(request('status') === 'inactive')>Nonaktif</option>
         </select></div>
         <div class="app-filter-actions"><button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        @if(request()->hasAny(['search','category_id','status']))
-        <a href="{{ route('master.products.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter">
-            <i class="bi bi-arrow-counterclockwise"></i>
-        </a>
-        @endif
+        <a href="{{ route('master.products.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
         </div>
     </form>
     <div class="d-flex gap-2 flex-wrap">
@@ -78,13 +74,13 @@
                         $purchaseUnit = $product->productUnits->firstWhere('is_default_purchase', true);
                         $saleUnit = $product->productUnits->firstWhere('is_default_sale', true);
                     @endphp
-                    <tr class="{{ $isLow ? 'table-warning' : '' }}">
+                    <tr>
                         <td class="text-muted">{{ $products->firstItem() + $loop->index }}</td>
                         <td>
                             <div class="fw-semibold">{{ $product->name }}</div>
                             <div class="small text-muted font-monospace"><i class="bi bi-upc-scan me-1"></i>{{ $product->barcode ?? '-' }}</div>
                             @if($isLow)
-                            <span class="badge bg-danger" style="font-size:0.65rem">Stok Rendah</span>
+                            <span class="badge bg-{{ $totalStock <= 0 ? 'danger' : 'warning text-dark' }}">{{ $totalStock <= 0 ? 'Stok Habis' : 'Stok Rendah' }}</span>
                             @endif
                         </td>
                         <td class="text-muted small">{{ $product->category->name ?? '-' }}</td>
@@ -99,7 +95,7 @@
                         <td class="text-center">
                             <span class="badge bg-primary bg-opacity-10 text-primary">{{ $product->productUnits->count() }}</span>
                         </td>
-                        <td class="text-end fw-semibold {{ $isLow ? 'text-danger' : '' }}">
+                        <td class="text-end fw-semibold {{ $totalStock <= 0 ? 'text-danger' : ($isLow ? 'text-warning-emphasis' : '') }}">
                             {{ $stokDisplay }}
                         </td>
                         <td class="text-center">

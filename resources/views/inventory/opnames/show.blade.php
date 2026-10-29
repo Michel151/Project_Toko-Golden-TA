@@ -25,14 +25,14 @@
     <div class="opname-stat"><strong class="text-success">{{ number_format($summary['matched'],0,',','.') }}</strong><span>Sesuai</span></div>
     <div class="opname-stat"><strong class="text-danger">{{ number_format($summary['changed'],0,',','.') }}</strong><span>Ada selisih</span></div>
 </div>
-<form method="GET" action="{{ route('inventory.opnames.show',$opname) }}" class="opname-filters" role="search">
+<form method="GET" action="{{ route('inventory.opnames.show',$opname) }}" class="app-unified-filter opname-filters" role="search">
     <div class="app-filter-field"><label for="opnameResultSearch">Nama Barang</label><input id="opnameResultSearch" type="search" name="q" value="{{ $search }}" placeholder="Cari nama barang..." aria-label="Cari nama barang" class="form-control form-control-sm"></div>
     <div class="app-filter-field"><label for="opnameResultFilter">Hasil Opname</label><select id="opnameResultFilter" name="filter" aria-label="Filter hasil opname" class="form-select form-select-sm">
         @foreach(['all'=>'Semua hasil','changed'=>'Ada selisih','short'=>'Stok kurang','over'=>'Stok lebih','matched'=>'Sesuai'] as $key=>$label)<option value="{{ $key }}" @selected($filter===$key)>{{ $label }}</option>@endforeach
     </select></div>
     <div class="app-filter-field"><label for="opnameResultSize">Per Halaman</label><select id="opnameResultSize" name="per_page" aria-label="Jumlah barang per halaman" class="form-select form-select-sm">@foreach([25,50,100] as $size)<option value="{{ $size }}" @selected($perPage===$size)>{{ $size }}</option>@endforeach</select></div>
     <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-    @if($search!=='' || $filter!=='all')<a class="btn btn-sm btn-outline-secondary" href="{{ route('inventory.opnames.show',$opname) }}"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</a>@endif
+    @if($search!=='' || $filter!=='all')<a class="btn btn-sm btn-outline-secondary" href="{{ route('inventory.opnames.show',$opname) }}"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>@endif
 </form>
 <div class="opname-results">
     <div class="opname-scroll" tabindex="0" role="region" aria-label="Hasil perhitungan opname">

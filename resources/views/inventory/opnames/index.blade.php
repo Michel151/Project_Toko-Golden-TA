@@ -18,13 +18,11 @@
     </a> @endif
 </div>
 
-<form method="GET" class="app-filter-bar mb-3">
+<form method="GET" class="app-unified-filter app-filter-bar mb-3">
     @include('components.date-range', ['prefix'=>'opnameList', 'fromValue'=>$from, 'toValue'=>$to])
     <div class="app-filter-actions">
         <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        @if(request()->hasAny(['from','to']))
-        <a href="{{ route('inventory.opnames.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise"></i></a>
-        @endif
+        <a href="{{ route('inventory.opnames.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
     </div>
 </form>
 <div class="card table-card">
@@ -47,7 +45,7 @@
                     <td>{{ $opname->location->name }}</td>
                     <td>{{ $opname->opname_date->format('d/m/Y') }}</td>
                     <td class="text-center">
-                        <span class="badge bg-{{ $opname->status === 'completed' ? 'success' : 'warning' }}">
+                        <span class="badge bg-{{ $opname->status === 'completed' ? 'success' : 'secondary' }}">
                             {{ $opname->status === 'completed' ? 'Selesai' : 'Draf' }}
                         </span>
                     </td>

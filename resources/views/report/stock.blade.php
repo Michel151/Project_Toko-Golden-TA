@@ -5,7 +5,7 @@
 @section('content')
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-box-seam"></i></div><div><h5 class="fw-bold mb-1">Laporan Stok</h5><div class="text-white-50 small">Pantau ketersediaan dan nilai persediaan seluruh lokasi</div></div></div><span class="badge bg-warning text-dark">{{ $products->total() }} Barang</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-    <form class="d-flex flex-wrap gap-2 align-items-end" method="GET">
+    <form class="app-unified-filter d-flex flex-wrap gap-2 align-items-end" method="GET">
         <div><label class="d-block">Kategori</label><select name="category_id" class="form-select form-select-sm" style="width:170px">
             <option value="">Semua Kategori</option>
             @foreach($categories as $cat)
@@ -28,7 +28,7 @@
             @foreach([25, 50, 100] as $size)<option value="{{ $size }}" @selected($products->perPage() === $size)>{{ $size }}</option>@endforeach
         </select></div>
         <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        @if(request()->hasAny(['category_id','location_id','expiry_status']))<a href="{{ route('report.stock') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i></a>@endif
+        <a href="{{ route('report.stock') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
     </form>
     <div class="btn-group btn-group-sm">
         <a href="{{ route('report.stock.pdf', request()->all()) }}" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-pdf me-1"></i>PDF</a>
@@ -103,16 +103,16 @@
                         @endphp
                         <td class="text-end small">{{ $fmtRpt($qty, $product) }}</td>
                         @endforeach
-                        <td class="text-end fw-bold {{ $isLow ? 'text-danger' : '' }}">
+                        <td class="text-end fw-bold {{ $sellable <= 0 ? 'text-danger' : ($isLow ? 'text-warning-emphasis' : '') }}">
                             {{ $fmtRpt($total, $product) }}
                         </td>
-                        <td class="text-end fw-semibold {{ $isLow ? 'text-danger' : 'text-success' }}">{{ $fmtRpt($sellable, $product) }}</td>
+                        <td class="text-end fw-semibold {{ $sellable <= 0 ? 'text-danger' : ($isLow ? 'text-warning-emphasis' : 'text-success') }}">{{ $fmtRpt($sellable, $product) }}</td>
                         <td class="text-end small {{ $expired > 0 ? 'text-danger fw-semibold' : 'text-muted' }}">{{ $fmtRpt($expired, $product) }}</td>
                         <td class="text-end text-muted small">{{ $fmtRpt($minTot, $product) }}</td>
                         <td class="text-end small">Rp {{ number_format($value, 0, ',', '.') }}</td>
                         <td class="text-center">
-                            <span class="badge bg-{{ $isLow ? 'danger' : 'success' }}">
-                                {{ $isLow ? 'Rendah' : 'Aman' }}
+                            <span class="badge bg-{{ $sellable <= 0 ? 'danger' : ($isLow ? 'warning text-dark' : 'success') }}">
+                                {{ $sellable <= 0 ? 'Habis' : ($isLow ? 'Rendah' : 'Aman') }}
                             </span>
                         </td>
                     </tr>
