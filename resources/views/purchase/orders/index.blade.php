@@ -34,8 +34,8 @@
     <td class="small text-muted">{{ $order->createdBy->name??'-' }}</td>
     <td class="text-center text-nowrap">
         <a href="{{ route('purchase.orders.show',$order) }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Detail"><i class="bi bi-eye"></i></a>
-            <a href="{{ route('purchase.orders.pdf',$order) }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" title="Unduh PDF"><i class="bi bi-file-pdf" aria-hidden="true"></i> PDF</a>
-            <a href="{{ route('purchase.orders.excel',$order) }}" class="btn btn-sm btn-outline-secondary" title="Unduh Excel"><i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel</a>
+            <a href="{{ route('purchase.orders.pdf',$order) }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" title="Unduh PDF"><i class="bi bi-file-pdf text-danger" aria-hidden="true"></i> PDF</a>
+            <a href="{{ route('purchase.orders.excel',$order) }}" class="btn btn-sm btn-outline-secondary" title="Unduh Excel"><i class="bi bi-file-earmark-excel text-success" aria-hidden="true"></i> Excel</a>
         @if($order->canModify() && auth()->user()->canAccessRoute('purchase.orders.edit'))
         <a href="{{ route('purchase.orders.edit',$order) }}" class="btn btn-sm btn-outline-warning py-0 px-2" title="Ubah Draf"><i class="bi bi-pencil"></i></a>
         @endif
