@@ -9,35 +9,47 @@ class NotificationService
     public const FILTERS = ['expired' => 'Sudah kedaluwarsa', 'out_of_stock' => 'Stok habis', 'expiry_today' => 'Kedaluwarsa hari ini', 'expiring' => 'Mendekati kedaluwarsa', 'low_stock' => 'Stok rendah'];
 
     // Share a snapshot within this request only, never across requests.
-    public function forRequest(): array
+    public function forRequest(?\Illuminate\Database\Eloquent\Collection $products = null): array
     {
         if (! request()->attributes->has('inventory.notifications')) {
-            request()->attributes->set('inventory.notifications', $this->checkAllProducts());
+            request()->attributes->set('inventory.notifications', $this->checkAllProducts($products));
         }
 
         return request()->attributes->get('inventory.notifications');
     }
 
-    public function checkAllProducts(): array
+    public function checkAllProducts(?\Illuminate\Database\Eloquent\Collection $products = null): array
     {
         $notifications = [];
-        Product::active()->with([
-            'productLocations.location', 'stocks.location', 'stockBatches.location', 'buyUnit', 'retailUnit', 'productUnits.unit',
+        $relations = [
+            'productLocations.location', 'stocks.location', 'stockBatches' => fn ($q) => $q->where('quantity_remaining', '>', 0), 'stockBatches.location', 'buyUnit', 'retailUnit', 'productUnits.unit',
             'purchaseOrderItems' => fn ($q) => $q->whereHas('purchaseOrder', fn ($orders) => $orders->whereIn('status', ['pending', 'partial'])),
             'purchaseOrderItems.productUnit', 'purchaseOrderItems.purchaseOrder',
-        ])->each(function ($product) use (&$notifications) {
+        ];
+        $consume = function ($product) use (&$notifications) {
             foreach ($this->checkProduct($product) as $notification) {
                 $notifications[] = $notification;
             }
-        });
+        };
+        if ($products !== null) {
+            $products->loadMissing($relations)->each($consume);
+        } else {
+            Product::active()->with($relations)->each($consume);
+        }
 
         return collect($notifications)->sortBy(fn ($item) => [$item['rank'], $item['expired_date'] ?? '9999', mb_strtolower($item['product_name']), $item['product_id']])->values()->all();
     }
 
     public function checkProduct(Product $product): array
     {
-        $stock = $this->stockConditions($product);
-        $conditions = collect([...$stock['conditions'], ...$this->expiryConditions($product)])
+        $today = today();
+        $formatted = [];
+        $display = function (float $quantity) use ($product, &$formatted): string {
+            $key = (string) $quantity;
+            return $formatted[$key] ??= $product->displayStock($quantity);
+        };
+        $stock = $this->stockConditions($product, $today->toDateString(), $display);
+        $conditions = collect([...$stock['conditions'], ...$this->expiryConditions($product, $today, $display)])
             ->sortBy(fn ($item) => [$item['rank'], $item['expired_date'] ?? '9999', $item['location_name']])->values();
         if ($conditions->isEmpty()) {
             return [];
@@ -58,19 +70,19 @@ class NotificationService
                     continue;
                 }
                 $incoming += $quantity;
-                $orders[] = ['id' => $item->purchase_order_id, 'number' => $item->purchaseOrder->po_number, 'quantity' => $product->displayStock($quantity)];
+                $orders[] = ['id' => $item->purchase_order_id, 'number' => $item->purchaseOrder->po_number, 'quantity' => $display($quantity)];
             }
         }
         $shortfall = max(0, round($stock['shortfall'] - $incoming, 4));
         $advice = '';
         if ($stock['conditions'] !== []) {
             if ($incoming > 0) {
-                $advice = 'Sudah dipesan: '.$product->displayStock($incoming).', menunggu penerimaan. ';
+                $advice = 'Sudah dipesan: '.$display($incoming).', menunggu penerimaan. ';
                 $advice .= $shortfall > 0
-                    ? 'Masih kurang '.$product->displayStock($shortfall).' untuk mencapai batas minimum setelah rencana transfer dan PO diterima.'
+                    ? 'Masih kurang '.$display($shortfall).' untuk mencapai batas minimum setelah rencana transfer dan PO diterima.'
                     : 'Periksa penerimaan dan distribusi barang sebelum membuat pesanan tambahan.';
             } elseif ($shortfall > 0) {
-                $advice = 'Pertimbangkan order ke supplier. Kekurangan untuk mencapai batas minimum: '.$product->displayStock($shortfall).'.';
+                $advice = 'Pertimbangkan order ke supplier. Kekurangan untuk mencapai batas minimum: '.$display($shortfall).'.';
             } elseif ($stock['transfers'] === []) {
                 $advice = 'Stok berada pada batas minimum. Pantau kebutuhan sebelum menambah pesanan.';
             }
@@ -87,15 +99,19 @@ class NotificationService
         ])];
     }
 
-    private function stockConditions(Product $product): array
+    private function stockConditions(Product $product, string $today, callable $display): array
     {
         $ids = $product->productLocations->pluck('location_id')->merge($product->stocks->pluck('location_id'))
             ->merge($product->stockBatches->pluck('location_id'))->unique()->sort()->values();
+        $settings = $product->productLocations->keyBy('location_id');
+        $stocks = $product->stocks->keyBy('location_id');
+        $batches = $product->stockBatches->groupBy('location_id');
+        $available = $this->sellableByLocation($product, $today);
         $locations = [];
         foreach ($ids as $id) {
-            $setting = $product->productLocations->firstWhere('location_id', $id);
-            $location = $setting?->location ?? $product->stocks->firstWhere('location_id', $id)?->location ?? $product->stockBatches->firstWhere('location_id', $id)?->location;
-            $locations[$id] = ['name' => $location?->name ?? 'Tanpa lokasi', 'quantity' => $this->availableQuantityAt($product, (int) $id),
+            $setting = $settings->get($id);
+            $location = $setting?->location ?? $stocks->get($id)?->location ?? $batches->get($id)?->first()?->location;
+            $locations[$id] = ['name' => $location?->name ?? 'Tanpa lokasi', 'quantity' => ($available[$id] ?? 0.0),
                 'minimum' => (float) ($setting?->min_stock ?? 0), 'monitored' => $setting !== null];
         }
         $total = array_sum(array_column($locations, 'quantity'));
@@ -114,7 +130,7 @@ class NotificationService
             }
             $empty = $location['quantity'] <= 0;
             $message = 'Stok '.$product->name.' di '.$location['name'].($empty ? ' habis.' : ' menipis.')
-                .' Tersedia '.$product->displayStock($location['quantity']).', minimum '.$product->displayStock($location['minimum']).'.';
+                .' Tersedia '.$display($location['quantity']).', minimum '.$display($location['minimum']).'.';
             $conditions[] = $this->condition($empty ? 'out_of_stock' : 'low_stock', $message, [$id], [$location['name']]);
             $needed = max(0, $location['minimum'] - $location['quantity']);
             foreach ($surplus as $sourceId => &$available) {
@@ -123,7 +139,7 @@ class NotificationService
                 }
                 $quantity = min($available, $needed);
                 $transfers[] = ['source_id' => $sourceId, 'destination_id' => $id, 'quantity' => $quantity,
-                    'message' => 'Pertimbangkan transfer '.$product->displayStock($quantity).' dari '.$locations[$sourceId]['name'].' ke '.$location['name'].'.'];
+                    'message' => 'Pertimbangkan transfer '.$display($quantity).' dari '.$locations[$sourceId]['name'].' ke '.$location['name'].'.'];
                 $available -= $quantity;
                 $needed -= $quantity;
             }
@@ -132,31 +148,42 @@ class NotificationService
         }
         if ($total <= 0 || ($minimum > 0 && $total <= $minimum)) {
             $message = 'Total stok layak jual '.$product->name.($total <= 0 ? ' habis.' : ' rendah.')
-                .' Tersedia '.$product->displayStock($total).', minimum '.$product->displayStock($minimum).'.';
+                .' Tersedia '.$display($total).', minimum '.$display($minimum).'.';
             $conditions[] = $this->condition($total <= 0 ? 'out_of_stock' : 'low_stock', $message, $ids->all(), array_column($locations, 'name'));
         }
 
         return ['conditions' => $conditions, 'transfers' => $transfers, 'shortfall' => max($locationShortfall, $minimum - $total, 0)];
     }
 
-    private function expiryConditions(Product $product): array
+    private function expiryConditions(Product $product, \Carbon\CarbonInterface $today, callable $display): array
     {
         if (! $product->is_expirable) {
             return [];
         }
-
-        return $product->stockBatches->filter(fn ($batch) => (float) $batch->quantity_remaining > 0
-            && $batch->expired_date && $batch->expired_date->lte(today()->addDays(30)))
-            ->map(function ($batch) use ($product) {
-                $days = (int) today()->diffInDays($batch->expired_date, false);
+        $cutoff = $today->copy()->addDays(30)->toDateString();
+        $conditions = [];
+        $dates = [];
+        foreach ($product->stockBatches as $batch) {
+            $quantity = (float) $batch->quantity_remaining;
+            $rawDate = ($batch->getAttributes()['expired_date'] ?? null);
+            if ($quantity <= 0 || ! $rawDate || substr($rawDate, 0, 10) > $cutoff) {
+                continue;
+            }
+            $dateKey = substr($rawDate, 0, 10);
+            if (! isset($dates[$dateKey])) {
+                $expiry = \Carbon\Carbon::parse($dateKey);
+                $days = (int) $today->diffInDays($expiry, false);
                 $kind = $days < 0 ? 'expired' : ($days === 0 ? 'expiry_today' : 'expiring');
-                $date = $batch->expired_date->format('d/m/Y');
+                $date = $expiry->format('d/m/Y');
                 $text = $days < 0 ? "sudah kedaluwarsa sejak {$date}" : ($days === 0 ? 'kedaluwarsa hari ini' : "akan kedaluwarsa pada {$date} (sisa {$days} hari)");
-                $location = $batch->location?->name ?? 'Tanpa lokasi';
-
-                return array_merge($this->condition($kind, "Stok {$product->name} di {$location} {$text}. Sisa ".$product->displayStock((float) $batch->quantity_remaining).'.',
-                    [(int) $batch->location_id], [$location]), ['expired_date' => $batch->expired_date->toDateString()]);
-            })->values()->all();
+                $dates[$dateKey] = [$kind, $text];
+            }
+            [$kind, $text] = $dates[$dateKey];
+            $location = $batch->location?->name ?? 'Tanpa lokasi';
+            $conditions[] = array_merge($this->condition($kind, "Stok {$product->name} di {$location} {$text}. Sisa ".$display($quantity).'.',
+                [(int) $batch->location_id], [$location]), ['expired_date' => $dateKey]);
+        }
+        return $conditions;
     }
 
     private function condition(string $kind, string $message, array $ids, array $names): array
@@ -177,13 +204,21 @@ class NotificationService
         return count($this->forRequest());
     }
 
-    private function availableQuantityAt(Product $product, int $locationId): float
+    public function sellableByLocation(Product $product, ?string $today = null): array
     {
         if (! $product->is_expirable) {
-            return (float) ($product->stocks->firstWhere('location_id', $locationId)?->quantity ?? 0);
+            return $product->stocks->pluck('quantity', 'location_id')->map(fn ($quantity) => (float) $quantity)->all();
         }
-
-        return (float) $product->stockBatches->filter(fn ($batch) => (int) $batch->location_id === $locationId
-            && (float) $batch->quantity_remaining > 0 && (! $batch->expired_date || $batch->expired_date->gte(today())))->sum('quantity_remaining');
+        $today ??= today()->toDateString();
+        $quantities = [];
+        foreach ($product->stockBatches as $batch) {
+            $quantity = (float) $batch->quantity_remaining;
+            $date = ($batch->getAttributes()['expired_date'] ?? null);
+            if ($quantity > 0 && (! $date || substr($date, 0, 10) >= $today)) {
+                $id = $batch->location_id;
+                $quantities[$id] = ($quantities[$id] ?? 0) + $quantity;
+            }
+        }
+        return $quantities;
     }
 }

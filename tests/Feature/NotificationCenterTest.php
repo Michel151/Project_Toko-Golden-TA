@@ -216,4 +216,31 @@ class NotificationCenterTest extends TestCase
         $this->get(route('purchase.orders.create', ['product_id'=>$product->id]))->assertOk()->assertSee('Produk belum terhubung ke supplier');
         $this->get(route('purchase.orders.create', ['product_id'=>'invalid']))->assertSessionHasErrors('product_id');
     }
+    public function test_shared_products_skip_empty_batches_and_reuse_request_snapshot(): void
+    {
+        $product = $this->product('Shared stock', ['is_expirable' => true]);
+        $location = $this->stock($product, 'Gudang', 10, 0);
+        $this->batch($product, $location, 0, 10);
+        $this->batch($product, $location, -1, 0);
+        $products = Product::active()->with(['stocks', 'stockBatches' => fn ($q) => $q->where('quantity_remaining', '>', 0)])->get();
+        $service = app(NotificationService::class);
+        request()->attributes->remove('inventory.notifications');
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $shared = $service->forRequest($products);
+        $queries = collect(DB::getQueryLog())->pluck('query')->implode(' ');
+        $this->assertStringNotContainsString('from "products"', $queries);
+        $this->assertStringNotContainsString('from "stock_batches"', $queries);
+        $this->assertCount(1, $products->first()->stockBatches);
+        DB::flushQueryLog();
+        $this->assertSame($shared, $service->forRequest());
+        $this->assertSame([], DB::getQueryLog());
+        DB::disableQueryLog();
+        $this->assertSame($shared, $service->checkAllProducts());
+        $this->assertSame('expiry_today', $shared[0]['kind']);
+        $this->travelTo(now()->addDay());
+        request()->attributes->remove('inventory.notifications');
+        $this->assertSame('expired', $service->forRequest()[0]['kind']);
+    }
+
 }

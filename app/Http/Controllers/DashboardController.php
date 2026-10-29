@@ -219,23 +219,23 @@ class DashboardController extends Controller
     {
         $today = now('Asia/Jakarta')->startOfDay();
         $todayDate = $today->toDateString();
-        $products = Product::active()->with(['stocks', 'stockBatches.location', 'buyUnit', 'retailUnit', 'productUnits.unit'])->orderBy('name')->get();
+        $products = Product::active()->with(['stocks', 'stockBatches' => fn ($q) => $q->where('quantity_remaining', '>', 0), 'stockBatches.location', 'buyUnit', 'retailUnit', 'productUnits.unit'])->orderBy('name')->get();
         $availability = $products->mapWithKeys(function ($product) use ($todayDate) {
             // Match the sale screen: expired batches cannot contribute to sellable stock.
-            $byLocation = $product->is_expirable
-                ? $product->stockBatches->filter(fn ($batch) => (float) $batch->quantity_remaining > 0 && (! $batch->expired_date || $batch->expired_date->toDateString() >= $todayDate))
-                    ->groupBy('location_id')->map(fn ($batches) => (float) $batches->sum('quantity_remaining'))
-                : $product->stocks->pluck('quantity', 'location_id')->map(fn ($quantity) => (float) $quantity);
+            $byLocation = collect($this->notificationService->sellableByLocation($product, $todayDate));
             return [$product->id => ['total' => (float) $byLocation->sum(), 'locations' => $byLocation]];
         });
         $outOfStockProducts = $products->filter(fn ($product) => $availability[$product->id]['total'] <= 0);
         $lowStockProducts = $products->filter(fn ($product) => $availability[$product->id]['total'] > 0 && $availability[$product->id]['total'] <= (float) $product->min_stock_total);
         $safeStockCount = $products->count() - $outOfStockProducts->count() - $lowStockProducts->count();
 
-        $priorities = collect($this->notificationService->forRequest());
+        $priorities = collect($this->notificationService->forRequest($products));
         $conditions = $priorities->flatMap(fn ($item) => $item['conditions']);
         $expiredBatchCount = $conditions->where('kind', 'expired')->count();
         $expiringBatchCount = $conditions->whereIn('kind', ['expiry_today', 'expiring'])->count();
+
+        $expiredProductCount = $priorities->filter(fn ($item) => collect($item['conditions'])->contains('kind', 'expired'))->count();
+        $expiringProductCount = $priorities->filter(fn ($item) => collect($item['conditions'])->whereIn('kind', ['expiry_today', 'expiring'])->isNotEmpty())->count();
 
         $draftQuery = StockOpname::where('status', 'draft');
         $draftOpnames = (clone $draftQuery)->count();
@@ -257,6 +257,7 @@ class DashboardController extends Controller
         return view('dashboard.warehouse', [
             'warehouseProductCount'=>$products->count(), 'warehouseLowStockCount'=>$lowStockProducts->count(),
             'warehouseOutOfStockCount'=>$outOfStockProducts->count(), 'warehouseSafeStockCount'=>$safeStockCount,
+            'expiredProductCount'=>$expiredProductCount, 'expiringProductCount'=>$expiringProductCount,
             'expiredBatchCount'=>$expiredBatchCount, 'expiringBatchCount'=>$expiringBatchCount,
             'warehousePriorities'=>$priorities->take(10), 'warehousePriorityCount'=>$priorities->count(),
             'draftOpnames'=>$draftOpnames, 'opnameQueue'=>$opnameQueue, 'pendingReceipts'=>$pendingReceipts, 'pendingReceiptCount'=>$pendingReceiptCount,

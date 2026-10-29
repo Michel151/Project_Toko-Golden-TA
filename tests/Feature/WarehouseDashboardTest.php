@@ -66,7 +66,7 @@ class WarehouseDashboardTest extends TestCase
             ->assertViewHas('warehousePriorities',fn($rows)=>$rows->first()['badge_label']==='Kedaluwarsa' && $rows->first()['product_name']==='Campuran' && $rows->get(2)['badge_label']==='Stok Habis')
             ->assertViewHas('stockedLocations',fn($rows)=>$rows->first()['sellable']===3 && $rows->first()['physical']===4)
             ->assertDontSee('Produk Nonaktif')->assertDontSee('chart.umd')->assertSee('Stok Layak Jual Habis')
-            ->assertSee('Sudah Kedaluwarsa')->assertSee('Rincian dalam 30 hari')
+            ->assertSee('Sudah Kedaluwarsa')->assertSee('Dari 1 produk, kedaluwarsa hari ini hingga 30 hari ke depan')->assertSee('2 batch')->assertSee('Berdasarkan total stok seluruh lokasi')->assertViewHas('expiredProductCount',2)->assertViewHas('expiringProductCount',1)
             ->assertDontSee('Batch Kedaluwarsa')->assertDontSee('Batch dalam 30 hari');
         $this->assertDatabaseHas('stocks',['product_id'=>$expired->id,'quantity'=>10]);
     }
