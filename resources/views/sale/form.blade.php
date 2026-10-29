@@ -103,6 +103,10 @@
                 <div class="d-flex flex-wrap align-items-center gap-2 mt-2"><label for="defaultSourceLocation" class="small text-muted">Lokasi barang baru</label><select id="defaultSourceLocation" class="form-select form-select-sm" style="width:155px"></select><div id="scannerStatus" class="small scanner-status" role="status" aria-live="polite"></div></div>
             </div>
             <div class="card pos-items-card">
+                <div class="d-flex flex-wrap align-items-center gap-2 px-3 py-2 border-bottom">
+                    <button type="button" id="refreshSaleStock" class="btn btn-sm btn-outline-success"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Perbarui Stok</button>
+                    <span id="saleStockStatus" class="small text-muted" role="status" aria-live="polite">Stok diperbarui otomatis setiap 30 detik.</span>
+                </div>
                 <div class="card-header bg-white pos-cart-toolbar">
                     <div><h6 class="fw-bold mb-0">Keranjang <span class="text-muted small" id="cartCount">0 jenis</span></h6><span class="small text-muted" id="cartFilterCount"></span></div>
                     <input type="search" id="cartSearch" class="form-control form-control-sm" placeholder="Cari di keranjang" aria-label="Cari barang di keranjang">
@@ -352,7 +356,7 @@ function validateCartStock() {
                     option.dataset.qty = stock;
                     option.textContent = `${location.name} (Stok: ${formatStok(stock, product)})`;
                 });
-                const selectedLocation = row.querySelector('.source-location-select')?.value;
+                const selectedLocation = row.querySelector('.source-location-select')?.value ?? sources[0]?.locationId;
                 const stockLabel = row.querySelector('.available-qty');
                 if (stockLabel && selectedLocation !== 'manual') {
                     stockLabel.textContent = formatStok(available(product, selectedLocation), product);
@@ -582,7 +586,7 @@ function renderSource(div, idx, product, saleType) {
             <div class="source-locked d-flex align-items-center gap-3">
                 <i class="bi bi-lock-fill text-success"></i>
                 <span class="fw-semibold">${tokoLocation.name}</span>
-                <span class="badge bg-success bg-opacity-10 text-success">Stok: ${displayQty}</span>
+                <span class="badge bg-success bg-opacity-10 text-success">Stok: <strong class="available-qty">${displayQty}</strong></span>
                 <span class="text-muted small">Jumlah otomatis dari qty yang diisi</span>
             </div>
             <input type="hidden" class="source-auto-qty" name="items[${idx}][sources][0][quantity]" value="0">
@@ -1062,7 +1066,7 @@ function renderCatalogProducts() {
                     <div class="small text-muted mb-2">${product.barcode ? `Barcode: ${escapeHtml(product.barcode)}` : 'Tanpa barcode'}</div>
                     <div class="d-flex justify-content-between align-items-end">
                         <div class="small"><span class="text-muted">Harga grosir</span><br><strong>Rp ${formatNumber(product.sell_price_wholesale)}</strong></div>
-                        <span class="small text-success">Stok: ${escapeHtml(formatStok(stock, product))}</span>
+                        <span class="small text-success catalog-stock" data-stock-product-id="${escapeHtml(product.id)}">Stok: ${escapeHtml(formatStok(stock, product))}</span>
                     </div>
                 </button>
             </div>`;
@@ -1251,5 +1255,25 @@ window.saleDraftConfig = {
 };
 </script>
 @include('sale.draft-scripts')
+<script>{!! file_get_contents(public_path('js/sale-stock-refresh.js')) !!}</script>
+<script>
+initializeSaleStockRefresh({
+    url: @json(route('sale.stock.data')),
+    applySnapshot(snapshot) {
+        const byId = new Map(snapshot.map(product => [String(product.id), product.stocks]));
+        products.forEach(product => { product.stocks = byId.get(String(product.id)) || []; });
+        updateSaveState();
+        const scannerStatus = document.getElementById('scannerStatus');
+        if (scannerStatus.textContent.includes('Stok perlu diperiksa')) {
+            scannerStatus.textContent = 'Stok terbaru sudah diperiksa. Lihat rincian di keranjang.';
+            scannerStatus.className = 'small scanner-status text-muted';
+        }
+        document.querySelectorAll('[data-stock-product-id]').forEach(label => {
+            const product = products.find(item => item.id == label.dataset.stockProductId);
+            if (product) label.textContent = `Stok: ${formatStok(product.stocks.reduce((sum, stock) => sum + Number(stock.quantity), 0), product)}`;
+        });
+    },
+});
+</script>
 @endpush
 @endsection

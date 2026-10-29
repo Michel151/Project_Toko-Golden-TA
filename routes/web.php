@@ -141,6 +141,7 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
     Route::get('sale/drafts', [\App\Http\Controllers\Sale\SaleDraftController::class, 'index'])->middleware('permission:sale.sales')->name('sale.drafts.index');
     Route::put('sale/drafts/{id}', [\App\Http\Controllers\Sale\SaleDraftController::class, 'update'])->middleware('permission:sale.sales')->name('sale.drafts.update');
     Route::prefix('sale')->name('sale.')->middleware('permission:sale.sales')->group(function () {
+        Route::get('stock-snapshot', [SaleController::class, 'stockSnapshot'])->name('stock.data');
         Route::post('sales/{sale}/complete', [SaleController::class, 'complete'])->name('sales.complete');
         Route::post('sales/{sale}/cancel', [SaleController::class, 'cancel'])->name('sales.cancel');
         Route::resource('sales', SaleController::class);

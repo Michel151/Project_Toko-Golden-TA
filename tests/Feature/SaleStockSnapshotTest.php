@@ -54,6 +54,71 @@ class SaleStockSnapshotTest extends TestCase
 
     private function stock(): float { return (float) Stock::firstOrFail()->quantity; }
 
+    public function test_stock_refresh_reads_new_transfers_without_changing_sales_or_prices(): void
+    {
+        $warehouse = Location::create(['name'=>'Gudang']);
+        Stock::create(['product_id'=>$this->product->id,'location_id'=>$warehouse->id,'quantity'=>20]);
+        $this->getJson(route('sale.stock.data'))->assertOk()->assertJsonPath('products.0.stocks.0.quantity',100);
+        app(\App\Services\StockService::class)->transferStock($this->product,$warehouse,$this->location,10);
+        $before = \App\Models\StockMovement::count();
+        foreach (range(1,2) as $attempt) {
+            $response = $this->getJson(route('sale.stock.data'))->assertOk();
+            $stocks = collect($response->json('products.0.stocks'))->keyBy('location_id');
+            $this->assertEquals(110,$stocks[$this->location->id]['quantity']);
+            $this->assertEquals(10,$stocks[$warehouse->id]['quantity']);
+            $this->assertStringContainsString('no-store',$response->headers->get('Cache-Control'));
+            $this->assertArrayNotHasKey('buy_price',$response->json('products.0'));
+        }
+        $this->assertEquals($before,\App\Models\StockMovement::count());
+        $this->assertDatabaseCount('sales',0);
+        $this->assertEquals(12000,$this->product->fresh()->buy_price);
+    }
+
+    public function test_stock_refresh_uses_sellable_batches_and_includes_empty_products_and_new_locations(): void
+    {
+        $this->product->update(['is_expirable'=>true]);
+        foreach ([['2026-10-16',20],['2026-10-17',3],['2026-11-01',5],[null,2]] as [$expiry,$quantity]) {
+            StockBatch::create(['product_id'=>$this->product->id,'location_id'=>$this->location->id,
+                'received_date'=>'2026-10-01','expired_date'=>$expiry,'quantity_initial'=>$quantity,'quantity_remaining'=>$quantity]);
+        }
+        $response = $this->getJson(route('sale.stock.data'))->assertOk()->assertJsonPath('products.0.stocks.0.quantity',10);
+        $initial = $this->get(route('sale.sales.create'))->assertOk();
+        $this->assertEquals(10,collect($initial->viewData('productsJson'))->first()['stocks'][0]['quantity']);
+        $empty=$this->product->replicate(); $empty->name='Kosong'; $empty->save();
+        $response=$this->getJson(route('sale.stock.data'))->assertOk();
+        $this->assertSame([],collect($response->json('products'))->firstWhere('id',$empty->id)['stocks']);
+        if (getenv('CAPTURE_STOCK_REFRESH_UI')==='1') {
+            $directory=storage_path('framework/testing/stock-refresh');
+            if (!is_dir($directory)) mkdir($directory,0777,true);
+            file_put_contents($directory.'/create.html',$initial->getContent());
+        }
+    }
+
+    public function test_refresh_does_not_add_back_held_stock_or_change_pending_sale(): void
+    {
+        $sale=$this->hold();
+        $before=$sale->toArray();
+        $this->getJson(route('sale.stock.data'))->assertOk()->assertJsonPath('products.0.stocks.0.quantity',88);
+        $this->get(route('sale.sales.edit',$sale))->assertOk()->assertSee('refreshSaleStock');
+        $this->assertSame($before,$sale->fresh()->toArray());
+        $this->assertEquals(88,$this->stock());
+    }
+
+    public function test_refresh_requires_create_or_edit_sales_permission(): void
+    {
+        $cashier=User::create(['name'=>'Kasir','email'=>'refresh@example.com','password'=>'password','role'=>'kasir']);
+        $this->actingAs($cashier);
+        \Illuminate\Support\Facades\DB::table('role_permissions')->where('role','kasir')->delete();
+        $this->getJson(route('sale.stock.data'))->assertForbidden();
+        \Illuminate\Support\Facades\DB::table('role_permissions')->insert(['role'=>'kasir','permission'=>'sale.sales.view']);
+        $this->getJson(route('sale.stock.data'))->assertForbidden();
+        foreach (['create','edit'] as $action) {
+            \Illuminate\Support\Facades\DB::table('role_permissions')->where('permission','!=','sale.sales.view')->where('role','kasir')->delete();
+            \Illuminate\Support\Facades\DB::table('role_permissions')->insert(['role'=>'kasir','permission'=>'sale.sales.'.$action]);
+            $this->getJson(route('sale.stock.data'))->assertOk();
+        }
+    }
+
     private function forceChangedConversion(): void
     {
         $this->pack->update(['conversion_to_base'=>24,'contains_quantity'=>24]);

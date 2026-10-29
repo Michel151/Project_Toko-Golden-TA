@@ -358,6 +358,28 @@ class SaleController extends Controller
         return $pdf->stream($filename);
     }
 
+    public function stockSnapshot()
+    {
+        // Only stock quantities are refreshed; cart prices and unit conversions stay intact.
+        $products = Product::select('id', 'is_expirable')->with([
+            'stocks' => fn ($query) => $query->select('product_id', 'location_id', 'quantity'),
+            'stockBatches' => fn ($query) => $query->sellable()
+                ->select('product_id', 'location_id', 'quantity_remaining'),
+        ])->get();
+
+        return response()->json([
+            'products' => $products->map(fn ($product) => [
+                'id' => $product->id,
+                'stocks' => $product->stocks->map(fn ($stock) => [
+                    'location_id' => $stock->location_id,
+                    'quantity' => $product->is_expirable
+                        ? (float) $product->stockBatches->where('location_id', $stock->location_id)->sum('quantity_remaining')
+                        : (float) $stock->quantity,
+                ])->values(),
+            ])->values(),
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
     public function getProductData(Product $product)
     {
         $product->load(['buyUnit', 'retailUnit', 'stocks.location', 'stockBatches', 'productUnits.unit']);

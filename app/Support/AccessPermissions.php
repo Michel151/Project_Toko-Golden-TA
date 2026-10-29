@@ -59,7 +59,7 @@ class AccessPermissions
         if (str_starts_with($name, 'inventory.stock-card.')) {
             return in_array($name, ['inventory.stock-card.show', 'inventory.stock-card.pdf'], true) ? 'inventory.stock.view' : null;
         }
-        if ($name === 'sale.product.data') {
+        if (in_array($name, ['sale.product.data', 'sale.stock.data'], true)) {
             return 'sale.sales.create';
         }
         foreach (self::features() as $feature => $definition) {

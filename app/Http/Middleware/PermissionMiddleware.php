@@ -14,7 +14,7 @@ class PermissionMiddleware
         $name = $request->route()->getName() ?? '';
         $permission = AccessPermissions::forRoute($name);
         $allowed = $permission !== null && $request->user()?->hasPermission($permission);
-        if (in_array($name, ['sale.product.data', 'sale.drafts.index', 'sale.drafts.update', 'purchase.orders.supplier-products'], true)) {
+        if (in_array($name, ['sale.product.data', 'sale.stock.data', 'sale.drafts.index', 'sale.drafts.update', 'purchase.orders.supplier-products'], true)) {
             $allowed = $allowed || $request->user()?->hasPermission("$feature.edit");
         }
         abort_unless($permission !== null && str_starts_with($permission, "$feature.")
