@@ -18,7 +18,7 @@
 <div class="row g-3 mb-3">
 @forelse($notifications as $notif)
     <div class="col-12"><article class="card" id="product-{{ $notif['product_id'] }}"><div class="card-body">
-        <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+        <div class="d-flex flex-column flex-md-row flex-wrap justify-content-between align-items-start gap-2 mb-2">
             <div><h5 class="mb-1">{{ $notif['product_name'] }}</h5><span class="small text-muted">{{ $notif['location_name'] }}@if($notif['barcode']) · {{ $notif['barcode'] }}@endif</span></div>
             <div class="d-flex flex-wrap gap-1 align-items-start">@foreach($notif['badges'] as $badge)<span class="badge bg-{{ $badge['class'] }}">{{ $badge['label'] }}</span>@endforeach</div>
         </div>

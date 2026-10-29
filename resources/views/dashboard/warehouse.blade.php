@@ -16,6 +16,8 @@
 .warehouse-legend{display:grid;grid-template-columns:10px 1fr auto;gap:.4rem;align-items:center;font-size:.8rem;padding:.4rem 0}.warehouse-swatch{width:10px;height:10px;border-radius:2px}.warehouse-legend small{display:block;font-size:.7rem}
 .warehouse-location-bar{height:5px;background:#eef2ec;border-radius:2px;overflow:hidden}.warehouse-location-bar span{display:block;height:100%;background:#1f7a5a}
 .warehouse-panel-stack{display:flex;flex-direction:column;gap:1rem;min-width:0}.warehouse-line>div{min-width:0;max-width:100%}
+.warehouse-dashboard #notifications .dashboard-notification-list{max-height:440px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:.5rem}
+.warehouse-dashboard #notifications .dashboard-notification-item strong{overflow-wrap:anywhere}
 .warehouse-movement-list{max-height:320px;overflow:auto;overscroll-behavior:contain;padding-right:.25rem}
 @media(min-width:1200px){
     .warehouse-dashboard{min-height:calc(100dvh - var(--warehouse-topbar-height,56px) - 2.7rem);display:flex;flex-direction:column}
@@ -52,7 +54,7 @@
     <div class="col-xl-8 warehouse-panel-stack">
         <section class="warehouse-section" id="notifications" aria-labelledby="priorityHeading">
             <h6 id="priorityHeading" class="mb-2">Prioritas Penanganan</h6>
-            @include('notifications.summary')
+            @include('notifications.summary', ['summaryLimit'=>10, 'showDisplayedCount'=>true])
         </section>
         <div class="row g-3 warehouse-work-queue">
             @if(auth()->user()->hasPermission('purchase.receipts.view'))<div class="col-lg-6"><section class="warehouse-section h-100" aria-labelledby="receiptHeading">

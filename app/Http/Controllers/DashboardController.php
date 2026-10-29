@@ -258,7 +258,7 @@ class DashboardController extends Controller
             'warehouseProductCount'=>$products->count(), 'warehouseLowStockCount'=>$lowStockProducts->count(),
             'warehouseOutOfStockCount'=>$outOfStockProducts->count(), 'warehouseSafeStockCount'=>$safeStockCount,
             'expiredBatchCount'=>$expiredBatchCount, 'expiringBatchCount'=>$expiringBatchCount,
-            'warehousePriorities'=>$priorities->take(5), 'warehousePriorityCount'=>$priorities->count(),
+            'warehousePriorities'=>$priorities->take(10), 'warehousePriorityCount'=>$priorities->count(),
             'draftOpnames'=>$draftOpnames, 'opnameQueue'=>$opnameQueue, 'pendingReceipts'=>$pendingReceipts, 'pendingReceiptCount'=>$pendingReceiptCount,
             'stockedLocations'=>$stockedLocations, 'recentMovements'=>$recentMovements,
             'transfersToday'=>StockTransfer::whereDate('transfer_date',$today)->count(),
