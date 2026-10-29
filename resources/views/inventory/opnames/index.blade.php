@@ -3,7 +3,12 @@
 @section('page-title', 'Stock Opname')
 
 @section('content')
-<div class="inventory-heading"><h5><i class="bi bi-clipboard-check me-2"></i>Stock Opname</h5></div>
+<div class="inventory-heading d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <h5><i class="bi bi-clipboard-check me-2"></i>Stock Opname</h5>
+    @if(auth()->user()->canAccessRoute('inventory.opnames.create')) <a href="{{ route('inventory.opnames.create') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i> Buat Opname Baru
+    </a> @endif
+</div>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div class="btn-group btn-group-sm">
         <a href="{{ route('inventory.opnames.index') }}" class="btn btn-primary active" aria-current="page">
@@ -13,9 +18,6 @@
             <i class="bi bi-clock-history me-1"></i>Mutasi Barang
         </a>
     </div>
-    @if(auth()->user()->canAccessRoute('inventory.opnames.create')) <a href="{{ route('inventory.opnames.create') }}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-circle me-1"></i> Buat Opname Baru
-    </a> @endif
 </div>
 
 <form method="GET" class="app-unified-filter app-filter-bar mb-3">

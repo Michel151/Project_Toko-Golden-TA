@@ -523,6 +523,9 @@
         .page-content .app-unified-actions a.d-none { display:inline-flex!important;align-items:center; }
         .page-content .app-unified-actions .btn { min-height:36px;white-space:nowrap;padding:.375rem .75rem;font-size:.875rem; }
         .page-content .app-unified-filter>[hidden] { display:none!important; }
+        .page-content .report-toolbar > form.app-unified-filter { flex:1 1 780px;width:auto;margin-bottom:0; }
+        .page-content .report-toolbar > .btn-group { flex:0 0 auto;margin-left:auto;white-space:nowrap; }
+        .page-content .report-toolbar > .btn-group .btn { display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:.375rem .75rem;font-size:.875rem; }
         @media(max-width:767px){
             .page-content .app-unified-filter .app-unified-field { flex:1 1 calc(50% - 12px); }
             .page-content .app-unified-filter .app-unified-search,.page-content .app-unified-actions { flex-basis:100%; }
