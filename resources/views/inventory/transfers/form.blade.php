@@ -109,7 +109,7 @@
             <div class="modal-header">
                 <div>
                     <h5 class="modal-title fw-bold" id="transferProductCatalogTitle"><i class="bi bi-grid me-2 text-primary"></i>Pilih Barang</h5>
-                    <div class="small text-muted">Cari berdasarkan nama atau barcode, lalu pilih barang.</div>
+                    <div class="small text-muted" id="transferProductCatalogInfo">Pilih lokasi asal terlebih dahulu.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
@@ -122,7 +122,7 @@
                 <div class="transfer-catalog-list pe-1">
                     <div class="row g-2" id="catalogProducts"></div>
                     <div class="text-center text-muted py-5 d-none" id="catalogEmpty">
-                        <i class="bi bi-search fs-2 d-block mb-2"></i>Barang tidak ditemukan.
+                        <i class="bi bi-search fs-2 d-block mb-2"></i>Tidak ada barang dengan stok layak transfer yang sesuai di lokasi asal.
                     </div>
                 </div>
             </div>

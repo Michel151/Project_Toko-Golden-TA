@@ -67,7 +67,7 @@ async function refreshSource(locationId) {
     if (currentProduct && !ids.includes(currentProduct) && ids.length < 100) ids.push(currentProduct);
     if (!locationId) {
         fromLocation.value = acceptedSource = '';
-        updateDestinationOptions(); updateStockInfo(); renderTransferItems(); return;
+        updateDestinationOptions(); updateSourceProducts(); updateStockInfo(); renderTransferItems(); return;
     }
     busy = true; updateTransferState();
     const abort = new AbortController();
@@ -94,6 +94,7 @@ async function refreshSource(locationId) {
         stockError = '';
         sourceNotice = transferItems.length ? 'Stok seluruh barang sudah diperiksa ulang. Jumlah dan satuan tetap dipertahankan.' : '';
         updateDestinationOptions();
+        updateSourceProducts();
         updateStockInfo(); renderTransferItems();
     } catch (_) {
         fromLocation.value = acceptedSource;
@@ -143,14 +144,35 @@ function productStockTotal(product) {
     return stockAt(product);
 }
 
+function sourceProducts() {
+    return acceptedSource ? products.filter(product => stockAt(product) > 0) : [];
+}
+
+function updateSourceProducts() {
+    const selected = products.find(product => product.id == document.getElementById('productSelect').value);
+    if (selected && (!acceptedSource || stockAt(selected) <= 0)) {
+        document.getElementById('productSearch').value = '';
+        clearProductSelection();
+    }
+    closeProductResults();
+    activeCatalogCategory = 'all';
+    renderCatalogCategories();
+    renderCatalogProducts();
+    const origin = fromLocation.selectedOptions[0]?.textContent || '';
+    document.getElementById('transferProductCatalogInfo').textContent = acceptedSource
+        ? `Hanya barang dengan stok layak transfer di ${origin}. Cari berdasarkan nama atau barcode.`
+        : 'Pilih lokasi asal terlebih dahulu.';
+}
+
 function matchingProducts(query, limit = 8) {
     const keyword = query.trim().toLowerCase();
+    const available = sourceProducts();
     const matches = keyword
-        ? products.filter(product =>
+        ? available.filter(product =>
             String(product.name || '').toLowerCase().includes(keyword) ||
             String(product.barcode || '').toLowerCase().includes(keyword)
         )
-        : products;
+        : available;
 
     return matches.slice(0, limit);
 }
@@ -168,7 +190,7 @@ function renderProductResults() {
 
     productResults.classList.remove('d-none');
     if (!matches.length) {
-        productResults.innerHTML = '<div class="transfer-product-empty">Barang tidak ditemukan.</div>';
+        productResults.innerHTML = '<div class="transfer-product-empty">Tidak ada barang dengan stok layak transfer yang sesuai di lokasi asal.</div>';
         return;
     }
 
@@ -183,7 +205,7 @@ function renderProductResults() {
 function chooseProduct(product) {
     const productSelect = document.getElementById('productSelect');
     const productSearch = document.getElementById('productSearch');
-    if (!product) return;
+    if (!product || busy || !acceptedSource || stockAt(product) <= 0) return;
 
     productSelect.value = product.id;
     productSearch.value = product.name;
@@ -203,7 +225,7 @@ function clearProductSelection() {
 function selectProductFromSearch() {
     const productSearch = document.getElementById('productSearch');
     const query = productSearch.value.trim().toLowerCase();
-    const product = products.find(p =>
+    const product = sourceProducts().find(p =>
         String(p.name || '').trim().toLowerCase() === query ||
         String(p.barcode || '').trim().toLowerCase() === query
     );
@@ -289,7 +311,7 @@ function updateQuantityLimit() {
 }
 
 function renderCatalogCategories() {
-    const categories = [...new Map(products.map(product => [
+    const categories = [...new Map(sourceProducts().map(product => [
         String(product.category_id ?? 'uncategorized'),
         product.category_name || 'Tanpa Kategori'
     ])).entries()];
@@ -304,7 +326,7 @@ function renderCatalogCategories() {
 
 function renderCatalogProducts() {
     const query = document.getElementById('catalogSearch').value.trim().toLowerCase();
-    const filtered = products.filter(product => {
+    const filtered = sourceProducts().filter(product => {
         const categoryId = String(product.category_id ?? 'uncategorized');
         const matchesCategory = activeCatalogCategory === 'all' || categoryId === activeCatalogCategory;
         const matchesSearch = !query || String(product.name || '').toLowerCase().includes(query) ||
@@ -333,7 +355,7 @@ function renderCatalogProducts() {
 
 document.getElementById('productSearch').addEventListener('input', function() {
     const query = this.value.trim().toLowerCase();
-    const product = products.find(p =>
+    const product = sourceProducts().find(p =>
         String(p.name || '').trim().toLowerCase() === query ||
         String(p.barcode || '').trim().toLowerCase() === query
     );
@@ -529,6 +551,7 @@ document.getElementById('transferForm').addEventListener('submit', event => {
 });
 renderTransferItems();
 updateDestinationOptions();
+updateSourceProducts();
 updateTransferState();
 if (acceptedSource && transferItems.length) refreshSource(acceptedSource);
 })();

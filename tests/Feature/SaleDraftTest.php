@@ -19,6 +19,87 @@ class SaleDraftTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_daily_expiry_is_fixed_at_18_wib_and_autosave_cannot_extend_it(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-29 10:00:00','Asia/Jakarta'));
+        $this->actingAs($this->user());
+        $this->saleData();
+        $id=(string) Str::uuid();
+        $this->putJson(route('sale.drafts.update',$id),$this->data())->assertOk()->assertJsonPath('expires_at','2026-10-29T18:00:00+07:00');
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-29 17:59:59','Asia/Jakarta'));
+        $this->putJson(route('sale.drafts.update',$id),$this->data(1))->assertOk()->assertJsonPath('expires_at','2026-10-29T18:00:00+07:00');
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-29 18:00:00','Asia/Jakarta'));
+        $this->getJson(route('sale.drafts.index'))->assertOk()->assertJsonPath('0.status','expired')->assertJsonPath('0.payload',null);
+        $this->putJson(route('sale.drafts.update',$id),$this->data(2))->assertConflict();
+        $this->artisan('sales:expire-drafts')->expectsOutput('0 draf keranjang kedaluwarsa ditutup.')->assertExitCode(0);
+        $this->assertDatabaseHas('sale_drafts',['id'=>$id,'version'=>3,'status'=>'expired']);
+        $this->assertDatabaseCount('sales',0);
+        $this->assertDatabaseCount('stock_movements',0);
+        $this->assertDatabaseHas('stocks',['quantity'=>10]);
+    }
+
+    public function test_drafts_created_at_or_after_18_expire_at_next_daily_cutoff(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-29 18:00:00','Asia/Jakarta'));
+        $this->actingAs($this->user());
+        $id=(string) Str::uuid();
+        $this->putJson(route('sale.drafts.update',$id),$this->data())->assertOk()->assertJsonPath('expires_at','2026-10-30T18:00:00+07:00');
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-30 17:59:59','Asia/Jakarta'));
+        $this->artisan('sales:expire-drafts')->expectsOutput('0 draf keranjang kedaluwarsa ditutup.')->assertExitCode(0);
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-30 18:00:00','Asia/Jakarta'));
+        $this->artisan('sales:expire-drafts')->expectsOutput('1 draf keranjang kedaluwarsa ditutup.')->assertExitCode(0);
+        $this->assertDatabaseHas('sale_drafts',['id'=>$id,'status'=>'expired']);
+    }
+
+    public function test_expired_draft_cannot_be_consumed_even_without_scheduler_or_list_request(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-29 17:00:00','Asia/Jakarta'));
+        $this->actingAs($this->user());
+        $data=$this->saleData();
+        $id=(string) Str::uuid();
+        $this->putJson(route('sale.drafts.update',$id),$this->data())->assertOk();
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-29 18:00:00','Asia/Jakarta'));
+        $this->post(route('sale.sales.store'),$data+['draft_id'=>$id,'draft_version'=>1])->assertSessionHas('error');
+        $this->assertDatabaseCount('sales',0);
+        $this->assertDatabaseHas('stocks',['quantity'=>10]);
+    }
+
+    public function test_unsynced_expired_cart_cannot_be_created_by_a_delayed_autosave(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-30 09:00:00','Asia/Jakarta'));
+        $this->actingAs($this->user());
+        $this->putJson(route('sale.drafts.update',Str::uuid()),$this->data()+['expires_at'=>'2026-10-29T18:00:00+07:00'])->assertGone();
+        $this->assertDatabaseCount('sale_drafts',0);
+    }
+
+    public function test_daily_reset_uses_jakarta_time_and_preserves_closed_drafts(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-29 10:59:00','UTC'));
+        $this->actingAs($this->user());
+        $id=(string) Str::uuid();
+        $this->putJson(route('sale.drafts.update',$id),$this->data())->assertOk();
+        $closed=(string) Str::uuid();
+        $this->putJson(route('sale.drafts.update',$closed),$this->data())->assertOk();
+        $this->putJson(route('sale.drafts.update',$closed),$this->data(1,'discarded'))->assertOk();
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-29 11:00:00','UTC'));
+        $this->assertSame(1,app(\App\Services\SaleDraftService::class)->expireOverdue());
+        $this->assertDatabaseHas('sale_drafts',['id'=>$closed,'status'=>'discarded','version'=>2]);
+        $this->assertDatabaseHas('sale_drafts',['id'=>$id,'status'=>'expired']);
+    }
+
+    public function test_cashier_form_contains_daily_reset_configuration(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-29 17:59:50','Asia/Jakarta'));
+        $this->actingAs($this->user());
+        $this->saleData();
+        $response=$this->get(route('sale.sales.create'))->assertOk()->assertSee('Draf otomatis direset');
+        if (getenv('CAPTURE_DRAFT_EXPIRY_UI')==='1') {
+            $directory=storage_path('framework/testing/draft-expiry');
+            if (!is_dir($directory)) mkdir($directory,0777,true);
+            file_put_contents($directory.'/before-cutoff.html',$response->getContent());
+        }
+    }
+
     private function user(string $role = 'owner'): User
     {
         return User::create(['name' => 'Kasir', 'email' => Str::uuid().'@example.com', 'password' => 'password', 'role' => $role]);

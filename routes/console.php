@@ -13,3 +13,9 @@ Artisan::command('sales:cancel-overdue', function (\App\Services\HeldSaleService
 })->purpose('Batalkan transaksi yang melewati batas pembayaran pukul 18.00');
 
 Schedule::command('sales:cancel-overdue')->everyMinute()->withoutOverlapping();
+
+Artisan::command('sales:expire-drafts', function (\App\Services\SaleDraftService $service) {
+    $this->info($service->expireOverdue().' draf keranjang kedaluwarsa ditutup.');
+})->purpose('Tutup draf keranjang yang melewati batas harian pukul 18.00 WIB');
+
+Schedule::command('sales:expire-drafts')->everyMinute()->withoutOverlapping();

@@ -169,7 +169,7 @@
 <div class="modal" id="saleDraftModal" tabindex="-1" aria-labelledby="saleDraftTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
         <div class="modal-header"><h5 class="modal-title" id="saleDraftTitle">Keranjang Belum Selesai</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button></div>
-        <div class="modal-body"><div id="saleDraftMessage" class="small text-muted mb-2"></div><div id="saleDraftList"></div></div>
+        <div class="modal-body"><div class="small text-muted mb-2">Draf otomatis direset setiap pukul 18.00 WIB. Draf yang dibuat setelahnya berlaku sampai pukul 18.00 WIB keesokan hari.</div><div id="saleDraftMessage" class="small text-muted mb-2"></div><div id="saleDraftList"></div></div>
         <div class="modal-footer"><button type="button" id="startNewSaleDraft" class="btn btn-outline-secondary"><i class="bi bi-plus-lg me-1"></i>{{ $editing ? 'Kembali ke Transaksi' : 'Keranjang Baru' }}</button></div>
     </div></div>
 </div>
@@ -1249,6 +1249,7 @@ window.addEventListener('resize', () => {
 </script>
 <script>
 window.saleDraftConfig = {
+    serverNow: @json(now('Asia/Jakarta')->toIso8601String()), expiresAt: @json(\App\Models\SaleDraft::deadline()->toIso8601String()),
     userId: @json(auth()->id()), saleId: @json($editing ? $sale->id : null),
     url: @json(route('sale.drafts.index')), hasOldInput: @json(session()->hasOldInput('items')),
     oldId: @json(old('draft_id')), oldVersion: @json((int) old('draft_version', 0)), startFresh: @json(request()->boolean('new')), preferredDraftId: @json(request('draft'))

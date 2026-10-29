@@ -80,6 +80,47 @@ class MultiProductTransferTest extends TestCase
         $this->assertStringContainsString('TRF/2026/10/000001', $pdf);
     }
 
+    public function test_transfer_picker_has_location_stock_and_sellable_batch_data_without_writes(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-29 10:00:00','Asia/Jakarta'));
+        $data=$this->transferData();
+        $cigaretteWarehouse=Location::create(['name'=>'Gudang Rokok']);
+        Location::create(['name'=>'Gudang Kosong']);
+        $cigarettes=Category::create(['name'=>'Rokok']);
+        $food=Category::create(['name'=>'Makanan']);
+        $first=Product::findOrFail($data['items'][0]['product_id']);
+        $second=Product::findOrFail($data['items'][1]['product_id']);
+        $first->update(['barcode'=>'BARANG-A']);
+        $second->update(['barcode'=>'ROKOK-B','category_id'=>$cigarettes->id]);
+        $second->stocks()->update(['location_id'=>$cigaretteWarehouse->id]);
+        $expirable=[];
+        foreach (['Kedaluwarsa'=>'2026-10-28','Segar'=>'2026-11-01'] as $name=>$expiry) {
+            $product=$first->replicate();
+            $product->fill(['name'=>$name,'barcode'=>'BARANG-'.$name,'category_id'=>$food->id,'is_expirable'=>true]);
+            $product->save();
+            $unit=$first->productUnits()->first()->replicate(); $unit->product_id=$product->id; $unit->save();
+            Stock::create(['product_id'=>$product->id,'location_id'=>$cigaretteWarehouse->id,'quantity'=>10]);
+            \App\Models\StockBatch::create(['product_id'=>$product->id,'location_id'=>$cigaretteWarehouse->id,
+                'received_date'=>'2026-10-01','expired_date'=>$expiry,'quantity_initial'=>10,'quantity_remaining'=>10]);
+            $expirable[$name]=$product;
+        }
+        // A zero stock row does not make this product available in the cigarette warehouse.
+        Stock::create(['product_id'=>$first->id,'location_id'=>$cigaretteWarehouse->id,'quantity'=>0]);
+        $response=$this->get(route('inventory.transfers.create'))->assertOk();
+        $products=collect($response->viewData('productsJson'))->keyBy('id');
+        $this->assertEquals(0,collect($products[$first->id]['stocks'])->firstWhere('location_id',$cigaretteWarehouse->id)['quantity']);
+        $this->assertEquals(20,collect($products[$second->id]['stocks'])->firstWhere('location_id',$cigaretteWarehouse->id)['quantity']);
+        $this->assertEquals(0,$products[$expirable['Kedaluwarsa']->id]['stocks'][0]['sellable_quantity']);
+        $this->assertEquals(10,$products[$expirable['Segar']->id]['stocks'][0]['sellable_quantity']);
+        $this->assertDatabaseCount('stock_transfers',0);
+        $this->assertDatabaseCount('stock_movements',0);
+        if (getenv('CAPTURE_TRANSFER_UI')==='1') {
+            $directory=storage_path('framework/testing/transfer');
+            if (!is_dir($directory)) mkdir($directory,0777,true);
+            file_put_contents($directory.'/source-filter.html',$response->getContent());
+        }
+    }
+
     public function test_transfer_numbers_increment_monthly_and_restart_without_renumbering_old_transfers(): void
     {
         $this->travelTo(\Carbon\Carbon::parse('2026-10-17 10:00:00','Asia/Jakarta'));

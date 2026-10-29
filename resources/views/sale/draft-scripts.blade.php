@@ -7,7 +7,18 @@
     const prefix = `golden-sale-draft:v1:${config.userId}:`;
     const writer = crypto.randomUUID();
     const scope = config.saleId || 'new';
-    let current = { id: config.oldId || crypto.randomUUID(), version: config.oldVersion || 0, sale_id: config.saleId };
+    let serverOffset = Date.parse(config.serverNow) - Date.now();
+    const serverNow = () => Date.now() + (Number.isFinite(serverOffset) ? serverOffset : 0);
+    const deadlineFor = timestamp => {
+        const deadline = new Date(timestamp);
+        // 18.00 WIB = 11.00 UTC, independent of the browser's timezone.
+        deadline.setUTCHours(11, 0, 0, 0);
+        if (deadline.getTime() <= timestamp) deadline.setUTCDate(deadline.getUTCDate() + 1);
+        return deadline.toISOString();
+    };
+    const expiresAt = draft => Date.parse(draft.expires_at || deadlineFor(Number(draft.client_updated_at || 0)));
+    const expired = draft => !Number.isFinite(expiresAt(draft)) || expiresAt(draft) <= serverNow();
+    let current = { id: config.oldId || crypto.randomUUID(), version: config.oldVersion || 0, sale_id: config.saleId, expires_at: config.expiresAt };
     let ready = false;
     let restoring = false;
     let closed = false;
@@ -31,6 +42,8 @@
             signal: AbortSignal.timeout(8000), ...options
         });
         const body = await response.json().catch(() => ({}));
+        const serverTime = Date.parse(response.headers.get('X-Draft-Server-Time'));
+        if (Number.isFinite(serverTime)) serverOffset = serverTime - Date.now();
         return { response, body };
     };
     const updateIdentity = () => {
@@ -53,6 +66,7 @@
             return Object.keys(localStorage).filter(key => key.startsWith(prefix)).flatMap(key => {
                 try {
                     const value = JSON.parse(localStorage.getItem(key));
+                    if (value && expired(value)) { localStorage.removeItem(key); return []; }
                     return value?.payload && (value.sale_id || null) === config.saleId ? [value] : [];
                 } catch (_) { return []; }
             });
@@ -77,7 +91,39 @@
     });
     const meaningful = payload => payload.items.length > 0 || payload.customer_name.trim() !== '' || payload.amount_paid > 0;
 
+    function resetExpiredCurrent(force = false) {
+        if (!force && !expired(current)) return false;
+        const hadItems = meaningful(snapshot());
+        removeLocal(current.id);
+        clearTimeout(timer);
+        restoring = true;
+        dirty = false;
+        closed = Boolean(config.saleId);
+        current = { id: crypto.randomUUID(), version: 0, sale_id: config.saleId, expires_at: deadlineFor(serverNow()) };
+        document.getElementById('itemsContainer').replaceChildren();
+        document.getElementById('cartSearch').value = '';
+        document.getElementById('barcodeScanner').value = '';
+        document.getElementById('scannerStatus').textContent = '';
+        document.getElementById('amountPaid').value = '0';
+        form.elements.namedItem('customer_name').value = '';
+        if (!config.saleId) {
+            form.elements.namedItem('sale_date').value = new Date(serverNow() + 7 * 3600000).toISOString().slice(0, 10);
+            const paid = form.querySelector('input[name="sale_status"][value="paid"]');
+            if (paid) paid.checked = true;
+        }
+        document.getElementById('transactionConfirmed').checked = false;
+        updateSaleStatus(); updateItemCounter(); updateTotal(); updateIdentity();
+        lastPayload = JSON.stringify(snapshot());
+        restoring = false;
+        if (closed) document.getElementById('saveSaleButton').disabled = true;
+        if (hadItems) setStatus('Draf kedaluwarsa pada batas 18.00 WIB; keranjang sudah dikosongkan.');
+        cachedRemote = cachedRemote.filter(draft => !expired(draft));
+        mergeCandidates();
+        return true;
+    }
+
     function capture() {
+        if (resetExpiredCurrent()) return;
         if (!ready || restoring || closed) return;
         const payload = snapshot();
         const serialized = JSON.stringify(payload);
@@ -95,6 +141,7 @@
     }
 
     async function sync() {
+        if (resetExpiredCurrent()) return false;
         if (!ready || restoring || closed || !dirty) return true;
         if (inFlight) { await inFlight; return dirty && !closed ? sync() : !closed; }
         inFlight = (async () => {
@@ -103,6 +150,12 @@
                 const { response, body } = await request(`${config.url}/${sent.id}`, {
                     method: 'PUT', body: JSON.stringify({ ...sent, status: 'active' })
                 });
+                if (current.id !== sent.id) return false;
+                if (response.status === 410 || (response.status === 409 && body.draft?.status === 'expired')) {
+                    resetExpiredCurrent(true);
+                    return false;
+                }
+                if (resetExpiredCurrent()) return false;
                 if (response.status === 409 && body.draft) {
                     if (body.draft.status !== 'active') {
                         closed = true;
@@ -126,12 +179,14 @@
                 }
                 if (!response.ok) throw new Error(String(response.status));
                 current.version = body.version;
+                current.expires_at = body.expires_at || sent.expires_at;
                 dirty = current.client_updated_at !== sent.client_updated_at;
                 writeLocal();
                 updateIdentity();
                 setStatus(dirty ? 'Draf tersimpan di perangkat' : `Draf tersimpan ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`);
                 return true;
             } catch (_) {
+                if (current.id !== sent.id) return false;
                 setStatus(localAvailable ? 'Draf tersimpan di perangkat; belum tersinkron' : 'Draf belum tersimpan. Penyimpanan perangkat dan server tidak tersedia.');
                 return false;
             }
@@ -160,7 +215,7 @@
     }
 
     function mergeCandidates() {
-        const remote = cachedRemote;
+        const remote = cachedRemote.filter(draft => !expired(draft));
         const closedIds = new Set(remote.filter(draft => draft.status !== 'active').map(draft => draft.id));
         const local = readLocal().filter(draft => !closedIds.has(draft.id));
         const merged = new Map();
@@ -185,11 +240,12 @@
     }
 
     function restore(draft) {
+        if (expired(draft)) { removeLocal(draft.id); mergeCandidates(); return; }
         restoring = true;
         const payload = draft.payload;
         const server = draft.remote;
         const conflict = server && server.version > draft.version && JSON.stringify(server.payload) !== JSON.stringify(payload);
-        current = { id: conflict ? crypto.randomUUID() : draft.id, version: conflict ? 0 : Math.max(server?.version || 0, draft.version), sale_id: config.saleId, payload, client_updated_at: Date.now() };
+        current = { id: conflict ? crypto.randomUUID() : draft.id, version: conflict ? 0 : Math.max(server?.version || 0, draft.version), sale_id: config.saleId, payload, client_updated_at: Date.now(), expires_at: draft.expires_at || deadlineFor(Number(draft.client_updated_at)) };
         closed = false;
         document.getElementById('itemsContainer').innerHTML = '';
         document.getElementById('cartSearch').value = '';
@@ -267,7 +323,7 @@
             removeLocal(draft.id);
             if (current.id === draft.id) {
                 restoring = true;
-                current = { id: crypto.randomUUID(), version: 0, sale_id: config.saleId };
+                current = { id: crypto.randomUUID(), version: 0, sale_id: config.saleId, expires_at: deadlineFor(serverNow()) };
                 dirty = false;
                 document.getElementById('itemsContainer').innerHTML = '';
                 document.getElementById('cartSearch').value = '';
@@ -308,8 +364,11 @@
         if (event.target.closest('.remove-item, #addItem, #exactPayment')) scheduleCapture();
     });
     window.addEventListener('online', sync);
+    setInterval(resetExpiredCurrent, 1000);
+    window.addEventListener('focus', () => { resetExpiredCurrent(); mergeCandidates(); });
+    window.addEventListener('storage', () => { resetExpiredCurrent(); mergeCandidates(); });
     setInterval(() => { if (dirty && !closed) sync(); }, 20000);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { capture(); sync(); } });
+    document.addEventListener('visibilitychange', () => { resetExpiredCurrent(); if (document.hidden) { capture(); sync(); } else mergeCandidates(); });
     window.addEventListener('pagehide', () => {
         capture();
         if (dirty && !inFlight && !closed) fetch(`${config.url}/${current.id}`, {
@@ -319,6 +378,7 @@
         }).catch(() => {});
     });
     form.addEventListener('submit', async event => {
+        if (resetExpiredCurrent()) { event.preventDefault(); event.stopImmediatePropagation(); return; }
         if (resumeSubmit) {
             resumeSubmit = false;
             queueMicrotask(() => { if (event.defaultPrevented) submitting = false; });
