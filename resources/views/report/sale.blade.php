@@ -96,7 +96,7 @@
     <div class="tab-pane {{ $activeTab === 'products' ? 'show active' : '' }}" id="saleProductsPane" role="tabpanel" aria-labelledby="saleProductsTab" tabindex="0">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3 d-flex flex-wrap align-items-end justify-content-between gap-3">
-                <div><h6 class="fw-bold mb-1">Produk Terlaris</h6><div class="small text-muted">Semua barang terjual pada periode terpilih. Jumlah ditampilkan dalam satuan dasar masing-masing barang.</div></div>
+                <div><h6 class="fw-bold mb-1">Produk Terlaris</h6><div class="small text-muted">Semua barang terjual pada periode terpilih. Jumlah ditampilkan dalam multi satuan masing-masing barang.</div></div>
                 <form method="GET" action="{{ route('report.sale') }}" class="d-flex flex-wrap align-items-end gap-2">
                     <input type="hidden" name="from" value="{{ $from }}"><input type="hidden" name="to" value="{{ $to }}">
                     <input type="hidden" name="per_page" value="{{ $sales->perPage() }}"><input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="tab" value="products">
@@ -113,7 +113,7 @@
                         <tr>
                             <td class="text-muted">{{ $topProducts->firstItem() + $loop->index }}</td>
                             <td class="small">{{ $tp->product->name ?? '-' }}</td>
-                            <td class="text-end small">{{ \App\Support\DisplayNumber::quantity($tp->total_qty) }} {{ $tp->product?->productUnits->firstWhere('is_base_unit', true)?->unit?->name ?? ($tp->product?->can_retail ? $tp->product?->retailUnit?->name : $tp->product?->buyUnit?->name) }}</td>
+                            <td class="text-end small">{{ $tp->product?->displayStock((float) $tp->total_qty) ?? \App\Support\DisplayNumber::quantity($tp->total_qty) }}</td>
                             <td class="text-end small">Rp {{ number_format($tp->total_amount, 0, ',', '.') }}</td>
                         </tr>
                         @empty
