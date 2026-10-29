@@ -24,6 +24,7 @@
 .owner-stock-table{min-width:500px;font-size:.82rem}
 .owner-critical-scroll{max-height:340px;overflow:auto}.owner-stock-table th{position:sticky;top:0;z-index:1;background:#eef2ec}
 .owner-recent{max-height:340px;overflow:auto}
+.owner-ranking-scroll{max-height:260px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:.4rem}
 .owner-overview>div{min-width:0}
 .owner-trend,.owner-attention{display:flex;flex-direction:column}
 .owner-trend .owner-chart{flex:1;min-height:260px}
@@ -85,9 +86,9 @@
         @if($salesMonthCount === 0)<div class="small text-muted mt-2">Belum ada penjualan lunas bulan ini.</div>@endif
     </section></div>
     <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="productHeading"><div class="owner-heading"><div><h6 id="productHeading">Produk Terlaris</h6><div class="small text-muted">Penjualan lunas 30 hari terakhir</div></div><select id="rankingMode" class="form-select form-select-sm w-auto" aria-label="Urutan produk terlaris"><option value="revenue">Omzet</option><option value="quantity">Jumlah</option></select></div>
-        <div data-ranking="revenue">
+        <div data-ranking="revenue" class="owner-ranking-scroll" tabindex="0" role="region" aria-label="Produk terlaris berdasarkan omzet">
         @forelse($topProducts as $index=>$item)<div class="owner-line"><span class="small text-muted">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">Rp {{ number_format($item->revenue,0,',','.') }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan lunas.</div>@endforelse
-        </div><div data-ranking="quantity" hidden>@forelse($topQuantityProducts as $index=>$item)<div class="owner-line"><span class="small text-muted">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">{{ $item->display_quantity }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan bersatuan.</div>@endforelse</div>
+        </div><div data-ranking="quantity" class="owner-ranking-scroll" tabindex="0" role="region" aria-label="Produk terlaris berdasarkan jumlah" hidden>@forelse($topQuantityProducts as $index=>$item)<div class="owner-line"><span class="small text-muted">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">{{ $item->display_quantity }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan bersatuan.</div>@endforelse</div>
     </section></div>
     <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="locationHeading"><div class="owner-heading"><div><h6 id="locationHeading">Persediaan per Lokasi</h6><div class="small text-muted">Nilai biaya tercatat; termasuk reservasi setelah moving average aktif</div></div></div><div class="owner-value mb-1">Rp {{ number_format($inventoryValue,0,',','.') }}</div><div class="small text-muted mb-2">{{ $totalProducts }} jenis barang aktif</div>
         @php $maxLocationValue=max(1,(float)($locationValues->max('value') ?? 0)); @endphp
