@@ -34,13 +34,13 @@
     <div class="col-6 col-md-4 col-xl">
         <div class="card report-stat h-100" style="--stat-color:#198754"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-cash-stack"></i></div><div>
             <div class="text-muted small">Total Penjualan</div>
-            <div class="fw-bold">Rp {{ number_format($totalAmount, 0, ',', '.') }}</div>
+            <div class="report-kpi-value fw-bold">Rp {{ number_format($totalAmount, 0, ',', '.') }}</div>
         </div></div></div>
     </div>
     <div class="col-6 col-md-4 col-xl">
-        <div class="card report-stat h-100" style="--stat-color:#6f42c1"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-calculator"></i></div><div>
+        <div class="card report-stat h-100" style="--stat-color:#0d6efd"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-calculator"></i></div><div>
             <div class="text-muted small">Laba Kotor</div>
-            <div class="fw-bold {{ $grossProfit !== null && $grossProfit < 0 ? 'text-danger' : '' }}">{{ $grossProfit === null ? 'Belum lengkap' : 'Rp '.number_format($grossProfit, 0, ',', '.') }}</div>
+            <div class="report-kpi-value fw-bold {{ $grossProfit !== null && $grossProfit < 0 ? 'text-danger' : '' }}">{{ $grossProfit === null ? 'Belum lengkap' : 'Rp '.number_format($grossProfit, 0, ',', '.') }}</div>
             <div class="small text-muted">{{ $incompleteCostCount ? $incompleteCostCount.' transaksi dengan HPP belum lengkap' : 'Penjualan lunas − HPP tercatat' }}</div>
             <div class="small text-muted">Belum dikurangi biaya operasional</div>
         </div></div></div>
@@ -48,19 +48,19 @@
     <div class="col-6 col-md-4 col-xl">
         <div class="card report-stat h-100" style="--stat-color:#0d6efd"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-receipt"></i></div><div>
             <div class="text-muted small">Jumlah Transaksi</div>
-            <div class="fw-bold">{{ $totalTrx }}</div>
+            <div class="report-kpi-value fw-bold">{{ $totalTrx }}</div>
         </div></div></div>
     </div>
     <div class="col-6 col-md-4 col-xl">
-        <div class="card report-stat h-100" style="--stat-color:#c8960c"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-cash"></i></div><div>
+        <div class="card report-stat h-100" style="--stat-color:#198754"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-cash"></i></div><div>
             <div class="text-muted small">Tunai</div>
-            <div class="fw-bold text-success">Rp {{ number_format($totalTunai, 0, ',', '.') }}</div>
+            <div class="report-kpi-value fw-bold text-success">Rp {{ number_format($totalTunai, 0, ',', '.') }}</div>
         </div></div></div>
     </div>
     <div class="col-6 col-md-4 col-xl">
         <div class="card report-stat h-100" style="--stat-color:#0dcaf0"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-bank"></i></div><div>
             <div class="text-muted small">Transfer</div>
-            <div class="fw-bold text-info">Rp {{ number_format($totalTransfer, 0, ',', '.') }}</div>
+            <div class="report-kpi-value fw-bold">Rp {{ number_format($totalTransfer, 0, ',', '.') }}</div>
         </div></div></div>
     </div>
 </div>
@@ -87,7 +87,7 @@
                             <td class="text-end">Rp {{ number_format($sale->report_total_amount, 0, ',', '.') }}</td>
                         </tr>
                         @empty
-                        <tr><td colspan="5" class="report-empty"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada transaksi pada periode ini</td></tr>
+                        <tr><td colspan="5" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada transaksi pada periode ini'])</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -121,7 +121,7 @@
                             <td class="text-end small">Rp {{ number_format($tp->total_amount, 0, ',', '.') }}</td>
                         </tr>
                         @empty
-                        <tr><td colspan="4" class="report-empty">Tidak ada penjualan produk pada periode ini.</td></tr>
+                        <tr><td colspan="4" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada penjualan produk pada periode ini.'])</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -148,7 +148,7 @@
                     <td class="text-end fw-semibold {{ $margin->margin_percentage !== null && $margin->margin_percentage < 0 ? 'text-danger' : '' }}">{{ $margin->cost === null ? 'Belum lengkap' : ($margin->margin_percentage === null ? '—' : number_format($margin->margin_percentage, 2, ',', '.').'%') }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="5" class="report-empty">Tidak ada penjualan produk pada periode ini.</td></tr>
+                <tr><td colspan="5" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada penjualan produk pada periode ini.'])</td></tr>
                 @endforelse
             </tbody>
         </table>

@@ -2,7 +2,7 @@
 @section('title', 'Laporan Laba Rugi')
 @section('page-title', 'Laporan Laba Rugi')
 @section('content')
-<div class="report-heading mb-3"><h5 class="fw-bold mb-0"><i class="bi bi-calculator me-2"></i>Laporan Laba Rugi</h5></div>
+<div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-calculator" aria-hidden="true"></i></div><div><h5 class="fw-bold mb-1">Laporan Laba Rugi</h5><div class="text-white-50 small">Pantau penjualan, beban, dan laba pada periode terpilih</div></div></div></div>
 <div class="report-toolbar d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
     <form method="GET" class="app-unified-filter d-flex flex-wrap align-items-end gap-2">
         <div><label for="plPeriod" class="form-label small">Periode</label><select id="plPeriod" name="period_type" class="form-select form-select-sm"><option value="monthly" @selected($periodType === 'monthly')>Bulanan</option><option value="quarterly" @selected($periodType === 'quarterly')>Kuartalan</option><option value="yearly" @selected($periodType === 'yearly')>Tahunan</option></select></div>
@@ -25,19 +25,19 @@
 ['icon'=>'journal-minus','tone'=>'warning','label'=>'Beban Operasional','value'=>'Rp '.number_format($expenseTotal,0,',','.'),'hint'=>'Beban terkonfirmasi'],
 ['icon'=>'graph-up','tone'=>'info','label'=>'Laba (Rugi) Bersih','value'=>$netProfit === null ? 'Belum lengkap' : 'Rp '.number_format($netProfit,0,',','.'),'hint'=>'Laba sebelum pajak dikurangi beban pajak terkonfirmasi'],
 ]])
-<section class="bg-white border mb-3">
+<section class="card table-card mb-3">
     <h6 class="fw-bold p-3 mb-0">Ringkasan Laba Rugi</h6>
-    <div class="table-responsive"><table class="table financial-lines mb-0"><thead><tr><th>Uraian</th><th class="text-end">Nilai (Rp)</th></tr></thead><tbody>@include('report._financial-lines')</tbody></table></div>
+    <div class="table-responsive"><table class="table report-table financial-lines mb-0"><thead><tr><th>Uraian</th><th class="text-end">Nilai (Rp)</th></tr></thead><tbody>@include('report._financial-lines')</tbody></table></div>
 </section>
-<section class="bg-white border mb-3" id="inventoryReconciliation">
+<section class="card table-card mb-3" id="inventoryReconciliation">
     <div class="p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h6 class="fw-bold mb-0">Rekonsiliasi Persediaan</h6>
         <span class="badge {{ ['matched'=>'bg-success','partial'=>'bg-warning text-dark','mismatch'=>'bg-danger','unavailable'=>'bg-secondary'][$reconciliation['status']] }}">{{ $reconciliation['statusLabel'] }}</span>
     </div>
     <div class="px-3 pb-3 small text-muted">@foreach($reconciliation['notes'] as $note)<div class="mb-1">{{ $note }}</div>@endforeach</div>
-    <div class="table-responsive"><table class="table financial-lines mb-0"><thead><tr><th>Uraian</th><th class="text-end">Nilai (Rp)</th></tr></thead><tbody>@include('report._financial-lines',['lines'=>$reconciliation['lines'],'missing'=>'Belum tersedia'])</tbody></table></div>
+    <div class="table-responsive"><table class="table report-table financial-lines mb-0"><thead><tr><th>Uraian</th><th class="text-end">Nilai (Rp)</th></tr></thead><tbody>@include('report._financial-lines',['lines'=>$reconciliation['lines'],'missing'=>'Belum tersedia'])</tbody></table></div>
 </section>
-<section class="bg-white border"><div class="p-3 d-flex flex-wrap justify-content-between gap-2"><h6 class="fw-bold mb-0">Rincian Beban Terkonfirmasi</h6><a href="{{ route('expenses.index',$exportFilters + ['status'=>'confirmed']) }}">Pencatatan Beban</a></div><div class="table-responsive"><table class="table report-table mb-0"><thead><tr><th>Tanggal Pengakuan</th><th>Nomor</th><th>Kategori / Keterangan</th><th>Pembayaran</th><th class="text-end">Nominal</th></tr></thead><tbody>@forelse($expenses as $expense)<tr><td class="text-nowrap">{{ $expense->recognized_date->format('d/m/Y') }}</td><td><a href="{{ route('expenses.show',$expense) }}">{{ $expense->number }}</a></td><td>{{ \App\Models\Expense::CATEGORIES[$expense->category] }}<div class="small text-muted text-break">{{ $expense->description }}</div></td><td>{{ $expense->paid_date ? 'Sudah dibayar' : 'Belum dibayar' }}</td><td class="text-end text-nowrap">Rp {{ number_format($expense->amount,0,',','.') }}</td></tr>@empty<tr><td colspan="5" class="text-center text-muted py-4">Tidak ada beban terkonfirmasi pada periode ini.</td></tr>@endforelse</tbody></table></div><div class="p-3">{{ $expenses->links() }}</div></section>
+<section class="card table-card"><div class="p-3 d-flex flex-wrap justify-content-between gap-2"><h6 class="fw-bold mb-0">Rincian Beban Terkonfirmasi</h6><a href="{{ route('expenses.index',$exportFilters + ['status'=>'confirmed']) }}">Pencatatan Beban</a></div><div class="table-responsive"><table class="table table-hover report-table mb-0"><thead><tr><th>Tanggal Pengakuan</th><th>Nomor</th><th>Kategori / Keterangan</th><th>Pembayaran</th><th class="text-end">Nominal</th></tr></thead><tbody>@forelse($expenses as $expense)<tr><td class="text-nowrap">{{ $expense->recognized_date->format('d/m/Y') }}</td><td><a href="{{ route('expenses.show',$expense) }}">{{ $expense->number }}</a></td><td>{{ \App\Models\Expense::CATEGORIES[$expense->category] }}<div class="small text-muted text-break">{{ $expense->description }}</div></td><td>{{ $expense->paid_date ? 'Sudah dibayar' : 'Belum dibayar' }}</td><td class="text-end text-nowrap">Rp {{ number_format($expense->amount,0,',','.') }}</td></tr>@empty<tr><td colspan="5" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada beban terkonfirmasi pada periode ini.'])</td></tr>@endforelse</tbody></table></div><div class="card-footer bg-white">{{ $expenses->links() }}</div></section>
 @endsection
 @push('styles')
 <style>

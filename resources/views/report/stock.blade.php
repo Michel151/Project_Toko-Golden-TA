@@ -117,7 +117,7 @@
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="{{ 8 + $locations->count() }}" class="report-empty"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada data stok</td></tr>
+                    <tr><td colspan="{{ 8 + $locations->count() }}" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada data stok'])</td></tr>
                     @endforelse
                 </tbody>
                 <tfoot class="table-light fw-bold">

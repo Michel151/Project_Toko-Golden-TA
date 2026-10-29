@@ -42,13 +42,13 @@
                 <tr>
                     <td class="font-monospace small fw-semibold">{{ $t->transfer_number }}</td>
                     <td><button type="button" class="btn btn-sm btn-outline-success transfer-items-open" data-bs-toggle="modal" data-bs-target="#transferItemsModal" data-transfer-id="{{ $t->id }}" data-transfer-number="{{ $t->transfer_number }}" data-transfer-context="{{ $t->fromLocation->name }} &rarr; {{ $t->toLocation->name }} | {{ $t->transfer_date->format('d/m/Y') }}" aria-label="Rincian barang {{ $t->transfer_number }}"><i class="bi bi-list-ul me-1" aria-hidden="true"></i>{{ number_format($t->items->count(), 0, ',', '.') }} barang<i class="bi bi-chevron-right ms-2" aria-hidden="true"></i></button></td>
-                    <td><span class="badge bg-danger bg-opacity-10 text-danger">{{ $t->fromLocation->name }}</span></td>
+                    <td><span class="badge bg-primary bg-opacity-10 text-primary">{{ $t->fromLocation->name }}</span></td>
                     <td><span class="badge bg-success bg-opacity-10 text-success">{{ $t->toLocation->name }}</span></td>
                     <td>{{ $t->transfer_date->format('d/m/Y') }}</td>
                     <td class="text-muted small">{{ $t->createdBy->name ?? '-' }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="6" class="report-empty"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada transfer pada periode ini</td></tr>
+                <tr><td colspan="6" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada transfer pada periode ini'])</td></tr>
                 @endforelse
             </tbody>
         </table>

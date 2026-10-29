@@ -24,19 +24,19 @@
     <div class="col-12 col-sm-4">
         <div class="card report-stat h-100" style="--stat-color:#c8960c"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-wallet2"></i></div><div>
             <div class="text-muted small">Total Nilai PO</div>
-            <div class="fw-bold">Rp {{ number_format($totalValue, 0, ',', '.') }}</div>
+            <div class="report-kpi-value fw-bold">Rp {{ number_format($totalValue, 0, ',', '.') }}</div>
         </div></div></div>
     </div>
     <div class="col-12 col-sm-4">
         <div class="card report-stat h-100" style="--stat-color:#198754"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-check-circle"></i></div><div>
             <div class="text-muted small">PO Selesai</div>
-            <div class="fw-bold text-success">{{ $completed }}</div>
+            <div class="report-kpi-value fw-bold text-success">{{ $completed }}</div>
         </div></div></div>
     </div>
     <div class="col-12 col-sm-4">
-        <div class="card report-stat h-100" style="--stat-color:#fd7e14"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-hourglass-split"></i></div><div>
+        <div class="card report-stat h-100" style="--stat-color:#c8960c"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-hourglass-split"></i></div><div>
             <div class="text-muted small">PO Belum Selesai</div>
-            <div class="fw-bold text-warning">{{ $pending }}</div>
+            <div class="report-kpi-value fw-bold text-warning-emphasis">{{ $pending }}</div>
         </div></div></div>
     </div>
 </div>
@@ -58,7 +58,7 @@
                     <td class="text-end">Rp {{ number_format($po->totalValue(), 0, ',', '.') }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="5" class="report-empty"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada purchase order pada periode ini</td></tr>
+                <tr><td colspan="5" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada purchase order pada periode ini'])</td></tr>
                 @endforelse
             </tbody>
         </table>
