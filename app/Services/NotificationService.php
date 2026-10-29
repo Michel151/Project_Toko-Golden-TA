@@ -152,10 +152,8 @@ class NotificationService
                 if ($quantity <= 0) {
                     continue;
                 }
-                $belowMinimum = $planned[$sourceId] - $quantity < $source['minimum'];
                 $transfers[] = ['source_id' => $sourceId, 'destination_id' => $id, 'quantity' => $quantity,
-                    'message' => 'Direkomendasikan transfer '.$display($quantity).' dari '.$source['name'].' ke '.$location['name'].'.'
-                        .($belowMinimum ? ' Transfer ini diprioritaskan untuk mendukung penjualan di Toko. Stok lokasi asal setelah transfer akan berada di bawah batas minimum.' : '')];
+                    'message' => 'Direkomendasikan transfer stok dari '.$source['name'].' ke '.$location['name'].'.'];
                 $planned[$sourceId] -= $quantity;
                 $planned[$id] += $quantity;
                 $needed -= $quantity;

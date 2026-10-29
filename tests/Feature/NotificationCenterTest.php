@@ -293,7 +293,7 @@ class NotificationCenterTest extends TestCase
         $this->assertSame($store->id, $item['transfers'][0]['destination_id']);
         $this->assertEquals(8, $item['transfers'][0]['quantity']);
         $this->assertEquals(18, $item['shortfall']);
-        $this->assertStringContainsString('di bawah batas minimum', $item['transfers'][0]['message']);
+        $this->assertSame('Direkomendasikan transfer stok dari Gudang 1 ke Toko.', $item['transfers'][0]['message']);
         $this->actingAs($this->owner)->get(route('notifications.index', ['product_id' => $product->id]))
             ->assertOk()->assertSee('Buat Transfer')->assertSee('Buat PO');
     }
