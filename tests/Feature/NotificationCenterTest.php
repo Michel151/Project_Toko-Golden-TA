@@ -175,4 +175,45 @@ class NotificationCenterTest extends TestCase
         DB::table('role_permissions')->where('role', 'staf_gudang')->delete();
         $this->get(route('notifications.index'))->assertForbidden();
     }
+
+    public function test_actions_follow_permissions_and_open_forms_with_product_context(): void
+    {
+        $product = $this->product('Barang Tindakan');
+        $destination = $this->stock($product, 'Toko', 2, 10);
+        $source = $this->stock($product, 'Gudang', 15, 10);
+        ProductUnit::create(['product_id'=>$product->id, 'unit_id'=>$this->unit->id, 'conversion_to_base'=>1, 'buy_price'=>1000, 'sell_price'=>1500, 'is_base_unit'=>true, 'is_default_purchase'=>true]);
+        $supplier = Supplier::create(['name'=>'Supplier Tindakan']);
+        $product->suppliers()->attach($supplier->id);
+        $po = PurchaseOrder::create(['po_number'=>'PO-ACTION', 'supplier_id'=>$supplier->id, 'order_date'=>today(), 'status'=>'pending', 'created_by'=>$this->owner->id]);
+        $po->items()->create(['product_id'=>$product->id, 'quantity_ordered'=>1, 'quantity_received'=>0, 'buy_price'=>1000]);
+        $url = route('notifications.index', ['product_id'=>$product->id]);
+        $transferUrl = route('inventory.transfers.create', ['product_id'=>$product->id, 'from_location_id'=>$source->id, 'to_location_id'=>$destination->id]);
+        $response = $this->actingAs($this->owner)->get($url)->assertOk()->assertSee('Lihat Stok')->assertSee('Buat Transfer')->assertSee('Buat PO')->assertSee('Lihat PO')
+            ->assertSee($transferUrl)->assertSee(route('purchase.orders.show', $po->id));
+        if (getenv('CAPTURE_NOTIFICATION_UI') === '1') file_put_contents(base_path('tools/notification-actions-preview.html'), $response->getContent());
+        $this->get(route('inventory.stock.index', ['product_id'=>$product->id]))->assertOk()->assertViewHas('products', fn ($items) => $items->pluck('id')->all() === [$product->id]);
+        $this->get($transferUrl)->assertOk()->assertSee('value="'.$destination->id.'" selected', false);
+        $this->get(route('purchase.orders.create', ['product_id'=>$product->id]))->assertOk()->assertViewHas('selectedSupplierId', $supplier->id)->assertViewHas('notificationProduct', fn ($p) => $p->id === $product->id);
+        $this->get(route('purchase.orders.show', $po->id))->assertOk();
+        $cashier = User::create(['name'=>'Kasir', 'email'=>'actions-cashier@test.com', 'password'=>'password', 'role'=>'kasir']);
+        $this->actingAs($cashier)->get($url)->assertOk()->assertSee('Lihat Stok')->assertDontSee('Buat Transfer')->assertDontSee('Buat PO')->assertDontSee('Lihat PO');
+        $this->get($transferUrl)->assertForbidden();
+        $staff = User::create(['name'=>'Gudang', 'email'=>'actions-staff@test.com', 'password'=>'password', 'role'=>'staf_gudang']);
+        $this->actingAs($staff)->get($url)->assertOk()->assertSee('Buat Transfer')->assertDontSee('Buat PO')->assertDontSee('Lihat PO');
+        DB::table('role_permissions')->where('role', 'staf_gudang')->where('permission', 'inventory.transfers.create')->delete();
+        $this->get($url)->assertOk()->assertDontSee('Buat Transfer');
+        $this->get($transferUrl)->assertForbidden();
+    }
+
+    public function test_po_action_disappears_when_incoming_orders_cover_shortfall(): void
+    {
+        $product = $this->product('Barang Menunggu PO', ['min_stock_total'=>10]);
+        $this->stock($product, 'Toko', 2, 0);
+        $supplier = Supplier::create(['name'=>'Supplier']);
+        $po = PurchaseOrder::create(['po_number'=>'PO-COVER', 'supplier_id'=>$supplier->id, 'order_date'=>today(), 'status'=>'pending', 'created_by'=>$this->owner->id]);
+        $po->items()->create(['product_id'=>$product->id, 'quantity_ordered'=>10, 'buy_price'=>1000]);
+        $this->actingAs($this->owner)->get(route('notifications.index'))->assertOk()->assertSee('Lihat PO')->assertDontSee('Buat PO')->assertDontSee('Buat Transfer');
+        $this->get(route('purchase.orders.create', ['product_id'=>$product->id]))->assertOk()->assertSee('Produk belum terhubung ke supplier');
+        $this->get(route('purchase.orders.create', ['product_id'=>'invalid']))->assertSessionHasErrors('product_id');
+    }
 }

@@ -41,7 +41,7 @@
                     <label for="toLocation" class="form-label fw-semibold">Lokasi Tujuan <span class="text-danger">*</span></label>
                     <select name="to_location_id" id="toLocation" class="form-select" required>
                         <option value="">Pilih lokasi tujuan</option>
-                        @foreach($locations as $loc)<option value="{{ $loc->id }}" @selected(old('to_location_id') == $loc->id)>{{ $loc->name }}</option>@endforeach
+                        @foreach($locations as $loc)<option value="{{ $loc->id }}" @selected(old('to_location_id', request('to_location_id')) == $loc->id)>{{ $loc->name }}</option>@endforeach
                     </select>
                 </div>
                 <div class="col-md-4">

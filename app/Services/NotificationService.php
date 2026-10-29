@@ -58,7 +58,7 @@ class NotificationService
                     continue;
                 }
                 $incoming += $quantity;
-                $orders[] = ['number' => $item->purchaseOrder->po_number, 'quantity' => $product->displayStock($quantity)];
+                $orders[] = ['id' => $item->purchase_order_id, 'number' => $item->purchaseOrder->po_number, 'quantity' => $product->displayStock($quantity)];
             }
         }
         $shortfall = max(0, round($stock['shortfall'] - $incoming, 4));

@@ -49,16 +49,18 @@ class PurchaseOrderController extends Controller
         ));
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        $suppliers = Supplier::orderBy('name')->get();
-        $selectedSupplierId = old('supplier_id');
+        $request->validate(['product_id' => 'nullable|integer|exists:products,id,is_active,1']);
+        $notificationProduct = $request->filled('product_id') ? \App\Models\Product::with('suppliers')->findOrFail($request->integer('product_id')) : null;
+        $suppliers = Supplier::when($notificationProduct, fn ($query) => $query->whereHas('products', fn ($products) => $products->where('products.id', $notificationProduct->id)))->orderBy('name')->get();
+        $selectedSupplierId = old('supplier_id', $notificationProduct && $suppliers->count() === 1 ? $suppliers->first()->id : null);
         $products = $selectedSupplierId
             ? Supplier::with(['products' => fn ($query) => $query->where('products.is_active', true)->with(['buyUnit', 'productUnits.unit'])])->find($selectedSupplierId)?->products ?? collect()
             : collect();
         $supplierProductsJson = $this->supplierProductsJson();
 
-        return view('purchase.orders.form', compact('suppliers', 'products', 'supplierProductsJson'));
+        return view('purchase.orders.form', compact('suppliers', 'products', 'supplierProductsJson', 'notificationProduct', 'selectedSupplierId'));
     }
 
     public function store(Request $request)

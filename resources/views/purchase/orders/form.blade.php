@@ -19,6 +19,9 @@
 @endpush
 
 @section('content')
+@if($notificationProduct ?? null)
+<div class="alert alert-info">Membuat PO untuk <strong>{{ $notificationProduct->name }}</strong>. {{ $suppliers->isEmpty() ? 'Produk belum terhubung ke supplier. Atur supplier produk sebelum membuat PO.' : 'Pilih supplier, lalu periksa satuan, jumlah, dan harga sebelum menyimpan.' }}</div>
+@endif
 <div class="procurement-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="heading-icon"><i class="bi bi-cart-plus"></i></div><div><h5 class="fw-bold mb-1">{{ isset($order) ? 'Ubah Purchase Order' : 'Purchase Order Baru' }}</h5><div class="small text-white-50">Pilih supplier dan susun daftar barang yang akan dipesan</div></div></div>@isset($order)<span class="badge bg-warning text-dark font-monospace">{{ $order->po_number }}</span>@endisset</div>
 <form method="POST" action="{{ isset($order) ? route('purchase.orders.update', $order) : route('purchase.orders.store') }}">
     @csrf @isset($order) @method('PUT') @endisset
@@ -36,7 +39,7 @@
                             <select name="supplier_id" id="supplierSelect" class="form-select @error('supplier_id') is-invalid @enderror" required>
                                 <option value="">-- Pilih Supplier --</option>
                                 @foreach($suppliers as $s)
-                                <option value="{{ $s->id }}" {{ old('supplier_id', $order->supplier_id ?? '') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
+                                <option value="{{ $s->id }}" {{ old('supplier_id', $order->supplier_id ?? $selectedSupplierId ?? '') == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
                                 @endforeach
                             </select>
                             @error('supplier_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -73,6 +76,7 @@
                                 @php
                                     $formItems = old('items', isset($order) ? $order->items->map(fn ($item) => $item->only(['product_id', 'product_unit_id', 'quantity_ordered', 'buy_price']))->all() : []);
                                     $formItems = is_array($formItems) ? array_values(array_filter($formItems, 'is_array')) : [];
+                                    if (!$formItems && ($notificationProduct ?? null) && $products->contains('id', $notificationProduct->id)) $formItems = [['product_id'=>$notificationProduct->id, 'product_unit_id'=>'', 'quantity_ordered'=>1, 'buy_price'=>0]];
                                     if (!$formItems) $formItems = [['product_id'=>'', 'product_unit_id'=>'', 'quantity_ordered'=>1, 'buy_price'=>0]];
                                 @endphp
                                     @foreach($formItems as $i => $item)
@@ -104,7 +108,7 @@
                     </div>
                 </div>
                 <div class="card-footer bg-white border-top p-3">
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="addItemBottom" {{ old('supplier_id', $order->supplier_id ?? '') ? '' : 'disabled' }}>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addItemBottom" {{ old('supplier_id', $order->supplier_id ?? $selectedSupplierId ?? '') ? '' : 'disabled' }}>
                         <i class="bi bi-plus-circle me-1"></i> Tambah Barang
                     </button>
                 </div>
@@ -205,6 +209,11 @@ function createItemRow(index) {
         <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[${index}][buy_price]" class="form-control js-decimal-currency" inputmode="decimal" value="0" required></div></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger py-0 remove-item"><i class="bi bi-trash"></i></button></td>
     `;
+    const notificationProductId = {{ Js::from($notificationProduct->id ?? null) }};
+    if (index === 0 && notificationProductId && currentProducts().some(p => String(p.id) === String(notificationProductId))) {
+        row.querySelector('.product-select').value = notificationProductId;
+        updateUnitOptions(row);
+    }
     bindEvents(row);
     initializeDecimalCurrencyInputs(row);
     return row;

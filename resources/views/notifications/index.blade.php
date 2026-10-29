@@ -30,6 +30,7 @@
             @if($notif['advice'])<p class="mb-2">{{ $notif['advice'] }}</p>@endif
             @if($notif['orders'] && auth()->user()->hasPermission('purchase.orders.view'))<div class="small text-muted">PO berjalan: @foreach($notif['orders'] as $order)<span>{{ $order['number'] }} ({{ $order['quantity'] }}){{ !$loop->last ? '; ' : '' }}</span>@endforeach</div>@endif
         </details>
+        @include('notifications.actions')
     </div></article></div>
 @empty
     <div class="col-12"><div class="card card-body text-center text-muted py-5">{{ $totalProducts === 0 ? 'Tidak ada kondisi yang perlu perhatian.' : 'Tidak ada produk yang cocok dengan filter. Kondisi produk yang dipilih mungkin sudah terselesaikan.' }}</div></div>

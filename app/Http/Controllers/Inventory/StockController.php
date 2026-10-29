@@ -20,6 +20,7 @@ class StockController extends Controller
             'location_id' => 'nullable|exists:locations,id',
             'category_id' => 'nullable|exists:categories,id',
             'search' => 'nullable|string|max:200',
+            'product_id' => 'nullable|integer|exists:products,id',
         ]);
         $locations  = Location::orderBy('name')->get();
         $categories = \App\Models\Category::orderBy('name')->get();
@@ -54,6 +55,7 @@ class StockController extends Controller
                 ->orderBy('received_date'),
         ]);
 
+        if ($request->filled('product_id')) $query->whereKey($request->integer('product_id'));
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->search . '%');
         }
