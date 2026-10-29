@@ -206,6 +206,12 @@
         }
 
         .notification-hover { position: relative; }
+        .topbar-title-group { flex: 1 1 0; min-width: 0; }
+        #topbar .topbar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #topbar #sidebarToggle, .topbar-actions { flex-shrink: 0; }
+        .topbar-profile { display: inline-flex; align-items: center; max-width: 220px; }
+        .topbar-profile-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .topbar-actions .dropdown-menu { max-width: calc(100vw - 2rem); }
         .notification-preview {
             position: absolute;
             top: calc(100% + 10px);
@@ -567,12 +573,19 @@
         .page-content > .d-flex > form { flex-wrap: wrap; }
         @media (max-width: 768px) {
             .page-content { padding: 1rem; }
-            #topbar { padding: .75rem 1rem; flex-wrap: wrap; gap: .5rem; }
+            #topbar { padding: .75rem 1rem; flex-wrap: nowrap; gap: .75rem; }
+            #topbar .topbar-title-group, #topbar .topbar-actions { gap: .75rem !important; }
             .page-content > .d-flex > form { width: 100%; }
             .page-content > .d-flex > form > .form-control,
             .page-content > .d-flex > form > .form-select,
             .page-content > .d-flex > form > .input-group { width: 100% !important; }
             .master-heading, .procurement-heading, .report-heading { flex-wrap: wrap; }
+        }
+        @media (max-width: 575.98px) {
+            #topbar .topbar-title-group, #topbar .topbar-actions { gap: .5rem !important; }
+            #topbar .topbar-title { font-size: .9rem; }
+            .topbar-profile-name { display: none; }
+            #topbar .topbar-profile i { margin-right: 0 !important; }
         }
     </style>
 </head>
@@ -605,14 +618,14 @@
 
     {{-- TOPBAR --}}
     <div id="topbar">
-        <div class="d-flex align-items-center gap-3">
+        <div class="topbar-title-group d-flex align-items-center gap-3">
             <button class="btn btn-sm btn-outline-secondary" id="sidebarToggle"
                     type="button" aria-controls="sidebar" aria-expanded="true" title="Ciutkan sidebar">
                 <i class="bi bi-list"></i>
             </button>
-            <h6 class="mb-0 fw-semibold text-muted">@yield('page-title', 'Dashboard')</h6>
+            <h6 class="topbar-title mb-0 fw-semibold text-muted">@yield('page-title', 'Dashboard')</h6>
         </div>
-        <div class="d-flex align-items-center gap-3">
+        <div class="topbar-actions d-flex align-items-center gap-3">
             {{-- Notifikasi stok --}}
             @if(!auth()->user()->must_change_password && auth()->user()->hasPermission('inventory.stock.view'))
             @php
@@ -664,11 +677,12 @@
 
             {{-- User dropdown --}}
             <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <button class="topbar-profile btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-label="Akun: {{ auth()->user()->name }}" title="{{ auth()->user()->name }}">
                     <i class="bi bi-person-circle me-1"></i>
-                    {{ auth()->user()->name }}
+                    <span class="topbar-profile-name">{{ auth()->user()->name }}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
+                    <li class="d-sm-none"><span class="dropdown-item-text fw-semibold text-break">{{ auth()->user()->name }}</span></li>
                     <li>
                         <span class="dropdown-item-text text-muted small">
                             @php
