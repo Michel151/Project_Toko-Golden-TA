@@ -4,7 +4,7 @@
 @push('styles')
 <style>
 .dashboard-hero{background:var(--app-header);color:#fff;border-radius:8px}
-.owner-section{background:#fff;border-top:2px solid var(--app-border);padding:1rem;min-width:0}
+.owner-section{background:#fff;border:1px solid var(--app-border);border-radius:8px;padding:1rem;min-width:0}
 .owner-section h6{font-weight:700;margin:0}
 .owner-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:1rem}
 .owner-metric .card-body{display:flex;gap:.75rem;align-items:flex-start}
@@ -24,6 +24,23 @@
 .owner-stock-table{min-width:500px;font-size:.82rem}
 .owner-critical-scroll{max-height:340px;overflow:auto}.owner-stock-table th{position:sticky;top:0;z-index:1;background:#eef2ec}
 .owner-recent{max-height:340px;overflow:auto}
+.owner-overview>div{min-width:0}
+.owner-trend,.owner-attention{display:flex;flex-direction:column}
+.owner-trend .owner-chart{flex:1;min-height:260px}
+.owner-attention .owner-heading{margin-bottom:.65rem}
+.owner-attention .dashboard-notification-summary{display:flex;flex-direction:column;min-height:0;flex:1}
+.owner-attention .dashboard-notification-heading{align-items:center;flex:none;padding-bottom:.65rem;border-bottom:1px solid var(--app-border)}
+.owner-attention .dashboard-notification-heading a{font-weight:600;text-decoration:none}
+.owner-attention .dashboard-notification-list{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:.4rem;max-height:300px}
+.owner-attention .dashboard-notification-item{padding:.7rem .25rem!important}
+.owner-attention .dashboard-notification-item:hover{background:#f3f7f4}
+.owner-attention .dashboard-notification-item>div:first-child{display:block!important}
+.owner-attention .dashboard-notification-item strong{display:block;overflow-wrap:anywhere;font-size:.84rem;line-height:1.4;margin-bottom:.35rem}
+.owner-attention .dashboard-notification-item .badge{font-size:.65rem}
+.owner-attention .dashboard-notification-item .small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5;font-size:.78rem}
+.owner-operations{flex:none;border-top:1px solid var(--app-border);padding-top:.65rem;margin-top:.5rem}
+.owner-operations .owner-action{grid-template-columns:24px minmax(0,1fr) auto;padding:.5rem 0;font-size:.82rem}
+@media(min-width:1200px){.owner-overview>div{height:480px}.owner-attention .dashboard-notification-list{max-height:none}}
 @media(max-width:575px){.owner-metric .card-body{flex-direction:column;padding:.85rem}.owner-value{font-size:1.05rem}.owner-section{padding:.85rem}}
 </style>
 @endpush
@@ -45,18 +62,20 @@
     <div class="col-6 col-xl-3"><div class="card owner-metric h-100"><div class="card-body"><div class="owner-icon bg-info bg-opacity-10 text-info"><i class="bi bi-calculator"></i></div><div><div class="small text-muted">Laba Kotor Bulan Ini</div><div class="owner-value">{{ ($missingCostCount || $salesWithoutItemsCount) ? 'Belum lengkap' : 'Rp '.number_format($grossProfit,0,',','.') }}</div><div class="small text-muted">{{ $salesWithoutItemsCount ? $salesWithoutItemsCount.' nota tanpa rincian item' : ($missingCostCount ? $missingCostCount.' item tanpa HPP positif' : 'Penjualan lunas dikurangi HPP tercatat') }}</div><div class="small text-muted mt-1">Belum dikurangi biaya operasional</div></div></div></div></div>
     <div class="col-6 col-xl-3"><div class="card owner-metric h-100"><div class="card-body"><div class="owner-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-hourglass-split"></i></div><div><div class="small text-muted">Nota Belum Dibayar</div><div class="owner-value">Rp {{ number_format($pendingSalesAmount,0,',','.') }}</div><a class="small text-decoration-none" href="{{ route('sale.sales.index',['status'=>'pending']) }}">{{ $pendingSalesCount }} nota menunggu pembayaran <i class="bi bi-arrow-right"></i></a></div></div></div></div>
 </div>
-<div class="row g-3 mb-3">
-    <div class="col-xl-8"><section class="owner-section h-100" aria-labelledby="trendHeading">
+<div class="row g-3 mb-3 owner-overview">
+    <div class="col-xl-8"><section class="owner-section owner-trend h-100" aria-labelledby="trendHeading">
         <div class="owner-heading"><div><h6 id="trendHeading">Penjualan Lunas Harian</h6><div class="small text-muted">Total periode: <strong id="trendTotal"></strong></div></div><div class="btn-group btn-group-sm" role="group" aria-label="Periode penjualan"><button type="button" class="btn btn-outline-success active" data-trend-days="7" aria-pressed="true">7 hari</button><button type="button" class="btn btn-outline-success" data-trend-days="30" aria-pressed="false">30 hari</button></div></div>
         <div class="owner-chart"><canvas id="salesTrendChart" role="img" aria-label="Grafik penjualan lunas harian"></canvas></div>
         <div class="small text-muted mt-2">Rata-rata nota lunas bulan ini: <strong>Rp {{ number_format($averageTransaction,0,',','.') }}</strong></div>
     </section></div>
-    <div class="col-xl-4"><section class="owner-section h-100" id="notifications" aria-labelledby="actionHeading">
+    <div class="col-xl-4"><section class="owner-section owner-attention h-100" id="notifications" aria-labelledby="actionHeading">
         <div class="owner-heading"><h6 id="actionHeading">Perlu Tindakan</h6><i class="bi bi-list-check text-muted"></i></div>
         @include('notifications.summary')
-        <div class="mt-3 small text-muted">Operasional lainnya</div>
+        <div class="owner-operations">
+        <div class="small text-muted mb-1">Operasional lainnya</div>
         <a class="owner-action" href="{{ route('sale.sales.index',['status'=>'pending']) }}"><i class="bi bi-hourglass-split text-warning"></i><span>Nota belum dibayar<small class="d-block text-muted">{{ $pendingSalesCount }} nota</small></span><i class="bi bi-arrow-up-right"></i></a>
         <a class="owner-action" href="{{ route('purchase.orders.index') }}"><i class="bi bi-box-arrow-in-down text-primary"></i><span>Penerimaan belum lengkap<small class="d-block text-muted">{{ $pendingPO }} PO</small></span><i class="bi bi-arrow-up-right"></i></a>
+        </div>
     </section></div>
 </div>
 <div class="row g-3 mb-3">
