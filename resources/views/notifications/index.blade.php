@@ -26,7 +26,7 @@
         <details @if(!empty($filters['product_id'])) open @endif>
             <summary class="text-primary">Rincian kondisi ({{ count($notif['conditions']) }})</summary>
             <ul class="mt-2 mb-2">@foreach($notif['conditions'] as $condition)<li class="mb-2"><strong>{{ $condition['badge_label'] }}:</strong> {{ $condition['message'] }}</li>@endforeach</ul>
-            @if($notif['transfers'])<div class="border-top pt-2"><strong>Saran distribusi</strong><ul class="mt-1">@foreach($notif['transfers'] as $transfer)<li>{{ $transfer['message'] }}</li>@endforeach</ul><p class="small text-muted">Transfer antar gudang menjaga minimum lokasi asal. Untuk Toko yang kosong, stok gudang dapat dipakai meskipun di bawah minimum. Periksa kembali stok saat melakukan transfer.</p></div>@endif
+            @if($notif['transfers'])<div class="border-top pt-2"><strong>Rekomendasi Distribusi Stok</strong><ul class="mt-1">@foreach($notif['transfers'] as $transfer)<li>{{ $transfer['message'] }}</li>@endforeach</ul><p class="small text-muted">Rekomendasi mempertimbangkan ketersediaan stok layak jual dan prioritas penjualan di Toko. Transfer antar gudang tetap mempertahankan batas minimum lokasi asal. Verifikasi ketersediaan stok sebelum memproses transfer.</p></div>@endif
             @if($notif['advice'])<p class="mb-2">{{ $notif['advice'] }}</p>@endif
             @if($notif['orders'] && auth()->user()->hasPermission('purchase.orders.view'))<div class="small text-muted">PO berjalan: @foreach($notif['orders'] as $order)<span>{{ $order['number'] }} ({{ $order['quantity'] }}){{ !$loop->last ? '; ' : '' }}</span>@endforeach</div>@endif
         </details>

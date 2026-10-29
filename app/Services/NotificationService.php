@@ -82,7 +82,7 @@ class NotificationService
                     ? 'Masih kurang '.$display($shortfall).' untuk mencapai batas minimum setelah rencana transfer dan PO diterima.'
                     : 'Periksa penerimaan dan distribusi barang sebelum membuat pesanan tambahan.';
             } elseif ($shortfall > 0) {
-                $advice = 'Pertimbangkan order ke supplier. Kekurangan untuk mencapai batas minimum: '.$display($shortfall).'.';
+                $advice = 'Direkomendasikan pengadaan dari supplier untuk memenuhi kekurangan stok sebesar '.$display($shortfall).'.';
             } elseif ($stock['transfers'] === []) {
                 $advice = 'Stok berada pada batas minimum. Pantau kebutuhan sebelum menambah pesanan.';
             }
@@ -154,8 +154,8 @@ class NotificationService
                 }
                 $belowMinimum = $planned[$sourceId] - $quantity < $source['minimum'];
                 $transfers[] = ['source_id' => $sourceId, 'destination_id' => $id, 'quantity' => $quantity,
-                    'message' => 'Pertimbangkan transfer '.$display($quantity).' dari '.$source['name'].' ke '.$location['name'].'.'
-                        .($belowMinimum ? ' Penjualan di Toko diprioritaskan; stok lokasi asal akan berada di bawah minimum.' : '')];
+                    'message' => 'Direkomendasikan transfer '.$display($quantity).' dari '.$source['name'].' ke '.$location['name'].'.'
+                        .($belowMinimum ? ' Transfer ini diprioritaskan untuk mendukung penjualan di Toko. Stok lokasi asal setelah transfer akan berada di bawah batas minimum.' : '')];
                 $planned[$sourceId] -= $quantity;
                 $planned[$id] += $quantity;
                 $needed -= $quantity;

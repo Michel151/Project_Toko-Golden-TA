@@ -71,7 +71,7 @@ class NotificationCenterTest extends TestCase
         $this->assertSame($a->id, $item['transfers'][0]['destination_id']);
         $this->assertEquals(5, $item['transfers'][0]['quantity']);
         $this->assertEquals(11, $item['shortfall']);
-        $this->assertStringContainsString('order ke supplier', $item['advice']);
+        $this->assertStringContainsString('pengadaan dari supplier', $item['advice']);
 
         Stock::where('location_id', $source->id)->update(['quantity' => 10]);
         $item = app(NotificationService::class)->checkProduct($product->fresh())[0];
@@ -251,7 +251,7 @@ class NotificationCenterTest extends TestCase
         $item = app(NotificationService::class)->checkProduct($product)[0];
         $this->assertSame([], $item['transfers']);
         $this->assertEquals(50, $item['shortfall']);
-        $this->assertStringContainsString('order ke supplier', $item['advice']);
+        $this->assertStringContainsString('pengadaan dari supplier', $item['advice']);
         $this->assertEquals(100, array_sum(app(NotificationService::class)->sellableByLocation($product)));
         $this->actingAs($this->owner)->get(route('notifications.index', ['product_id' => $product->id]))
             ->assertOk()->assertDontSee('Buat Transfer')->assertSee('Buat PO');
@@ -293,7 +293,7 @@ class NotificationCenterTest extends TestCase
         $this->assertSame($store->id, $item['transfers'][0]['destination_id']);
         $this->assertEquals(8, $item['transfers'][0]['quantity']);
         $this->assertEquals(18, $item['shortfall']);
-        $this->assertStringContainsString('di bawah minimum', $item['transfers'][0]['message']);
+        $this->assertStringContainsString('di bawah batas minimum', $item['transfers'][0]['message']);
         $this->actingAs($this->owner)->get(route('notifications.index', ['product_id' => $product->id]))
             ->assertOk()->assertSee('Buat Transfer')->assertSee('Buat PO');
     }

@@ -120,6 +120,6 @@ class NotificationServiceTest extends TestCase
         $this->assertSame([['label' => 'Stok Rendah', 'class' => 'warning text-dark']], $notifications[0]['badges']);
         $this->assertEqualsCanonicalizing(['Gudang 2', 'Gudang 3', 'Toko'], $notifications[0]['location_names']);
         $this->assertStringContainsString('Total stok layak jual Dettol 50 Lembar rendah', $notifications[0]['message']);
-        $this->assertStringContainsString('order ke supplier', $notifications[0]['advice']);
+        $this->assertStringContainsString('pengadaan dari supplier', $notifications[0]['advice']);
     }
 }
