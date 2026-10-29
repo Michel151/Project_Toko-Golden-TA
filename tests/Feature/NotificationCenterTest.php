@@ -149,7 +149,7 @@ class NotificationCenterTest extends TestCase
         }
         $this->get(route('notifications.index'))->assertOk()->assertViewHas('notifications', fn ($page) => $page->total() === 14 && $page->count() === 12)->assertSee('14 produk perlu perhatian');
         $this->get(route('notifications.index', ['page' => 2]))->assertOk()->assertViewHas('notifications', fn ($page) => $page->count() === 2);
-        $detail = $this->get(route('notifications.index', ['product_id' => $product->id]))->assertOk()->assertViewHas('notifications', fn ($page) => $page->total() === 1)->assertDontSee('Buat Transfer');
+        $detail = $this->get(route('notifications.index', ['product_id' => $product->id]))->assertOk()->assertViewHas('notifications', fn ($page) => $page->total() === 1)->assertSee('Buat Transfer');
         if (getenv('CAPTURE_NOTIFICATION_UI') === '1') {
             file_put_contents(base_path('tools/notification-detail-preview.html'), $detail->getContent());
             file_put_contents(base_path('tools/notification-list-preview.html'), $this->get(route('notifications.index'))->getContent());
@@ -241,6 +241,78 @@ class NotificationCenterTest extends TestCase
         $this->travelTo(now()->addDay());
         request()->attributes->remove('inventory.notifications');
         $this->assertSame('expired', $service->forRequest()[0]['kind']);
+    }
+
+    public function test_store_surplus_is_kept_for_sales_and_warehouse_shortage_requires_po(): void
+    {
+        $product = $this->product('Stok untuk penjualan');
+        $store = $this->stock($product, 'Toko', 100, 10);
+        $this->stock($product, 'Gudang 2', 0, 50);
+        $item = app(NotificationService::class)->checkProduct($product)[0];
+        $this->assertSame([], $item['transfers']);
+        $this->assertEquals(50, $item['shortfall']);
+        $this->assertStringContainsString('order ke supplier', $item['advice']);
+        $this->assertEquals(100, array_sum(app(NotificationService::class)->sellableByLocation($product)));
+        $this->actingAs($this->owner)->get(route('notifications.index', ['product_id' => $product->id]))
+            ->assertOk()->assertDontSee('Buat Transfer')->assertSee('Buat PO');
+
+        $supplier = Supplier::create(['name' => 'Supplier gudang']);
+        $po = PurchaseOrder::create(['po_number' => 'PO-STORE-KEPT', 'supplier_id' => $supplier->id,
+            'order_date' => today(), 'status' => 'pending', 'created_by' => $this->owner->id]);
+        $po->items()->create(['product_id' => $product->id, 'quantity_ordered' => 50, 'buy_price' => 1000]);
+        $item = app(NotificationService::class)->checkProduct($product->fresh())[0];
+        $this->assertEquals(0, $item['shortfall']);
+        $this->assertStringContainsString('menunggu penerimaan', $item['advice']);
+        $this->get(route('notifications.index', ['product_id' => $product->id]))
+            ->assertOk()->assertDontSee('Buat Transfer')->assertDontSee('Buat PO')->assertSee('Lihat PO');
+    }
+
+    public function test_warehouse_can_supply_store_and_other_warehouse_without_using_store_stock(): void
+    {
+        $product = $this->product('Distribusi gudang');
+        $store = $this->stock($product, 'Toko', 2, 10);
+        $destination = $this->stock($product, 'Gudang 2', 0, 5);
+        $source = $this->stock($product, 'Gudang 1', 30, 10);
+        $item = app(NotificationService::class)->checkProduct($product)[0];
+        $this->assertCount(2, $item['transfers']);
+        $this->assertSame([$source->id, $source->id], array_column($item['transfers'], 'source_id'));
+        $this->assertSame([$store->id, $destination->id], array_column($item['transfers'], 'destination_id'));
+        $this->assertEquals([8, 5], array_column($item['transfers'], 'quantity'));
+        $this->assertEquals(0, $item['shortfall']);
+    }
+
+    public function test_empty_store_can_use_warehouse_stock_below_minimum_and_counts_replenishment(): void
+    {
+        $product = $this->product('Prioritas penjualan');
+        $warehouse = $this->stock($product, 'Gudang 1', 10, 15);
+        $this->stock($product, 'Gudang 2', 0, 5);
+        $store = $this->stock($product, 'Toko', 0, 8);
+        $item = app(NotificationService::class)->checkProduct($product)[0];
+        $this->assertCount(1, $item['transfers']);
+        $this->assertSame($warehouse->id, $item['transfers'][0]['source_id']);
+        $this->assertSame($store->id, $item['transfers'][0]['destination_id']);
+        $this->assertEquals(8, $item['transfers'][0]['quantity']);
+        $this->assertEquals(18, $item['shortfall']);
+        $this->assertStringContainsString('di bawah minimum', $item['transfers'][0]['message']);
+        $this->actingAs($this->owner)->get(route('notifications.index', ['product_id' => $product->id]))
+            ->assertOk()->assertSee('Buat Transfer')->assertSee('Buat PO');
+    }
+
+    public function test_empty_store_with_zero_minimum_gets_transfer_but_never_expired_stock(): void
+    {
+        $product = $this->product('Minimum nol', ['is_expirable' => true]);
+        $store = $this->stock($product, 'Toko', 0, 0);
+        $source = $this->stock($product, 'Gudang 1', 10, 15);
+        $this->batch($product, $source, 10, 0.5);
+        $this->batch($product, $source, -1, 9.5);
+        $item = app(NotificationService::class)->checkProduct($product)[0];
+        $this->assertCount(1, $item['transfers']);
+        $this->assertSame($store->id, $item['transfers'][0]['destination_id']);
+        $this->assertEquals(0.5, $item['transfers'][0]['quantity']);
+        $this->assertEquals(15.5, $item['shortfall']);
+        StockBatch::where('product_id', $product->id)->update(['expired_date' => today()->subDay()]);
+        $item = app(NotificationService::class)->checkProduct($product->fresh())[0];
+        $this->assertSame([], $item['transfers']);
     }
 
 }

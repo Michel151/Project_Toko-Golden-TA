@@ -112,39 +112,60 @@ class NotificationService
             $setting = $settings->get($id);
             $location = $setting?->location ?? $stocks->get($id)?->location ?? $batches->get($id)?->first()?->location;
             $locations[$id] = ['name' => $location?->name ?? 'Tanpa lokasi', 'quantity' => ($available[$id] ?? 0.0),
-                'minimum' => (float) ($setting?->min_stock ?? 0), 'monitored' => $setting !== null];
+                'minimum' => (float) ($setting?->min_stock ?? 0), 'monitored' => $setting !== null,
+                'can_supply' => mb_strtolower(trim($location?->name ?? '')) !== 'toko'];
         }
         $total = array_sum(array_column($locations, 'quantity'));
         $minimum = (float) $product->min_stock_total;
         $conditions = [];
-        $surplus = [];
+        $planned = [];
+        $targets = [];
         foreach ($locations as $id => $location) {
-            $surplus[$id] = max(0, $location['quantity'] - $location['minimum']);
+            $planned[$id] = $location['quantity'];
+            $targets[$id] = ! $location['can_supply'] && $location['quantity'] <= 0
+                ? max(1, $location['minimum']) : $location['minimum'];
+            if (($location['monitored'] || ! $location['can_supply']) && $location['quantity'] <= $location['minimum']) {
+                $empty = $location['quantity'] <= 0;
+                $message = 'Stok '.$product->name.' di '.$location['name'].($empty ? ' habis.' : ' menipis.')
+                    .' Tersedia '.$display($location['quantity']).', minimum '.$display($location['minimum']).'.';
+                $conditions[] = $this->condition($empty ? 'out_of_stock' : 'low_stock', $message, [$id], [$location['name']]);
+            }
         }
         $transfers = [];
-        $locationShortfall = 0.0;
-        // Allocate a source's surplus only once, preserving its own minimum.
-        foreach ($locations as $id => $location) {
-            if (! $location['monitored'] || $location['quantity'] > $location['minimum']) {
+        // Supply an empty sales location first, including stock below a warehouse's minimum.
+        $destinations = array_keys($locations);
+        usort($destinations, fn ($a, $b) => [! (! $locations[$a]['can_supply'] && $locations[$a]['quantity'] <= 0), $a]
+            <=> [! (! $locations[$b]['can_supply'] && $locations[$b]['quantity'] <= 0), $b]);
+        foreach ($destinations as $id) {
+            $location = $locations[$id];
+            $priority = ! $location['can_supply'] && $location['quantity'] <= 0;
+            if (! $location['monitored'] && ! $priority) {
                 continue;
             }
-            $empty = $location['quantity'] <= 0;
-            $message = 'Stok '.$product->name.' di '.$location['name'].($empty ? ' habis.' : ' menipis.')
-                .' Tersedia '.$display($location['quantity']).', minimum '.$display($location['minimum']).'.';
-            $conditions[] = $this->condition($empty ? 'out_of_stock' : 'low_stock', $message, [$id], [$location['name']]);
-            $needed = max(0, $location['minimum'] - $location['quantity']);
-            foreach ($surplus as $sourceId => &$available) {
-                if ($sourceId === $id || $available <= 0 || $needed <= 0) {
+            $needed = max(0, $targets[$id] - $planned[$id]);
+            foreach ($locations as $sourceId => $source) {
+                if ($sourceId === $id || ! $source['can_supply'] || $needed <= 0) {
                     continue;
                 }
+                $available = max(0, $planned[$sourceId] - ($priority ? 0 : $source['minimum']));
                 $quantity = min($available, $needed);
+                if ($quantity <= 0) {
+                    continue;
+                }
+                $belowMinimum = $planned[$sourceId] - $quantity < $source['minimum'];
                 $transfers[] = ['source_id' => $sourceId, 'destination_id' => $id, 'quantity' => $quantity,
-                    'message' => 'Pertimbangkan transfer '.$display($quantity).' dari '.$locations[$sourceId]['name'].' ke '.$location['name'].'.'];
-                $available -= $quantity;
+                    'message' => 'Pertimbangkan transfer '.$display($quantity).' dari '.$source['name'].' ke '.$location['name'].'.'
+                        .($belowMinimum ? ' Penjualan di Toko diprioritaskan; stok lokasi asal akan berada di bawah minimum.' : '')];
+                $planned[$sourceId] -= $quantity;
+                $planned[$id] += $quantity;
                 $needed -= $quantity;
             }
-            unset($available);
-            $locationShortfall += $needed;
+        }
+        $locationShortfall = 0.0;
+        foreach ($locations as $id => $location) {
+            if ($location['monitored'] || ! $location['can_supply']) {
+                $locationShortfall += max(0, $targets[$id] - $planned[$id]);
+            }
         }
         if ($total <= 0 || ($minimum > 0 && $total <= $minimum)) {
             $message = 'Total stok layak jual '.$product->name.($total <= 0 ? ' habis.' : ' rendah.')
