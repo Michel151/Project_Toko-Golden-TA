@@ -13,7 +13,7 @@ class ProfitLossWorkbookExport implements WithMultipleSheets
         $data = $this->data;
         $period = 'Periode: '.\Carbon\CarbonImmutable::parse($data['from'])->format('d/m/Y')
             .' s.d. '.\Carbon\CarbonImmutable::parse($data['to'])->format('d/m/Y');
-        $information = [$period, 'Disajikan dalam Rupiah (Rp)'];
+        $information = [$period, 'Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.'];
         if ($data['incompleteCount'] > 0) {
             $information[] = 'Catatan: HPP pada '.$data['incompleteCount'].' transaksi penjualan belum lengkap; laba belum dapat ditentukan secara lengkap.';
         }
@@ -24,7 +24,7 @@ class ProfitLossWorkbookExport implements WithMultipleSheets
         return [
             new ProfitLossExport('Laporan Laba Rugi - '.$data['periodLabel'], $data['lines'], $information),
             new ProfitLossExport('Rekonsiliasi Persediaan - '.$data['periodLabel'], $data['reconciliation']['lines'], [
-                $period, 'Status: '.$data['reconciliation']['statusLabel'], ...$data['reconciliation']['notes'],
+                $period, 'Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.', 'Status: '.$data['reconciliation']['statusLabel'], ...$data['reconciliation']['notes'],
             ], 'Rekonsiliasi Persediaan', 'Belum tersedia'),
         ];
     }

@@ -322,6 +322,40 @@ class ProfitLossReconciliationTest extends TestCase
         $book->disconnectWorksheets();
     }
 
+    public function test_financial_presentation_rounds_to_nearest_rupiah_without_changing_values(): void
+    {
+        $lines = [
+            ['Pembulatan turun', 1250.49, false],
+            ['Pembulatan naik', 1250.50, false],
+            ['Beban turun', -1250.49, false],
+            ['Beban naik', -1250.50, false],
+            ['Belum lengkap', null, false],
+        ];
+        // This partial is shared by the screen and PDF.
+        $html = view('report._financial-lines', compact('lines'))->render();
+        foreach (['1.250', '1.251', '(1.250)', '(1.251)', 'Belum lengkap'] as $text) {
+            $this->assertStringContainsString($text, $html);
+        }
+        $this->assertStringNotContainsString(',49', $html);
+        $this->assertStringNotContainsString(',50', $html);
+
+        $export = new \App\Exports\ProfitLossExport('Uji pembulatan', $lines, []);
+        $temporary = tmpfile();
+        fwrite($temporary, \Maatwebsite\Excel\Facades\Excel::raw($export, \Maatwebsite\Excel\Excel::XLSX));
+        $book = IOFactory::load(stream_get_meta_data($temporary)['uri']);
+        fclose($temporary);
+        $sheet = $book->getSheet(0);
+        foreach ([1250.49, 1250.50, -1250.49, -1250.50] as $index => $amount) {
+            $cell = $sheet->getCell('B'.($index + 5));
+            $this->assertEquals($amount, $cell->getValue());
+            $expected = $amount < 0
+                ? '('.number_format(abs($amount), 0, '.', ',').')'
+                : number_format($amount, 0, '.', ',');
+            $this->assertSame($expected, $cell->getFormattedValue());
+        }
+        $book->disconnectWorksheets();
+    }
+
     public function test_pdf_and_two_excel_sheets_match_the_screen_and_preserve_business_data(): void
     {
         $this->receive(20, 50000);
@@ -346,8 +380,8 @@ class ProfitLossReconciliationTest extends TestCase
         $this->assertEquals(2100000, $rows['Penerimaan pembelian']);
         $this->assertEquals(-150000, $rows['HPP penjualan moving average']);
         $this->assertEquals(0, $rows['Selisih rekonsiliasi']);
-        $this->assertSame('0.00', $book->getSheet(1)->getCell('B5')->getFormattedValue());
-        $this->assertSame('0.00', $book->getSheet(1)->getCell('B'.$book->getSheet(1)->getHighestDataRow())->getFormattedValue());
+        $this->assertSame('0', $book->getSheet(1)->getCell('B5')->getFormattedValue());
+        $this->assertSame('0', $book->getSheet(1)->getCell('B'.$book->getSheet(1)->getHighestDataRow())->getFormattedValue());
         $this->assertSame('', $main->getAutoFilter()->getRange());
         $this->assertSame($before, DB::table('inventory_cost_entries')->orderBy('id')->get()->toJson());
         if (getenv('CAPTURE_PL_REPORTS') === '1') {

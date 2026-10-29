@@ -2,7 +2,7 @@
 @section('report-title', 'Laporan Laba Rugi')
 @section('report-period', $periodLabel.' | '.\Carbon\Carbon::parse($from)->format('d/m/Y').' s.d. '.\Carbon\Carbon::parse($to)->format('d/m/Y'))
 @section('report-body')
-<div class="meta">Disajikan dalam Rupiah (Rp)</div>
+<div class="meta">Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.</div>
 @if($incompleteCount)<div class="notice">Catatan: HPP pada {{ $incompleteCount }} transaksi penjualan belum lengkap; laba belum dapat ditentukan secara lengkap.</div>@endif
 @if(!$taxSummary['complete'])<div class="notice">Catatan: Beban pajak belum dikonfirmasi untuk {{ implode(', ', $taxSummary['missing']) }}; laba bersih belum dapat ditentukan.</div>@endif
 <style>

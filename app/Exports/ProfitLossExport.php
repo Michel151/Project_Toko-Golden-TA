@@ -26,7 +26,7 @@ class ProfitLossExport extends ReportExport implements WithStrictNullComparison
             $sheet->getRowDimension(3)->setRowHeight(max(45, ceil(mb_strlen(implode(' | ', $this->metadata)) / 85) * 13 + 12));
             $sheet->getAutoFilter()->setRange('');
             $last = count($this->rows) + 4;
-            $sheet->getStyle('B5:B'.$last)->getNumberFormat()->setFormatCode('#,##0.00;(#,##0.00);0.00');
+            $sheet->getStyle('B5:B'.$last)->getNumberFormat()->setFormatCode('#,##0;(#,##0);0');
             foreach ($this->lines as $index => $line) {
                 $row = $index + 5;
                 $sheet->getRowDimension($row)->setRowHeight(22);

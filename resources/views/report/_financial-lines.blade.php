@@ -5,7 +5,7 @@
             <th colspan="2">{{ $label }}</th>
         @else
             <td>{{ $label }}</td>
-            <td class="right text-end text-nowrap {{ $value !== null && $value < 0 ? 'text-danger' : '' }}">{{ $value === null ? ($missing ?? 'Belum lengkap') : ($value < 0 ? '('.number_format(abs($value),2,',','.').')' : number_format($value,2,',','.')) }}</td>
+            <td class="right text-end text-nowrap {{ $value !== null && $value < 0 ? 'text-danger' : '' }}">{{ $value === null ? ($missing ?? 'Belum lengkap') : ($value < 0 ? '('.number_format(abs($value),0,',','.').')' : number_format($value,0,',','.')) }}</td>
         @endif
     </tr>
 @endforeach

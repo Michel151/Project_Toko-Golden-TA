@@ -719,7 +719,7 @@ function addItem(reveal = true) {
             <div class="cart-field">
                 <label class="form-label small fw-semibold">Qty</label>
                 <input type="number" name="items[${idx}][quantity]" class="form-control form-control-sm qty-input"
-                       value="1" min="0.01" step="0.01" aria-label="Jumlah barang" required>
+                       value="1" min="1" step="1" aria-label="Jumlah barang" required>
             </div>
             <div class="cart-field">
                 <label class="form-label small fw-semibold">Harga Satuan</label>

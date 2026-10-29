@@ -15,14 +15,15 @@
 </div>
 <div class="small text-muted mb-3"><strong>{{ $periodLabel }}</strong> | {{ \Carbon\Carbon::parse($from)->format('d/m/Y') }} s.d. {{ \Carbon\Carbon::parse($to)->format('d/m/Y') }}</div>
 <div class="alert alert-light border small">{{ $notice }}</div>
+<div class="small text-muted mb-3">Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.</div>
 @if(!$taxSummary['complete'])<div class="alert alert-warning">Pajak belum dikonfirmasi untuk seluruh periode. Laba bersih belum dapat ditentukan. <a href="{{ route('taxes.index',$exportFilters) }}">Periksa pencatatan pajak</a></div>@endif
 @if($incompleteCount)<div class="alert alert-warning" role="alert">{{ $incompleteCount }} nota memiliki HPP belum lengkap. Laba belum dapat ditentukan.</div>@endif
 @if($draftCount)<div class="alert alert-warning" role="alert">{{ $draftCount }} draft beban pada periode ini belum dihitung. <a href="{{ route('expenses.index',$exportFilters + ['status'=>'draft']) }}">Periksa draft</a></div>@endif
 @include('components.report-kpis',['metrics'=>[
-['icon'=>'cash-stack','tone'=>'success','label'=>'Penjualan Lunas','value'=>'Rp '.number_format($revenue,2,',','.'),'hint'=>'Sesuai tanggal transaksi'],
-['icon'=>'calculator','tone'=>'primary','label'=>'Laba Kotor','value'=>$grossProfit === null ? 'Belum lengkap' : 'Rp '.number_format($grossProfit,2,',','.'),'hint'=>'Penjualan dikurangi HPP'],
-['icon'=>'journal-minus','tone'=>'warning','label'=>'Beban Operasional','value'=>'Rp '.number_format($expenseTotal,2,',','.'),'hint'=>'Beban terkonfirmasi'],
-['icon'=>'graph-up','tone'=>'info','label'=>'Laba (Rugi) Bersih','value'=>$netProfit === null ? 'Belum lengkap' : 'Rp '.number_format($netProfit,2,',','.'),'hint'=>'Laba sebelum pajak dikurangi beban pajak terkonfirmasi'],
+['icon'=>'cash-stack','tone'=>'success','label'=>'Penjualan Lunas','value'=>'Rp '.number_format($revenue,0,',','.'),'hint'=>'Sesuai tanggal transaksi'],
+['icon'=>'calculator','tone'=>'primary','label'=>'Laba Kotor','value'=>$grossProfit === null ? 'Belum lengkap' : 'Rp '.number_format($grossProfit,0,',','.'),'hint'=>'Penjualan dikurangi HPP'],
+['icon'=>'journal-minus','tone'=>'warning','label'=>'Beban Operasional','value'=>'Rp '.number_format($expenseTotal,0,',','.'),'hint'=>'Beban terkonfirmasi'],
+['icon'=>'graph-up','tone'=>'info','label'=>'Laba (Rugi) Bersih','value'=>$netProfit === null ? 'Belum lengkap' : 'Rp '.number_format($netProfit,0,',','.'),'hint'=>'Laba sebelum pajak dikurangi beban pajak terkonfirmasi'],
 ]])
 <section class="bg-white border mb-3">
     <h6 class="fw-bold p-3 mb-0">Ringkasan Laba Rugi</h6>
@@ -36,7 +37,7 @@
     <div class="px-3 pb-3 small text-muted">@foreach($reconciliation['notes'] as $note)<div class="mb-1">{{ $note }}</div>@endforeach</div>
     <div class="table-responsive"><table class="table financial-lines mb-0"><thead><tr><th>Uraian</th><th class="text-end">Nilai (Rp)</th></tr></thead><tbody>@include('report._financial-lines',['lines'=>$reconciliation['lines'],'missing'=>'Belum tersedia'])</tbody></table></div>
 </section>
-<section class="bg-white border"><div class="p-3 d-flex flex-wrap justify-content-between gap-2"><h6 class="fw-bold mb-0">Rincian Beban Terkonfirmasi</h6><a href="{{ route('expenses.index',$exportFilters + ['status'=>'confirmed']) }}">Pencatatan Beban</a></div><div class="table-responsive"><table class="table report-table mb-0"><thead><tr><th>Tanggal Pengakuan</th><th>Nomor</th><th>Kategori / Keterangan</th><th>Pembayaran</th><th class="text-end">Nominal</th></tr></thead><tbody>@forelse($expenses as $expense)<tr><td class="text-nowrap">{{ $expense->recognized_date->format('d/m/Y') }}</td><td><a href="{{ route('expenses.show',$expense) }}">{{ $expense->number }}</a></td><td>{{ \App\Models\Expense::CATEGORIES[$expense->category] }}<div class="small text-muted text-break">{{ $expense->description }}</div></td><td>{{ $expense->paid_date ? 'Sudah dibayar' : 'Belum dibayar' }}</td><td class="text-end text-nowrap">Rp {{ number_format($expense->amount,2,',','.') }}</td></tr>@empty<tr><td colspan="5" class="text-center text-muted py-4">Tidak ada beban terkonfirmasi pada periode ini.</td></tr>@endforelse</tbody></table></div><div class="p-3">{{ $expenses->links() }}</div></section>
+<section class="bg-white border"><div class="p-3 d-flex flex-wrap justify-content-between gap-2"><h6 class="fw-bold mb-0">Rincian Beban Terkonfirmasi</h6><a href="{{ route('expenses.index',$exportFilters + ['status'=>'confirmed']) }}">Pencatatan Beban</a></div><div class="table-responsive"><table class="table report-table mb-0"><thead><tr><th>Tanggal Pengakuan</th><th>Nomor</th><th>Kategori / Keterangan</th><th>Pembayaran</th><th class="text-end">Nominal</th></tr></thead><tbody>@forelse($expenses as $expense)<tr><td class="text-nowrap">{{ $expense->recognized_date->format('d/m/Y') }}</td><td><a href="{{ route('expenses.show',$expense) }}">{{ $expense->number }}</a></td><td>{{ \App\Models\Expense::CATEGORIES[$expense->category] }}<div class="small text-muted text-break">{{ $expense->description }}</div></td><td>{{ $expense->paid_date ? 'Sudah dibayar' : 'Belum dibayar' }}</td><td class="text-end text-nowrap">Rp {{ number_format($expense->amount,0,',','.') }}</td></tr>@empty<tr><td colspan="5" class="text-center text-muted py-4">Tidak ada beban terkonfirmasi pada periode ini.</td></tr>@endforelse</tbody></table></div><div class="p-3">{{ $expenses->links() }}</div></section>
 @endsection
 @push('styles')
 <style>
