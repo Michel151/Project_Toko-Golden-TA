@@ -24,6 +24,7 @@
 .owner-stock-table{min-width:500px;font-size:.82rem}
 .owner-critical-scroll{max-height:340px;overflow:auto}.owner-stock-table th{position:sticky;top:0;z-index:1;background:#eef2ec}
 .owner-recent{max-height:340px;overflow:auto}
+.owner-ranking-scroll [hidden]{display:none!important}
 .owner-ranking-scroll{max-height:260px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:.4rem}
 .owner-overview>div{min-width:0}
 .owner-trend,.owner-attention{display:flex;flex-direction:column}
@@ -85,10 +86,10 @@
         @foreach(['tunai'=>['Tunai','#1f7a5a'],'transfer'=>['Transfer','#3b82f6']] as $key=>[$label,$color])<div class="owner-line"><span><span class="owner-swatch" style="background:{{ $color }}"></span>{{ $label }}</span><div class="text-end"><strong>Rp {{ number_format($paymentMethods[$key] ?? 0,0,',','.') }}</strong><div class="small text-muted">{{ $salesMonth ? number_format(($paymentMethods[$key] ?? 0)/$salesMonth*100,1,',','.') : '0,0' }}%</div></div></div>@endforeach
         @if($salesMonthCount === 0)<div class="small text-muted mt-2">Belum ada penjualan lunas bulan ini.</div>@endif
     </section></div>
-    <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="productHeading"><div class="owner-heading"><div><h6 id="productHeading">Produk Terlaris</h6><div class="small text-muted">Penjualan lunas 30 hari terakhir</div></div><select id="rankingMode" class="form-select form-select-sm w-auto" aria-label="Urutan produk terlaris"><option value="revenue">Omzet</option><option value="quantity">Jumlah</option></select></div>
+    <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="productHeading"><div class="owner-heading"><div><h6 id="productHeading">Produk Terlaris</h6><div class="small text-muted">Penjualan lunas 30 hari terakhir</div></div><div class="d-flex flex-wrap gap-2"><select id="rankingMode" class="form-select form-select-sm w-auto" aria-label="Urutan produk terlaris"><option value="revenue">Omzet</option><option value="quantity">Jumlah Kemasan</option></select><select id="rankingUnit" class="form-select form-select-sm w-auto" aria-label="Filter satuan kemasan" hidden><option value="">Semua satuan</option>@foreach($rankingUnits as $unit)<option value="{{ $unit['id'] }}">{{ $unit['name'] }}</option>@endforeach</select></div></div>
         <div data-ranking="revenue" class="owner-ranking-scroll" tabindex="0" role="region" aria-label="Produk terlaris berdasarkan omzet">
         @forelse($topProducts as $index=>$item)<div class="owner-line"><span class="small text-muted">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">Rp {{ number_format($item->revenue,0,',','.') }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan lunas.</div>@endforelse
-        </div><div data-ranking="quantity" class="owner-ranking-scroll" tabindex="0" role="region" aria-label="Produk terlaris berdasarkan jumlah" hidden>@forelse($topQuantityProducts as $index=>$item)<div class="owner-line"><span class="small text-muted">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">{{ $item->display_quantity }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan bersatuan.</div>@endforelse</div>
+        </div><div data-ranking="quantity" class="owner-ranking-scroll" tabindex="0" role="region" aria-label="Produk terlaris berdasarkan jumlah kemasan" hidden>@forelse($topQuantityProducts as $index=>$item)<div class="owner-line" data-package-unit="{{ $item->package_unit_id }}" @if($index >= 5) hidden @endif><span class="small text-muted" data-rank-number>{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">{{ $item->display_quantity }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan bersatuan.</div>@endforelse</div>
     </section></div>
     <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="locationHeading"><div class="owner-heading"><div><h6 id="locationHeading">Persediaan per Lokasi</h6><div class="small text-muted">Nilai biaya tercatat; termasuk reservasi setelah moving average aktif</div></div></div><div class="owner-value mb-1">Rp {{ number_format($inventoryValue,0,',','.') }}</div><div class="small text-muted mb-2">{{ $totalProducts }} jenis barang aktif</div>
         @php $maxLocationValue=max(1,(float)($locationValues->max('value') ?? 0)); @endphp
@@ -110,7 +111,24 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 (() => {
-    document.getElementById('rankingMode').addEventListener('change',event=>document.querySelectorAll('[data-ranking]').forEach(list=>list.hidden=list.dataset.ranking!==event.target.value));
+    const rankingMode=document.getElementById('rankingMode');
+    const rankingUnit=document.getElementById('rankingUnit');
+    const quantityList=document.querySelector('[data-ranking="quantity"]');
+    const updateRanking=()=>{
+        const quantity=rankingMode.value==='quantity';
+        rankingUnit.hidden=!quantity;
+        document.querySelectorAll('[data-ranking]').forEach(list=>list.hidden=list.dataset.ranking!==rankingMode.value);
+        let rank=0;
+        quantityList.querySelectorAll('[data-package-unit]').forEach(row=>{
+            const matches=!rankingUnit.value || row.dataset.packageUnit===rankingUnit.value;
+            row.hidden=!matches || rank>=5;
+            if(!row.hidden) row.querySelector('[data-rank-number]').textContent=++rank;
+        });
+        quantityList.scrollTop=0;
+    };
+    rankingMode.addEventListener('change',updateRanking);
+    rankingUnit.addEventListener('change',updateRanking);
+    updateRanking();
     const currency=value=>'Rp '+new Intl.NumberFormat('id-ID').format(value);
     const rows=@json($salesChart);
     const controls=[...document.querySelectorAll('[data-trend-days]')];

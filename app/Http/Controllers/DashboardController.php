@@ -135,15 +135,33 @@ class DashboardController extends Controller
             ]);
         $topQuantityProducts = (clone $topProductQuery)
             ->join('product_units as sale_unit', 'sale_unit.id', '=', 'sale_items.product_unit_id')
-            ->orderByDesc(DB::raw('SUM(sale_items.quantity * sale_unit.conversion_to_base)'))->limit(5)
+            ->orderByDesc(DB::raw('SUM(sale_items.quantity * sale_unit.conversion_to_base)'))
             ->get(['products.id','products.name',DB::raw('SUM(sale_items.quantity * sale_unit.conversion_to_base) as base_quantity')]);
         $rankedProducts = Product::with(['productUnits.unit', 'buyUnit', 'retailUnit'])->whereIn('id', $topQuantityProducts->pluck('id'))->get()->keyBy('id');
         $topQuantityProducts->each(function ($item) use ($rankedProducts) {
             $product = $rankedProducts->get($item->id);
-            $item->base_unit = $product?->productUnits->firstWhere('is_base_unit', true)?->unit?->name ?? 'satuan dasar';
-            $item->display_quantity = $product?->displayStock((float) $item->base_quantity)
-                ?? number_format($item->base_quantity, 2, ',', '.').' '.$item->base_unit;
+            $units = $product?->productUnits ?? collect();
+            $mainUnit = $units->firstWhere('is_default_sale', true)
+                ?? $units->firstWhere('unit_id', $product?->buy_unit_id)
+                ?? $units->firstWhere('is_base_unit', true);
+            $conversion = (float) ($mainUnit?->conversion_to_base ?? 0);
+            $item->package_quantity = $conversion > 0 ? (float) $item->base_quantity / $conversion : null;
+            $item->package_unit_id = $mainUnit?->unit_id;
+            $item->package_unit = $mainUnit?->unit?->name;
+            $item->display_quantity = 'Satuan jual belum tersedia';
+            if ($conversion > 0) {
+                // Format from the main sale unit down without changing the shared product's units.
+                $displayProduct = clone $product;
+                $displayProduct->setRelation('productUnits', $units->filter(fn ($unit) => $unit->id === $mainUnit->id
+                    || ((float) $unit->conversion_to_base > 0 && (float) $unit->conversion_to_base < $conversion)));
+                $item->display_quantity = $displayProduct->displayStock((float) $item->base_quantity);
+            }
         });
+        $topQuantityProducts = $topQuantityProducts->filter(fn ($item) => $item->package_quantity !== null)
+            ->sort(fn ($a, $b) => ($b->package_quantity <=> $a->package_quantity) ?: strcmp($a->name, $b->name))
+            ->values();
+        $rankingUnits = $topQuantityProducts->map(fn ($item) => ['id' => $item->package_unit_id, 'name' => $item->package_unit])
+            ->unique('id')->sortBy('name')->values();
 
         $paymentMethods = (clone $monthSalesQuery)
             ->select('payment_method', DB::raw('SUM(total_amount) as total'))
@@ -171,7 +189,7 @@ class DashboardController extends Controller
             'expiringSoonCount', 'expiredBatchCount', 'expiringBatches',
             'salesChart', 'lowStockProducts', 'outOfStockCount', 'inventoryValue', 'sellableStock',
             'grossProfit', 'missingCostCount', 'salesWithoutItemsCount', 'pendingSalesCount', 'pendingSalesAmount',
-            'topProducts', 'topQuantityProducts', 'paymentMethods', 'locationValues', 'recentSales'
+            'topProducts', 'topQuantityProducts', 'rankingUnits', 'paymentMethods', 'locationValues', 'recentSales'
         ));
     }
 

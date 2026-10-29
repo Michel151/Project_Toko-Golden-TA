@@ -43,7 +43,7 @@ class OwnerDashboardTest extends TestCase
             ->assertViewHas('salesChart',fn($rows)=>$rows->count()===30 && (float)$rows->last()['total']===10000.0)
             ->assertViewHas('outOfStockCount',1)->assertViewHas('expiredBatchCount',1)
             ->assertViewHas('inventoryValue',5000)->assertViewHas('locationValues',fn($rows)=>(float)$rows->sum('value')===5000.0)
-            ->assertViewHas('topQuantityProducts',fn($rows)=>(float)$rows->first()->base_quantity===3.0 && $rows->first()->base_unit==='Pcs')
+            ->assertViewHas('topQuantityProducts',fn($rows)=>(float)$rows->first()->base_quantity===3.0 && $rows->first()->package_unit==='Pcs')
             ->assertSee('Kemarin belum ada penjualan')->assertSee('Laba Kotor Bulan Ini')
             ->assertSee('Kedaluwarsa')->assertSee('1 produk perlu perhatian')->assertSee('stok kedaluwarsa tidak dihitung')
             ->assertDontSee('Batch kedaluwarsa')->assertDontSee('batch kedaluwarsa tidak dihitung');
@@ -59,7 +59,7 @@ class OwnerDashboardTest extends TestCase
             ->assertSee('Belum ada penjualan lunas bulan ini.')->assertDontSee('100,0%');
     }
 
-    public function test_quantity_ranking_converts_mixed_units_to_base_units(): void
+    public function test_quantity_ranking_converts_mixed_units_to_main_sale_packages(): void
     {
         $user=User::create(['name'=>'Owner','email'=>'quantity-owner@example.com','password'=>'password','role'=>'owner']);
         $unit=Unit::create(['name'=>'Pcs']);
@@ -67,14 +67,65 @@ class OwnerDashboardTest extends TestCase
         $category=Category::create(['name'=>'Kategori']);
         $product=Product::create(['name'=>'Barang','category_id'=>$category->id,'buy_unit_id'=>$unit->id,'buy_price'=>500,'sell_price_wholesale'=>1000,'is_active'=>true]);
         $base=ProductUnit::create(['product_id'=>$product->id,'unit_id'=>$unit->id,'conversion_to_base'=>1,'buy_price'=>500,'sell_price'=>1000,'is_base_unit'=>true]);
-        $bulk=ProductUnit::create(['product_id'=>$product->id,'unit_id'=>$box->id,'conversion_to_base'=>12,'buy_price'=>6000,'sell_price'=>12000]);
+        $bulk=ProductUnit::create(['product_id'=>$product->id,'unit_id'=>$box->id,'conversion_to_base'=>12,'buy_price'=>6000,'sell_price'=>12000,'is_default_sale'=>true]);
         $sale=Sale::create(['sale_number'=>'INV-MIXED','sale_date'=>now('Asia/Jakarta')->toDateString(),'status'=>'paid','total_amount'=>27000,'payment_method'=>'tunai','created_by'=>$user->id]);
         foreach ([[$base,3,1000,500],[$bulk,2,12000,6000]] as [$productUnit,$quantity,$price,$cost]) {
             SaleItem::create(['sale_id'=>$sale->id,'product_id'=>$product->id,'product_unit_id'=>$productUnit->id,'sale_type'=>'grosir','quantity'=>$quantity,'unit_price'=>$price,'subtotal'=>$quantity*$price,'cost_price'=>$cost,'cost_subtotal'=>$quantity*$cost]);
         }
         $this->actingAs($user)->get(route('dashboard'))->assertOk()
-            ->assertViewHas('topQuantityProducts',fn($rows)=>(float)$rows->first()->base_quantity===27.0 && $rows->first()->base_unit==='Pcs')
-            ->assertSee('2 Dus 3 Pcs')
+            ->assertViewHas('topQuantityProducts',fn($rows)=>(float)$rows->first()->base_quantity===27.0 && $rows->first()->package_quantity===2.25 && $rows->first()->package_unit==='Dus')
+            ->assertSee('2 Dus 3 Pcs')->assertSee('Jumlah Kemasan')->assertSee('Filter satuan kemasan')
             ->assertViewHas('grossProfit',13500);
     }
+    public function test_package_ranking_orders_by_visible_quantity_and_keeps_candidates_for_unit_filter(): void
+    {
+        $user = User::create(['name'=>'Owner', 'email'=>'package-owner@example.com', 'password'=>'password', 'role'=>'owner']);
+        $baseUnit = Unit::create(['name'=>'Pcs']);
+        $box = Unit::create(['name'=>'Dus']);
+        $bal = Unit::create(['name'=>'Bal']);
+        $category = Category::create(['name'=>'Kemasan']);
+        $sale = Sale::create(['sale_number'=>'INV-PACKAGES', 'sale_date'=>today(), 'status'=>'paid', 'total_amount'=>10000, 'payment_method'=>'tunai', 'created_by'=>$user->id]);
+        foreach ([['Teh Pucuk',126,12,$box], ['Aqua',11,1000,$box], ['Bal A',30,100,$bal], ['Bal B',29,100,$bal], ['Bal C',28,100,$bal], ['Bal D',27,100,$bal], ['Bal E',26,100,$bal]] as [$name,$packages,$factor,$unit]) {
+            $product = Product::create(['name'=>$name, 'category_id'=>$category->id, 'buy_unit_id'=>$unit->id, 'buy_price'=>1000, 'sell_price_wholesale'=>2000, 'is_active'=>true]);
+            $base = ProductUnit::create(['product_id'=>$product->id, 'unit_id'=>$baseUnit->id, 'conversion_to_base'=>1, 'buy_price'=>1, 'sell_price'=>2, 'is_base_unit'=>true]);
+            ProductUnit::create(['product_id'=>$product->id, 'unit_id'=>$unit->id, 'conversion_to_base'=>$factor, 'buy_price'=>1000, 'sell_price'=>2000, 'is_default_sale'=>true]);
+            SaleItem::create(['sale_id'=>$sale->id, 'product_id'=>$product->id, 'product_unit_id'=>$base->id, 'sale_type'=>'ecer', 'quantity'=>$packages*$factor, 'unit_price'=>2, 'subtotal'=>$packages*$factor*2, 'cost_price'=>1, 'cost_subtotal'=>$packages*$factor]);
+        }
+        $this->actingAs($user)->get(route('dashboard'))->assertOk()
+            ->assertViewHas('topQuantityProducts', fn ($rows) => $rows->count() === 7
+                && $rows->first()->name === 'Teh Pucuk'
+                && $rows->first()->display_quantity === '126 Dus'
+                && $rows->where('package_unit_id', $box->id)->pluck('name')->values()->all() === ['Teh Pucuk', 'Aqua'])
+            ->assertViewHas('rankingUnits', fn ($rows) => $rows->pluck('name')->all() === ['Bal', 'Dus'])
+            ->assertSee('<option value="revenue">Omzet</option>', false);
+    }
+
+    public function test_multi_unit_display_starts_at_main_sale_unit_and_preserves_fractional_remainder(): void
+    {
+        $user = User::create(['name'=>'Owner', 'email'=>'multi-display@example.com', 'password'=>'password', 'role'=>'owner']);
+        $category = Category::create(['name'=>'Multi satuan']);
+        $pcs = Unit::create(['name'=>'Pcs']);
+        $pack = Unit::create(['name'=>'Pak']);
+        $box = Unit::create(['name'=>'Dus']);
+        $bal = Unit::create(['name'=>'Bal']);
+        $product = Product::create(['name'=>'Multi kemasan', 'category_id'=>$category->id, 'buy_unit_id'=>$bal->id, 'buy_price'=>1000, 'sell_price_wholesale'=>2000, 'is_active'=>true]);
+        foreach ([[$pcs,1],[$pack,6],[$box,24],[$bal,240]] as [$unit,$factor]) {
+            $pu = ProductUnit::create(['product_id'=>$product->id, 'unit_id'=>$unit->id, 'conversion_to_base'=>$factor, 'buy_price'=>1000, 'sell_price'=>2000, 'is_base_unit'=>$factor===1, 'is_default_sale'=>$factor===24]);
+            if ($factor === 1) $base = $pu;
+        }
+        $sale = Sale::create(['sale_number'=>'INV-MULTI-DISPLAY', 'sale_date'=>today(), 'status'=>'paid', 'total_amount'=>10000, 'payment_method'=>'tunai', 'created_by'=>$user->id]);
+        $item = SaleItem::create(['sale_id'=>$sale->id, 'product_id'=>$product->id, 'product_unit_id'=>$base->id, 'sale_type'=>'ecer', 'quantity'=>249.5, 'unit_price'=>2, 'subtotal'=>499, 'cost_price'=>1, 'cost_subtotal'=>249.5]);
+        $this->actingAs($user)->get(route('dashboard'))->assertOk()
+            ->assertViewHas('topQuantityProducts', fn ($rows) => $rows->first()->display_quantity === '10 Dus 1 Pak 3,5 Pcs'
+                && $rows->first()->package_unit_id === $box->id
+                && abs($rows->first()->package_quantity - 249.5 / 24) < 0.000001);
+        $item->update(['quantity'=>48]);
+        $this->get(route('dashboard'))->assertOk()
+            ->assertViewHas('topQuantityProducts', fn ($rows) => $rows->first()->display_quantity === '2 Dus');
+        $item->update(['quantity'=>3.5]);
+        $this->get(route('dashboard'))->assertOk()
+            ->assertViewHas('topQuantityProducts', fn ($rows) => $rows->first()->display_quantity === '3,5 Pcs'
+                && $rows->first()->package_unit_id === $box->id);
+    }
+
 }
