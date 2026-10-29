@@ -43,8 +43,9 @@ class SaleReportController extends Controller
         $filters = $request->validate([
             'per_page'=>'nullable|integer|in:25,50,100', 'tab'=>'nullable|in:transactions,products,margins',
             'products_sort'=>'nullable|in:revenue,quantity', 'products_page'=>'nullable|integer|min:1',
-            'margins_page'=>'nullable|integer|min:1',
+            'margins_page'=>'nullable|integer|min:1', 'products_unit'=>'nullable|integer|exists:units,id',
         ]);
+        $productsUnit = $filters['products_unit'] ?? null;
         $productsSort = $filters['products_sort'] ?? 'revenue';
         $activeTab = $filters['tab'] ?? 'transactions';
         $from = $request->get('from', now()->startOfMonth()->toDateString());
@@ -89,11 +90,44 @@ class SaleReportController extends Controller
             ->whereHas('sale', fn($q) => $q->paid()->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to))
             ->with(['product.productUnits.unit', 'product.buyUnit', 'product.retailUnit'])
             ->groupBy('sale_items.product_id')
-            ->orderByDesc($productsSort === 'quantity' ? 'total_qty' : 'total_amount')
-            ->when($productsSort === 'quantity', fn ($query) => $query->orderByDesc('total_amount'))
-            ->orderBy('sale_items.product_id')
-            ->paginate($perPage, ['*'], 'products_page')->withQueryString()
-            ->appends(['tab'=>'products'])->fragment('saleReportTabs');
+            ->get();
+        $topProducts->each(function ($item) {
+            $product = $item->product;
+            $units = $product?->productUnits ?? collect();
+            $mainUnit = $units->firstWhere('is_default_sale', true)
+                ?? $units->firstWhere('unit_id', $product?->buy_unit_id)
+                ?? $units->firstWhere('is_base_unit', true);
+            $conversion = (float) ($mainUnit?->conversion_to_base ?? 0);
+            $item->package_quantity = $conversion > 0 ? (float) $item->total_qty / $conversion : null;
+            $item->package_unit_id = $mainUnit?->unit_id;
+            $item->package_unit = $mainUnit?->unit?->name;
+            $item->display_quantity = 'Satuan jual belum tersedia';
+            if ($conversion > 0) {
+                // Format from the main sale unit down without changing the shared product's units.
+                $displayProduct = clone $product;
+                $displayProduct->setRelation('productUnits', $units->filter(fn ($unit) => $unit->id === $mainUnit->id
+                    || ((float) $unit->conversion_to_base > 0 && (float) $unit->conversion_to_base < $conversion)));
+                $item->display_quantity = $displayProduct->displayStock((float) $item->total_qty);
+            }
+        });
+        $rankingUnits = $topProducts->filter(fn ($item) => $item->package_unit_id !== null)
+            ->map(fn ($item) => ['id'=>$item->package_unit_id, 'name'=>$item->package_unit])
+            ->unique('id')->sortBy('name')->values();
+        if ($productsSort === 'quantity' && $productsUnit) {
+            $topProducts = $topProducts->where('package_unit_id', (int) $productsUnit);
+        }
+        $topProducts = $topProducts->sort(function ($a, $b) use ($productsSort) {
+            if ($productsSort === 'quantity') {
+                $comparison = ($b->package_quantity ?? -1) <=> ($a->package_quantity ?? -1);
+                if ($comparison) return $comparison;
+            }
+            return ($b->total_amount <=> $a->total_amount) ?: ($a->product_id <=> $b->product_id);
+        })->values();
+        $productsPage = min((int) ($filters['products_page'] ?? 1), max(1, (int) ceil($topProducts->count() / $perPage)));
+        $topProducts = (new LengthAwarePaginator($topProducts->forPage($productsPage, $perPage)->values(),
+            $topProducts->count(), $perPage, $productsPage,
+            ['path'=>LengthAwarePaginator::resolveCurrentPath(), 'pageName'=>'products_page']))
+            ->withQueryString()->appends(['tab'=>'products'])->fragment('saleReportTabs');
 
         $page = LengthAwarePaginator::resolveCurrentPage();
         $sales = (new LengthAwarePaginator(
@@ -111,7 +145,7 @@ class SaleReportController extends Controller
             'sales', 'from', 'to',
             'totalAmount', 'totalTunai', 'totalTransfer', 'totalTrx',
             'grossProfit', 'incompleteCostCount', 'productMargins',
-            'topProducts', 'activeTab', 'productsSort', 'categories', 'category', 'categoryId'
+            'topProducts', 'activeTab', 'productsSort', 'productsUnit', 'rankingUnits', 'categories', 'category', 'categoryId'
         ));
     }
 

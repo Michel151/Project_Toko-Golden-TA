@@ -26,6 +26,10 @@
 .owner-recent{max-height:340px;overflow:auto}
 .owner-ranking-scroll [hidden]{display:none!important}
 .owner-ranking-scroll{max-height:260px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:.4rem}
+.owner-ranking-scroll .owner-line{align-items:flex-start;gap:.75rem}
+.owner-ranking-number{width:28px;height:28px;flex:0 0 28px;display:grid;place-items:center;border-radius:50%;background:#eef2ec;color:#526158;font-size:.8rem;font-weight:600;font-variant-numeric:tabular-nums;margin-top:.1rem}
+.owner-ranking-value{margin-top:.25rem;font-size:.95rem;font-weight:600;color:#15573f;line-height:1.45;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+
 .owner-overview>div{min-width:0}
 .owner-trend,.owner-attention{display:flex;flex-direction:column}
 .owner-trend .owner-chart{flex:1;min-height:260px}
@@ -88,8 +92,8 @@
     </section></div>
     <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="productHeading"><div class="owner-heading"><div><h6 id="productHeading">Produk Terlaris</h6><div class="small text-muted">Penjualan lunas 30 hari terakhir</div></div><div class="d-flex flex-wrap gap-2"><select id="rankingMode" class="form-select form-select-sm w-auto" aria-label="Urutan produk terlaris"><option value="revenue">Omzet</option><option value="quantity">Jumlah Kemasan</option></select><select id="rankingUnit" class="form-select form-select-sm w-auto" aria-label="Filter satuan kemasan" hidden><option value="">Semua satuan</option>@foreach($rankingUnits as $unit)<option value="{{ $unit['id'] }}">{{ $unit['name'] }}</option>@endforeach</select></div></div>
         <div data-ranking="revenue" class="owner-ranking-scroll" tabindex="0" role="region" aria-label="Produk terlaris berdasarkan omzet">
-        @forelse($topProducts as $index=>$item)<div class="owner-line"><span class="small text-muted">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">Rp {{ number_format($item->revenue,0,',','.') }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan lunas.</div>@endforelse
-        </div><div data-ranking="quantity" class="owner-ranking-scroll" tabindex="0" role="region" aria-label="Produk terlaris berdasarkan jumlah kemasan" hidden>@forelse($topQuantityProducts as $index=>$item)<div class="owner-line" data-package-unit="{{ $item->package_unit_id }}" @if($index >= 5) hidden @endif><span class="small text-muted" data-rank-number>{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="small text-muted">{{ $item->display_quantity }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan bersatuan.</div>@endforelse</div>
+        @forelse($topProducts as $index=>$item)<div class="owner-line"><span class="owner-ranking-number">{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="owner-ranking-value">Rp {{ number_format($item->revenue,0,',','.') }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan lunas.</div>@endforelse
+        </div><div data-ranking="quantity" class="owner-ranking-scroll" tabindex="0" role="region" aria-label="Produk terlaris berdasarkan jumlah kemasan" hidden>@forelse($topQuantityProducts as $index=>$item)<div class="owner-line" data-package-unit="{{ $item->package_unit_id }}" @if($index >= 5) hidden @endif><span class="owner-ranking-number" data-rank-number>{{ $index+1 }}</span><div class="flex-grow-1"><div class="fw-semibold">{{ $item->name }}</div><div class="owner-ranking-value">{{ $item->display_quantity }}</div></div></div>@empty<div class="owner-empty">Belum ada penjualan bersatuan.</div>@endforelse</div>
     </section></div>
     <div class="col-lg-4"><section class="owner-section h-100" aria-labelledby="locationHeading"><div class="owner-heading"><div><h6 id="locationHeading">Persediaan per Lokasi</h6><div class="small text-muted">Nilai biaya tercatat; termasuk reservasi setelah moving average aktif</div></div></div><div class="owner-value mb-1">Rp {{ number_format($inventoryValue,0,',','.') }}</div><div class="small text-muted mb-2">{{ $totalProducts }} jenis barang aktif</div>
         @php $maxLocationValue=max(1,(float)($locationValues->max('value') ?? 0)); @endphp

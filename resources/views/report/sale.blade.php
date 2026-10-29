@@ -14,7 +14,7 @@
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="d-flex flex-wrap gap-2 align-items-end" method="GET">
         <input type="hidden" name="tab" id="saleReportActiveTab" value="{{ $activeTab }}">
-        <input type="hidden" name="products_sort" value="{{ $productsSort }}">
+        <input type="hidden" name="products_sort" value="{{ $productsSort }}"><input type="hidden" name="products_unit" value="{{ $productsUnit }}">
         @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
         <div><label for="saleReportCategory" class="d-block">Kategori</label><select id="saleReportCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $option)<option value="{{ $option->id }}" @selected($categoryId === $option->id)>{{ $option->name }}</option>@endforeach</select></div>
         <div><label for="saleReportPerPage" class="d-block">Per Halaman</label><select id="saleReportPerPage" name="per_page" class="form-select form-select-sm">
@@ -104,8 +104,9 @@
                     <input type="hidden" name="per_page" value="{{ $sales->perPage() }}"><input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="tab" value="products">
                     <input type="hidden" name="margins_page" value="{{ $productMargins->currentPage() }}">
                     <input type="hidden" name="category_id" value="{{ $categoryId }}">
-                    <div><label for="saleProductsSort" class="form-label small mb-1">Urutkan Berdasarkan</label><select id="saleProductsSort" name="products_sort" class="form-select form-select-sm"><option value="revenue" @selected($productsSort === 'revenue')>Omzet Tertinggi</option><option value="quantity" @selected($productsSort === 'quantity')>Jumlah Terjual Terbanyak</option></select></div>
-                    <button class="btn btn-sm btn-primary">Terapkan Urutan</button>
+                    <div><label for="saleProductsSort" class="form-label small mb-1">Urutkan Berdasarkan</label><select id="saleProductsSort" name="products_sort" class="form-select form-select-sm"><option value="revenue" @selected($productsSort === 'revenue')>Omzet Tertinggi</option><option value="quantity" @selected($productsSort === 'quantity')>Jumlah Kemasan</option></select></div>
+                    <div id="saleProductsUnitField" @if($productsSort !== 'quantity') hidden @endif><label for="saleProductsUnit" class="form-label small mb-1">Satuan Jual Utama</label><select id="saleProductsUnit" name="products_unit" class="form-select form-select-sm"><option value="">Semua satuan</option>@foreach($rankingUnits as $unit)<option value="{{ $unit['id'] }}" @selected((string)$productsUnit === (string)$unit['id'])>{{ $unit['name'] }}</option>@endforeach</select></div>
+                    <button class="btn btn-sm btn-primary">Terapkan</button>
                 </form>
             </div>
             <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Produk terlaris">
@@ -116,7 +117,7 @@
                         <tr>
                             <td class="text-muted">{{ $topProducts->firstItem() + $loop->index }}</td>
                             <td class="small">{{ $tp->product->name ?? '-' }}</td>
-                            <td class="text-end small">{{ $tp->product?->displayStock((float) $tp->total_qty) ?? \App\Support\DisplayNumber::quantity($tp->total_qty) }}</td>
+                            <td class="text-end small">{{ $tp->display_quantity }}</td>
                             <td class="text-end small">Rp {{ number_format($tp->total_amount, 0, ',', '.') }}</td>
                         </tr>
                         @empty
@@ -177,3 +178,11 @@
 </script>
 @endpush
 @endsection
+
+@push('scripts')
+<script>
+document.getElementById('saleProductsSort').addEventListener('change', function () {
+    document.getElementById('saleProductsUnitField').hidden = this.value !== 'quantity';
+});
+</script>
+@endpush
