@@ -568,6 +568,32 @@
         .report-kpis .card-body { min-width:0;overflow-wrap:anywhere; }
         .report-kpi-value { font-size:1.2rem;font-variant-numeric:tabular-nums;margin:3px 0; }
         @media(max-width:575px){.report-kpi-value{font-size:1.05rem}.report-kpis .card-body{padding:.85rem}}
+        .report-page { min-width:0; }
+        @media(max-width:767px) {
+            .report-page .report-heading { gap:12px;padding:16px; }
+            .report-page .report-heading > .d-flex { min-width:0;flex:1 1 100%;gap:12px!important; }
+            .report-page .report-heading .report-icon { flex-shrink:0; }
+            .report-page .report-heading h5 { font-size:1.1rem; }
+            .report-page .report-toolbar { padding:12px;gap:12px!important; }
+            .page-content .report-page .report-toolbar > form.app-unified-filter { flex-basis:100%;min-width:0; }
+            .report-page .report-toolbar .app-unified-actions { width:100%; }
+            .report-page .report-toolbar .app-unified-actions .btn { flex:1;min-height:44px; }
+            .page-content .report-page .report-toolbar > .btn-group { width:100%; }
+            .page-content .report-page .report-toolbar > .btn-group .btn { flex:1;min-height:44px; }
+            .report-page .report-stat .card-body { padding:12px; }
+            .report-page .report-stat .stat-symbol { flex-shrink:0; }
+            .report-page .sale-report-tabs { flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px; }
+            .report-page .sale-report-tabs .nav-link { flex-shrink:0;white-space:nowrap;min-height:44px; }
+            .report-page .app-mobile-records .btn { min-height:44px;white-space:normal; }
+            .report-page .app-mobile-records td.report-empty { padding:24px 0!important; }
+            .report-page .card-footer { padding:12px; }
+            .report-page .financial-lines th:last-child:not([colspan]),
+            .report-page .financial-lines td:last-child { min-width:120px;width:40%; }
+            .report-page .financial-lines > :not(caption) > * > * { padding:10px 12px; }
+            .report-page .report-stock-scroll { max-height:65vh;overflow:auto; }
+            .report-page .report-stock-scroll table { min-width:1100px; }
+            .report-page .report-stock-scroll thead th { position:sticky;top:0;z-index:2; }
+        }
         .page-content .master-heading::after,
         .page-content .cashier-hero::after,
         .page-content .warehouse-hero::after { display: none; }

@@ -3,6 +3,7 @@
 @section('page-title', 'Laporan Stok')
 
 @section('content')
+<div class="report-page">
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-box-seam"></i></div><div><h5 class="fw-bold mb-1">Laporan Stok</h5><div class="text-white-50 small">Pantau ketersediaan dan nilai persediaan seluruh lokasi</div></div></div><span class="badge bg-warning text-dark">{{ $products->total() }} Barang</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="app-unified-filter d-flex flex-wrap gap-2 align-items-end" method="GET">
@@ -49,7 +50,8 @@
 
 <div class="card table-card">
     <div class="card-body p-0">
-        <div class="table-responsive">
+        <div class="small text-muted px-3 pt-3 pb-2 d-md-none"><i class="bi bi-arrow-left-right me-1" aria-hidden="true"></i>Geser tabel untuk melihat stok seluruh lokasi.</div>
+        <div class="table-responsive report-stock-scroll" tabindex="0" role="region" aria-label="Stok barang per lokasi">
             <table class="table table-hover report-table mb-0">
                 <thead>
                     <tr>
@@ -131,5 +133,6 @@
         </div>
     </div>
     <div class="card-footer bg-white">{{ $products->links() }}</div>
+</div>
 </div>
 @endsection

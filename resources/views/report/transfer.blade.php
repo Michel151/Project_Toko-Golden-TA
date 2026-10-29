@@ -3,6 +3,7 @@
 @section('page-title', 'Laporan Transfer Stok')
 
 @section('content')
+<div class="report-page">
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-arrow-left-right"></i></div><div><h5 class="fw-bold mb-1">Laporan Transfer Stok</h5><div class="text-white-50 small">Lacak perpindahan barang antar lokasi penyimpanan</div></div></div><span class="badge bg-info text-dark">{{ $transfers->total() }} Transfer</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="app-unified-filter d-flex flex-wrap gap-2 align-items-end" method="GET">
@@ -35,7 +36,7 @@
 
 <div class="card table-card">
     <div class="card-body p-0 table-responsive">
-        <table class="table table-hover report-table mb-0" id="transferReportTable">
+        <table class="table table-hover report-table app-mobile-records mb-0" data-mobile-records id="transferReportTable">
             <thead><tr><th>No. Transfer</th><th>Barang</th><th>Dari</th><th>Ke</th><th>Tanggal</th><th>Oleh</th></tr></thead>
             <tbody>
                 @forelse($transfers as $t)
@@ -57,4 +58,5 @@
 </div>
 @include('components.transfer-items-templates')
 @include('components.transfer-items-modal')
+</div>
 @endsection
