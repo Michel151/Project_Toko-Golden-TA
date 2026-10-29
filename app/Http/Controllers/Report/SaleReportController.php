@@ -16,7 +16,7 @@ class SaleReportController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->validate(['per_page'=>'nullable|integer|in:25,50,100', 'tab'=>'nullable|in:transactions,products']);
+        $filters = $request->validate(['per_page'=>'nullable|integer|in:25,50,100', 'tab'=>'nullable|in:transactions,products,margins']);
         $activeTab = $filters['tab'] ?? 'transactions';
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());

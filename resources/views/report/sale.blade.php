@@ -66,6 +66,7 @@
 <div class="nav nav-pills sale-report-tabs mb-3" id="saleReportTabs" role="tablist" aria-label="Rincian laporan penjualan">
     <button class="nav-link {{ $activeTab === 'transactions' ? 'active' : '' }}" id="saleTransactionsTab" data-bs-toggle="pill" data-bs-target="#saleTransactionsPane" data-report-tab="transactions" type="button" role="tab" aria-controls="saleTransactionsPane" aria-selected="{{ $activeTab === 'transactions' ? 'true' : 'false' }}"><i class="bi bi-receipt me-1" aria-hidden="true"></i>Daftar Transaksi</button>
     <button class="nav-link {{ $activeTab === 'products' ? 'active' : '' }}" id="saleProductsTab" data-bs-toggle="pill" data-bs-target="#saleProductsPane" data-report-tab="products" type="button" role="tab" aria-controls="saleProductsPane" aria-selected="{{ $activeTab === 'products' ? 'true' : 'false' }}"><i class="bi bi-trophy me-1" aria-hidden="true"></i>Produk Terlaris</button>
+    <button class="nav-link {{ $activeTab === 'margins' ? 'active' : '' }}" id="saleMarginsTab" data-bs-toggle="pill" data-bs-target="#saleMarginsPane" data-report-tab="margins" type="button" role="tab" aria-controls="saleMarginsPane" aria-selected="{{ $activeTab === 'margins' ? 'true' : 'false' }}"><i class="bi bi-calculator me-1" aria-hidden="true"></i>Margin per Produk</button>
 </div>
 <div class="tab-content sale-report-overview">
     <div class="tab-pane {{ $activeTab === 'transactions' ? 'show active' : '' }}" id="saleTransactionsPane" role="tabpanel" aria-labelledby="saleTransactionsTab" tabindex="0">
@@ -113,8 +114,8 @@
             </div>
         </div>
     </div>
-</div>
-<section class="card table-card mt-3" aria-labelledby="productMarginHeading">
+    <div class="tab-pane {{ $activeTab === 'margins' ? 'show active' : '' }}" id="saleMarginsPane" role="tabpanel" aria-labelledby="saleMarginsTab" tabindex="0">
+<section class="card table-card" aria-labelledby="productMarginHeading">
     <div class="card-header bg-white border-0 pt-3">
         <h6 id="productMarginHeading" class="fw-bold mb-1">Margin per Produk</h6>
         <div class="small text-muted">Penjualan lunas pada periode terpilih. Margin = laba kotor ÷ omzet × 100%, sebelum biaya operasional.</div>
@@ -138,6 +139,8 @@
         </table>
     </div>
 </section>
+    </div>
+</div>
 @push('scripts')
 <script>
 (() => {

@@ -89,6 +89,10 @@ class SaleTransferReportPaginationTest extends TestCase
         $this->capture('sale-products',$productsTab);
         parse_str(parse_url($productsTab->viewData('sales')->url(2),PHP_URL_QUERY),$tabQuery);
         $this->assertSame('products',$tabQuery['tab']);
+        $marginsTab=$this->get(route('report.sale',$this->period+['tab'=>'margins','page'=>3]))->assertOk()
+            ->assertViewHas('activeTab','margins')->assertViewHas('totalAmount',600)
+            ->assertSee('name="tab" id="saleReportActiveTab" value="margins"',false);
+        $this->capture('sale-margins',$marginsTab);
         $this->getJson(route('report.sale',$this->period+['tab'=>'unknown']))->assertUnprocessable()->assertJsonValidationErrors('tab');
     }
 
