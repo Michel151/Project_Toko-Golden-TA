@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Report;
 use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -14,8 +15,31 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class SaleReportController extends Controller
 {
+    private function categoryId(Request $request): ?int
+    {
+        $data = $request->validate(['category_id'=>'nullable|integer|exists:categories,id']);
+        return isset($data['category_id']) ? (int) $data['category_id'] : null;
+    }
+
+    private function periodSales(string $from, string $to, ?int $categoryId)
+    {
+        $sales = Sale::with(['createdBy', 'items'=>fn ($query) => $query->with('product')
+            ->when($categoryId, fn ($query) => $query->whereHas('product', fn ($products) => $products->where('category_id', $categoryId)))])
+            ->paid()->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to)
+            ->when($categoryId, fn ($query) => $query->whereHas('items.product', fn ($products) => $products->where('category_id', $categoryId)))
+            ->latest('sale_date')->latest('created_at')->latest('id')->get();
+        foreach ($sales as $sale) {
+            // Report-only subtotal; never overwrite or save the invoice's original amount.
+            $sale->setAttribute('report_total_amount', $categoryId ? $sale->items->sum('subtotal') : $sale->total_amount);
+        }
+        return $sales;
+    }
+
     public function index(Request $request)
     {
+        $categoryId = $this->categoryId($request);
+        $categories = Category::orderBy('name')->get(['id', 'name']);
+        $category = $categories->firstWhere('id', $categoryId);
         $filters = $request->validate([
             'per_page'=>'nullable|integer|in:25,50,100', 'tab'=>'nullable|in:transactions,products,margins',
             'products_sort'=>'nullable|in:revenue,quantity', 'products_page'=>'nullable|integer|min:1',
@@ -26,16 +50,11 @@ class SaleReportController extends Controller
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());
 
-        $sales = Sale::with(['createdBy', 'items.product'])
-            ->paid()
-            ->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to)
-            ->latest('sale_date')
-            ->latest('created_at')->latest('id')
-            ->get();
+        $sales = $this->periodSales($from, $to, $categoryId);
 
-        $totalAmount   = $sales->sum('total_amount');
-        $totalTunai    = $sales->where('payment_method', 'tunai')->sum('total_amount');
-        $totalTransfer = $sales->where('payment_method', 'transfer')->sum('total_amount');
+        $totalAmount   = $sales->sum('report_total_amount');
+        $totalTunai    = $sales->where('payment_method', 'tunai')->sum('report_total_amount');
+        $totalTransfer = $sales->where('payment_method', 'transfer')->sum('report_total_amount');
         $totalTrx      = $sales->count();
         $totalCost = (float) $sales->sum(fn ($sale) => $sale->items->sum('cost_subtotal'));
         $hasIncompleteCost = fn ($item) => $item->cost_subtotal === null || (float) $item->cost_subtotal < 0
@@ -66,6 +85,7 @@ class SaleReportController extends Controller
         $topProducts = SaleItem::select('sale_items.product_id', DB::raw("SUM({$baseQuantity}) as total_qty"), DB::raw('SUM(sale_items.subtotal) as total_amount'))
             ->leftJoin('product_units', 'product_units.id', '=', 'sale_items.product_unit_id')
             ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
+            ->when($categoryId, fn ($query) => $query->where('products.category_id', $categoryId))
             ->whereHas('sale', fn($q) => $q->paid()->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to))
             ->with(['product.productUnits.unit', 'product.buyUnit', 'product.retailUnit'])
             ->groupBy('sale_items.product_id')
@@ -91,36 +111,37 @@ class SaleReportController extends Controller
             'sales', 'from', 'to',
             'totalAmount', 'totalTunai', 'totalTransfer', 'totalTrx',
             'grossProfit', 'incompleteCostCount', 'productMargins',
-            'topProducts', 'activeTab', 'productsSort'
+            'topProducts', 'activeTab', 'productsSort', 'categories', 'category', 'categoryId'
         ));
     }
 
     public function pdf(Request $request)
     {
+        $categoryId = $this->categoryId($request);
         $from  = $request->get('from', now()->startOfMonth()->toDateString());
         $to    = $request->get('to', now()->toDateString());
-        $sales = Sale::with(['items.product'])
-            ->paid()
-            ->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to)
-            ->latest('sale_date')->latest('created_at')->latest('id')->get();
+        $sales = $this->periodSales($from, $to, $categoryId);
+        $category = $categoryId ? Category::find($categoryId) : null;
 
-        $pdf = Pdf::loadView('report.pdf.sale', compact('sales', 'from', 'to'))
+        $pdf = Pdf::loadView('report.pdf.sale', compact('sales', 'from', 'to', 'category'))
                   ->setPaper('a4', 'portrait');
         return $pdf->stream("Laporan-Penjualan-{$from}-sd-{$to}.pdf");
     }
 
     public function excel(Request $request)
     {
+        $categoryId = $this->categoryId($request);
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
-        $sales = Sale::with('createdBy')->paid()->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to)->latest('sale_date')->latest('created_at')->latest('id')->get();
+        $sales = $this->periodSales($from, $to, $categoryId);
+        $category = $categoryId ? Category::find($categoryId) : null;
         $rows = $sales->map(fn ($sale) => [
             $sale->sale_number, $sale->sale_date->format('d/m/Y'), $sale->customer_name ?? 'Umum',
-            ucfirst($sale->payment_method), $sale->createdBy->name ?? '-', (float) $sale->total_amount,
+            ucfirst($sale->payment_method), $sale->createdBy->name ?? '-', (float) $sale->report_total_amount,
         ])->all();
 
         return Excel::download(
-            new ReportExport("Laporan Penjualan {$from} s.d. {$to}", ['No. Invoice', 'Tanggal', 'Pelanggan', 'Pembayaran', 'Kasir', 'Total'], $rows, [6], [], 'Penjualan'),
+            new ReportExport("Laporan Penjualan {$from} s.d. {$to}", ['No. Invoice', 'Tanggal', 'Pelanggan', 'Pembayaran', 'Kasir', $category ? 'Total Kategori' : 'Total'], $rows, [6], [], 'Penjualan', $category ? ['Kategori: '.$category->name, 'Nominal hanya mencakup barang dalam kategori terpilih.'] : []),
             "Laporan-Penjualan-{$from}-sd-{$to}.xlsx"
         );
     }

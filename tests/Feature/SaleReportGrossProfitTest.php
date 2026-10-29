@@ -40,6 +40,71 @@ class SaleReportGrossProfitTest extends TestCase
         return $this->get(route('report.sale',['from'=>'2026-10-20','to'=>'2026-10-25']))->assertOk();
     }
 
+    public function test_category_filter_uses_only_matching_lines_in_mixed_invoices_and_exports(): void
+    {
+        $mixed=$this->sale('paid','2026-10-21',10000,6000);
+        $foodCategory=Category::create(['name'=>'Makanan']);
+        $food=$this->product->replicate(); $food->name='Biskuit'; $food->category_id=$foodCategory->id; $food->save();
+        $mixed->items()->create(['product_id'=>$food->id,'quantity'=>1,'sale_type'=>'ecer','unit_price'=>3000,'subtotal'=>3000,'cost_subtotal'=>0]);
+        $mixed->update(['total_amount'=>13000]);
+        $transfer=$this->sale('paid','2026-10-22',5000,2000,'moving_average'); $transfer->update(['payment_method'=>'transfer']);
+        $foodSale=$this->sale('paid','2026-10-23',4000,1000); $foodSale->items()->update(['product_id'=>$food->id]);
+        $this->sale('pending','2026-10-23',90000,1);
+        $filters=['from'=>'2026-10-20','to'=>'2026-10-25','category_id'=>$this->product->category_id,'tab'=>'products'];
+        $response=$this->get(route('report.sale',$filters))->assertOk()
+            ->assertViewHas('totalTrx',2)->assertViewHas('totalAmount',15000)->assertViewHas('totalTunai',10000)
+            ->assertViewHas('totalTransfer',5000)->assertViewHas('grossProfit',7000.0)->assertViewHas('incompleteCostCount',0)
+            ->assertViewHas('topProducts',fn($rows)=>$rows->total()===1&&(float)$rows->first()->total_amount===15000.0)
+            ->assertViewHas('productMargins',fn($rows)=>$rows->total()===1&&$rows->first()->cost===8000.0)
+            ->assertSee('Total Kategori')->assertSee('nota campuran');
+        $mixedReport=$response->viewData('sales')->firstWhere('id',$mixed->id);
+        $this->assertEquals(13000,$mixedReport->total_amount);
+        $this->assertEquals(10000,$mixedReport->report_total_amount);
+        $this->assertCount(1,$mixedReport->items);
+        $this->assertEquals(13000,$mixed->fresh()->total_amount);
+        $this->assertSame(2,$mixed->items()->count());
+        foreach (['sales','topProducts','productMargins'] as $variable) {
+            parse_str(parse_url($response->viewData($variable)->url(2),PHP_URL_QUERY),$query);
+            $this->assertEquals($this->product->category_id,$query['category_id']);
+        }
+        $all=$this->get(route('report.sale',array_replace($filters,['category_id'=>''])))->assertOk()
+            ->assertViewHas('totalAmount',22000)->assertViewHas('totalTrx',3);
+        if (getenv('CAPTURE_SALE_PROFIT_UI')==='1') {
+            $dir=storage_path('framework/testing/sale-profit'); if (!is_dir($dir)) mkdir($dir,0777,true);
+            file_put_contents($dir.'/category-filtered.html',$response->getContent());
+            file_put_contents($dir.'/category-all.html',$all->getContent());
+        }
+        \Maatwebsite\Excel\Facades\Excel::fake();
+        $this->get(route('report.sale.excel',$filters+['page'=>9]))->assertOk();
+        \Maatwebsite\Excel\Facades\Excel::assertDownloaded('Laporan-Penjualan-2026-10-20-sd-2026-10-25.xlsx',function($export) {
+            $rows=$export->array();
+            return str_contains($rows[2][0],'Minuman')&&$rows[3][5]==='Total Kategori'
+                &&count(array_slice($rows,4))===2&&array_sum(array_column(array_slice($rows,4),5))===15000.0;
+        });
+        $pdf=\Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+        $pdf->shouldReceive('setPaper')->once()->with('a4','portrait')->andReturnSelf();
+        $pdf->shouldReceive('stream')->once()->andReturn(response('category-pdf'));
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('loadView')->once()->with('report.pdf.sale',\Mockery::on(function($data) {
+            $html=view('report.pdf.sale',$data)->render();
+            return $data['sales']->count()===2&&$data['category']->name==='Minuman'
+                &&str_contains($html,'Rp 15.000')&&!str_contains($html,'Rp 13.000')&&str_contains($html,'Total Kategori');
+        }))->andReturn($pdf);
+        $this->get(route('report.sale.pdf',$filters+['page'=>9]))->assertOk()->assertSee('category-pdf');
+        $this->assertDatabaseCount('stock_movements',0);
+    }
+
+    public function test_category_filter_validates_all_endpoints_and_handles_categories_without_sales(): void
+    {
+        $empty=Category::create(['name'=>'Belum Terjual']);
+        $this->get(route('report.sale',['category_id'=>$empty->id]))->assertOk()
+            ->assertViewHas('totalTrx',0)->assertViewHas('totalAmount',0)->assertViewHas('grossProfit',0.0)
+            ->assertViewHas('topProducts',fn($rows)=>$rows->total()===0)
+            ->assertViewHas('productMargins',fn($rows)=>$rows->total()===0);
+        foreach (['report.sale','report.sale.pdf','report.sale.excel'] as $name) {
+            $this->getJson(route($name,['category_id'=>999999]))->assertUnprocessable()->assertJsonValidationErrors('category_id');
+        }
+    }
+
     public function test_gross_profit_uses_only_paid_sales_in_range_and_historical_item_costs(): void
     {
         $this->sale('paid','2026-10-20',10000,6000);

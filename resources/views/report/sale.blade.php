@@ -16,6 +16,7 @@
         <input type="hidden" name="tab" id="saleReportActiveTab" value="{{ $activeTab }}">
         <input type="hidden" name="products_sort" value="{{ $productsSort }}">
         @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
+        <div><label for="saleReportCategory" class="d-block">Kategori</label><select id="saleReportCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $option)<option value="{{ $option->id }}" @selected($categoryId === $option->id)>{{ $option->name }}</option>@endforeach</select></div>
         <div><label for="saleReportPerPage" class="d-block">Per Halaman</label><select id="saleReportPerPage" name="per_page" class="form-select form-select-sm">
             @foreach([25, 50, 100] as $size)<option value="{{ $size }}" @selected($sales->perPage() === $size)>{{ $size }}</option>@endforeach
         </select></div>
@@ -28,6 +29,7 @@
 </div>
 
 {{-- Summary cards --}}
+@if($category)<div class="small text-muted mb-3">Kategori: <strong>{{ $category->name }}</strong>. Nominal dan laba hanya mencakup barang dalam kategori terpilih, termasuk pada nota campuran.</div>@endif
 <div class="row g-3 mb-3">
     <div class="col-6 col-md-4 col-xl">
         <div class="card report-stat h-100" style="--stat-color:#198754"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-cash-stack"></i></div><div>
@@ -74,7 +76,7 @@
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Daftar Transaksi</h6></div>
             <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Daftar transaksi penjualan">
                 <table id="saleTransactionsTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
-                    <thead><tr><th>No. Invoice</th><th>Tanggal</th><th>Pelanggan / Kasir</th><th class="text-center">Bayar</th><th class="text-end">Total</th></tr></thead>
+                    <thead><tr><th>No. Invoice</th><th>Tanggal</th><th>Pelanggan / Kasir</th><th class="text-center">Bayar</th><th class="text-end">{{ $category ? 'Total Kategori' : 'Total' }}</th></tr></thead>
                     <tbody>
                         @forelse($sales as $sale)
                         <tr>
@@ -82,7 +84,7 @@
                             <td>{{ $sale->sale_date->format('d/m/Y') }}</td>
                             <td>{{ $sale->customer_name ?: 'Umum' }}<div class="small text-muted">{{ $sale->createdBy?->name ?? '-' }}</div></td>
                             <td class="text-center"><span class="badge bg-{{ $sale->payment_method === 'tunai' ? 'success' : 'info' }}">{{ ucfirst($sale->payment_method) }}</span></td>
-                            <td class="text-end">Rp {{ number_format($sale->total_amount, 0, ',', '.') }}</td>
+                            <td class="text-end">Rp {{ number_format($sale->report_total_amount, 0, ',', '.') }}</td>
                         </tr>
                         @empty
                         <tr><td colspan="5" class="report-empty"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada transaksi pada periode ini</td></tr>
@@ -101,6 +103,7 @@
                     <input type="hidden" name="from" value="{{ $from }}"><input type="hidden" name="to" value="{{ $to }}">
                     <input type="hidden" name="per_page" value="{{ $sales->perPage() }}"><input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="tab" value="products">
                     <input type="hidden" name="margins_page" value="{{ $productMargins->currentPage() }}">
+                    <input type="hidden" name="category_id" value="{{ $categoryId }}">
                     <div><label for="saleProductsSort" class="form-label small mb-1">Urutkan Berdasarkan</label><select id="saleProductsSort" name="products_sort" class="form-select form-select-sm"><option value="revenue" @selected($productsSort === 'revenue')>Omzet Tertinggi</option><option value="quantity" @selected($productsSort === 'quantity')>Jumlah Terjual Terbanyak</option></select></div>
                     <button class="btn btn-sm btn-primary">Terapkan Urutan</button>
                 </form>
