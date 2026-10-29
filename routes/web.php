@@ -58,6 +58,8 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])
+        ->middleware('permission:inventory.stock')->name('notifications.index');
     Route::get('/permissions', [\App\Http\Controllers\RolePermissionController::class, 'index'])
         ->middleware('role:owner')->name('permissions.index');
     Route::put('/permissions/{role}', [\App\Http\Controllers\RolePermissionController::class, 'update'])

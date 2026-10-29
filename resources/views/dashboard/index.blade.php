@@ -53,9 +53,10 @@
     </section></div>
     <div class="col-xl-4"><section class="owner-section h-100" id="notifications" aria-labelledby="actionHeading">
         <div class="owner-heading"><h6 id="actionHeading">Perlu Tindakan</h6><i class="bi bi-list-check text-muted"></i></div>
-        @php $actions=[['Nota belum dibayar',$pendingSalesCount,'nota','hourglass-split','warning',route('sale.sales.index',['status'=>'pending'])],['Penerimaan belum lengkap',$pendingPO,'PO','box-arrow-in-down','primary',route('purchase.orders.index')],['Sudah Kedaluwarsa',$expiredBatchCount,'rincian','exclamation-octagon','danger',route('inventory.stock.index',['expiry_status'=>'expired'])],['Kedaluwarsa dalam 30 hari',$expiringSoonCount,'rincian','calendar-event','warning',route('inventory.stock.index',['expiry_status'=>'expiring'])]]; @endphp
-        @foreach($actions as [$label,$count,$unit,$icon,$color,$url])<a class="owner-action" href="{{ $url }}"><i class="bi bi-{{ $icon }} text-{{ $color }} fs-5"></i><span>{{ $label }}<small class="d-block text-muted">{{ $count }} {{ $unit }}</small></span><i class="bi bi-arrow-up-right text-muted"></i></a>@endforeach
-        <a class="owner-action" href="#criticalHeading"><i class="bi bi-box2 text-danger fs-5"></i><span>Stok layak jual habis<small class="d-block text-muted">{{ $outOfStockCount }} jenis barang aktif</small></span><i class="bi bi-arrow-down text-muted"></i></a>
+        @include('notifications.summary')
+        <div class="mt-3 small text-muted">Operasional lainnya</div>
+        <a class="owner-action" href="{{ route('sale.sales.index',['status'=>'pending']) }}"><i class="bi bi-hourglass-split text-warning"></i><span>Nota belum dibayar<small class="d-block text-muted">{{ $pendingSalesCount }} nota</small></span><i class="bi bi-arrow-up-right"></i></a>
+        <a class="owner-action" href="{{ route('purchase.orders.index') }}"><i class="bi bi-box-arrow-in-down text-primary"></i><span>Penerimaan belum lengkap<small class="d-block text-muted">{{ $pendingPO }} PO</small></span><i class="bi bi-arrow-up-right"></i></a>
     </section></div>
 </div>
 <div class="row g-3 mb-3">

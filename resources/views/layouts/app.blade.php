@@ -221,18 +221,8 @@
             border: 1px solid #e7eaf0;
             border-radius: 12px;
             box-shadow: 0 12px 32px rgba(23, 32, 57, .18);
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-6px);
-            transition: opacity .18s ease, transform .18s ease, visibility .18s;
             overflow: hidden;
             z-index: 1050;
-        }
-        .notification-hover:hover .notification-preview,
-        .notification-hover:focus-within .notification-preview {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
         }
         .notification-preview::before {
             content: '';
@@ -581,11 +571,11 @@
                 right: 1rem;
                 top: calc(100% + .5rem);
                 width: auto;
-                display: flex;
                 flex-direction: column;
                 max-height: calc(100vh - 6rem);
                 max-height: calc(100dvh - 6rem);
             }
+            #topbar .notification-preview.show { display: flex; }
             #topbar .notification-preview::before { display: none; }
             #topbar .notification-preview-header,
             #topbar .notification-preview-footer { flex-shrink: 0; }
@@ -641,53 +631,35 @@
             <h6 class="topbar-title mb-0 fw-semibold text-muted">@yield('page-title', 'Dashboard')</h6>
         </div>
         <div class="topbar-actions d-flex align-items-center gap-3">
-            {{-- Notifikasi stok --}}
+            {{-- Notifikasi persediaan: snapshot yang sama dengan dashboard dan daftar lengkap. --}}
             @if(!auth()->user()->must_change_password && auth()->user()->hasPermission('inventory.stock.view'))
             @php
-                $topbarNotifications = app(\App\Services\NotificationService::class)->checkAllProducts();
+                $topbarNotifications = app(\App\Services\NotificationService::class)->forRequest();
                 $notifCount = count($topbarNotifications);
-                $showTopbarNotificationPreview = ! request()->routeIs('inventory.stock.*');
             @endphp
-            @if($notifCount > 0)
-            <div class="notification-hover">
-                <a href="{{ route('dashboard') }}#notifications"
-                   class="btn btn-sm btn-outline-warning position-relative"
-                   aria-label="{{ $notifCount }} notifikasi stok"
-                   @if($showTopbarNotificationPreview) aria-describedby="notificationPreview" @endif>
-                    <i class="bi bi-bell"></i>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                        {{ $notifCount }}
-                    </span>
-                </a>
-                @if($showTopbarNotificationPreview)
-                <div class="notification-preview" id="notificationPreview" role="tooltip">
-                    <div class="notification-preview-header d-flex justify-content-between align-items-center">
-                        <span class="fw-semibold"><i class="bi bi-bell-fill text-warning me-2"></i>Perlu Perhatian</span>
-                        <span class="badge bg-danger">{{ $notifCount }}</span>
-                    </div>
+            <div class="notification-hover dropdown">
+                <button type="button" id="notificationToggle" class="btn btn-sm btn-outline-warning position-relative"
+                    data-bs-toggle="dropdown" data-bs-display="static" data-bs-auto-close="outside" aria-expanded="false" aria-controls="notificationPreview"
+                    aria-label="{{ $notifCount }} produk perlu perhatian">
+                    <i class="bi bi-bell" aria-hidden="true"></i>
+                    @if($notifCount > 0)<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ $notifCount }}</span>@endif
+                </button>
+                <div class="notification-preview dropdown-menu dropdown-menu-end p-0" id="notificationPreview" aria-labelledby="notificationToggle">
+                    <div class="notification-preview-header"><strong>Perlu Perhatian</strong><div class="small text-muted">{{ $notifCount }} produk perlu perhatian</div></div>
                     <div class="notification-preview-list">
-                        @foreach(array_slice($topbarNotifications, 0, 5) as $notif)
-                        <div class="notification-preview-item">
-                            <div class="d-flex justify-content-between gap-2 mb-1">
-                                <div class="fw-semibold text-dark text-truncate">{{ $notif['product_name'] }}</div>
-                                <div class="d-flex flex-wrap justify-content-end gap-1 align-self-start">
-                                    @foreach($notif['badges'] as $badge)
-                                    <span class="badge bg-{{ $badge['class'] }}">{{ $badge['label'] }}</span>
-                                    @endforeach
-                                </div>
-                            </div>
-                            <div class="small text-muted mb-1"><i class="bi bi-geo-alt me-1"></i>{{ $notif['location_name'] }}</div>
-                            <div class="small text-dark">{{ $notif['message'] }}</div>
-                        </div>
-                        @endforeach
+                        @forelse(array_slice($topbarNotifications, 0, 5) as $notif)
+                        <a class="notification-preview-item dropdown-item text-wrap" href="{{ route('notifications.index', ['product_id'=>$notif['product_id']]) }}#product-{{ $notif['product_id'] }}">
+                            <div class="fw-semibold text-break mb-1">{{ $notif['product_name'] }}</div>
+                            <div class="d-flex flex-wrap gap-1 mb-1">@foreach($notif['badges'] as $badge)<span class="badge bg-{{ $badge['class'] }}">{{ $badge['label'] }}</span>@endforeach</div>
+                            <div class="small text-muted">{{ $notif['summary'] }}</div>
+                        </a>
+                        @empty
+                        <div class="notification-preview-item small text-muted">Tidak ada kondisi yang perlu perhatian.</div>
+                        @endforelse
                     </div>
-                    <a href="{{ route('dashboard') }}#notifications" class="notification-preview-footer text-decoration-none">
-                        Lihat semua notifikasi <i class="bi bi-arrow-right ms-1"></i>
-                    </a>
+                    <a href="{{ route('notifications.index') }}" class="notification-preview-footer text-decoration-none">Lihat semua notifikasi <i class="bi bi-arrow-right ms-1"></i></a>
                 </div>
-                @endif
             </div>
-            @endif
             @endif
 
             {{-- User dropdown --}}

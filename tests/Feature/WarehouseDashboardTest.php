@@ -62,8 +62,8 @@ class WarehouseDashboardTest extends TestCase
             ->assertViewHas('warehouseProductCount',5)->assertViewHas('warehouseOutOfStockCount',2)
             ->assertViewHas('warehouseLowStockCount',1)->assertViewHas('warehouseSafeStockCount',2)
             ->assertViewHas('expiredBatchCount',2)->assertViewHas('expiringBatchCount',2)
-            ->assertViewHas('warehousePriorityCount',7)
-            ->assertViewHas('warehousePriorities',fn($rows)=>$rows->first()['label']==='Kedaluwarsa' && $rows->first()['product_name']==='Campuran' && $rows->get(2)['label']==='Mendekati Kedaluwarsa')
+            ->assertViewHas('warehousePriorityCount',3)
+            ->assertViewHas('warehousePriorities',fn($rows)=>$rows->first()['badge_label']==='Kedaluwarsa' && $rows->first()['product_name']==='Campuran' && $rows->get(2)['badge_label']==='Stok Habis')
             ->assertViewHas('stockedLocations',fn($rows)=>$rows->first()['sellable']===3 && $rows->first()['physical']===4)
             ->assertDontSee('Produk Nonaktif')->assertDontSee('chart.umd')->assertSee('Stok Layak Jual Habis')
             ->assertSee('Sudah Kedaluwarsa')->assertSee('Rincian dalam 30 hari')
@@ -99,6 +99,6 @@ class WarehouseDashboardTest extends TestCase
         $this->staff();
         $this->get(route('dashboard'))->assertOk()->assertViewHas('warehouseProductCount',0)
             ->assertViewHas('warehousePriorityCount',0)->assertSee('background:#e8edeb;',false)
-            ->assertSee('Tidak ada stok yang perlu penanganan.')->assertSee('Belum ada lokasi penyimpanan.');
+            ->assertSee('Tidak ada kondisi yang perlu perhatian.')->assertSee('Belum ada lokasi penyimpanan.');
     }
 }

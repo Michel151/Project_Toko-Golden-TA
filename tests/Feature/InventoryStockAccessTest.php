@@ -88,22 +88,20 @@ class InventoryStockAccessTest extends TestCase
             ->get(route('inventory.stock.index', ['expiry_status' => 'expired']))
             ->assertOk()
             ->assertSee('Roti Kedaluwarsa')
-            ->assertDontSee('Yogurt Segera Dicek')
-            ->assertDontSee('Sirup Jangka Panjang');
+            // The global bell remains unfiltered; assert the stock results separately.
+            ->assertViewHas('products', fn ($products) => $products->pluck('id')->all() === [$expiredProduct->id]);
 
         $this->actingAs($owner)
             ->get(route('inventory.stock.index', ['expiry_status' => 'expiring']))
             ->assertOk()
-            ->assertDontSee('Roti Kedaluwarsa')
             ->assertSee('Yogurt Segera Dicek')
-            ->assertDontSee('Sirup Jangka Panjang');
+            ->assertViewHas('products', fn ($products) => $products->pluck('id')->all() === [$expiringProduct->id]);
 
         $this->actingAs($owner)
             ->get(route('inventory.stock.index', ['expiry_status' => 'safe']))
             ->assertOk()
-            ->assertDontSee('Roti Kedaluwarsa')
-            ->assertDontSee('Yogurt Segera Dicek')
-            ->assertSee('Sirup Jangka Panjang');
+            ->assertSee('Sirup Jangka Panjang')
+            ->assertViewHas('products', fn ($products) => $products->pluck('id')->all() === [$safeProduct->id]);
 
         Carbon::setTestNow();
     }

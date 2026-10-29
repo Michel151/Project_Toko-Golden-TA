@@ -53,6 +53,7 @@ class AccessPermissions
 
     public static function forRoute(string $name): ?string
     {
+        if ($name === 'notifications.index') return 'inventory.stock.view';
         if (in_array($name, ['sale.drafts.index', 'sale.drafts.update'], true)) {
             return 'sale.sales.create';
         }

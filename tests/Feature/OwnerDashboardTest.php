@@ -45,7 +45,7 @@ class OwnerDashboardTest extends TestCase
             ->assertViewHas('inventoryValue',5000)->assertViewHas('locationValues',fn($rows)=>(float)$rows->sum('value')===5000.0)
             ->assertViewHas('topQuantityProducts',fn($rows)=>(float)$rows->first()->base_quantity===3.0 && $rows->first()->base_unit==='Pcs')
             ->assertSee('Kemarin belum ada penjualan')->assertSee('Laba Kotor Bulan Ini')
-            ->assertSee('Sudah Kedaluwarsa')->assertSee('stok kedaluwarsa tidak dihitung')
+            ->assertSee('Kedaluwarsa')->assertSee('1 produk perlu perhatian')->assertSee('stok kedaluwarsa tidak dihitung')
             ->assertDontSee('Batch kedaluwarsa')->assertDontSee('batch kedaluwarsa tidak dihitung');
         SaleItem::whereHas('sale',fn($q)=>$q->whereDate('sale_date','2026-10-14')->paid())->update(['cost_subtotal'=>0]);
         $this->get(route('dashboard'))->assertOk()->assertViewHas('missingCostCount',1)->assertSee('Belum lengkap');

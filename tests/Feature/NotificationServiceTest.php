@@ -65,9 +65,9 @@ class NotificationServiceTest extends TestCase
         $this->assertCount(1, $notifications);
         $this->assertSame('expiry', $notifications[0]['type']);
         $this->assertSame('Kedaluwarsa', $notifications[0]['badge_label']);
-        $this->assertSame('expired', $notifications[0]['badge_class']);
+        $this->assertSame('danger', $notifications[0]['badge_class']);
         $this->assertSame([
-            ['label' => 'Kedaluwarsa', 'class' => 'expired'],
+            ['label' => 'Kedaluwarsa', 'class' => 'danger'],
             ['label' => 'Hampir Kedaluwarsa', 'class' => 'warning text-dark'],
         ], $notifications[0]['badges']);
         $this->assertStringContainsString('sudah kedaluwarsa sejak 20/09/2026', $notifications[0]['message']);
@@ -117,8 +117,9 @@ class NotificationServiceTest extends TestCase
         $this->assertCount(1, $notifications);
         $this->assertSame('Dettol 50 Lembar', $notifications[0]['product_name']);
         $this->assertSame('3 lokasi', $notifications[0]['location_name']);
-        $this->assertSame([['label' => 'Order', 'class' => 'danger']], $notifications[0]['badges']);
-        $this->assertStringContainsString('Gudang 2, Gudang 3, dan Toko', $notifications[0]['message']);
-        $this->assertStringContainsString('Total stok semua lokasi sangat rendah', $notifications[0]['message']);
+        $this->assertSame([['label' => 'Stok Rendah', 'class' => 'warning text-dark']], $notifications[0]['badges']);
+        $this->assertEqualsCanonicalizing(['Gudang 2', 'Gudang 3', 'Toko'], $notifications[0]['location_names']);
+        $this->assertStringContainsString('Total stok layak jual Dettol 50 Lembar rendah', $notifications[0]['message']);
+        $this->assertStringContainsString('order ke supplier', $notifications[0]['advice']);
     }
 }

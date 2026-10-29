@@ -51,10 +51,8 @@
 <div class="row g-3 warehouse-content-row">
     <div class="col-xl-8 warehouse-panel-stack">
         <section class="warehouse-section" id="notifications" aria-labelledby="priorityHeading">
-            <div class="d-flex flex-wrap justify-content-between gap-2 mb-2"><h6 id="priorityHeading">Prioritas Penanganan</h6><a href="{{ route('inventory.stock.index') }}" class="small text-decoration-none">Monitoring Stok <i class="bi bi-arrow-right"></i></a></div>
-            @if($warehousePriorities->isNotEmpty())<div class="table-responsive"><table class="table table-hover"><thead><tr><th>Barang / Lokasi</th><th>Kondisi</th><th>Stok / Tanggal</th><th></th></tr></thead><tbody>
-                @foreach($warehousePriorities as $priority)<tr><td><div class="fw-semibold">{{ $priority['product_name'] }}</div><div class="small text-muted">{{ $priority['location'] }}</div></td><td><span class="badge bg-{{ $priority['color'] }}">{{ $priority['label'] }}</span></td><td class="small">{{ $priority['detail'] }}</td><td class="text-end"><a href="{{ $priority['url'] }}" class="btn btn-sm btn-outline-secondary" title="Periksa stok {{ $priority['product_name'] }}" aria-label="Periksa stok {{ $priority['product_name'] }}"><i class="bi bi-arrow-up-right"></i></a></td></tr>@endforeach
-            </tbody></table></div><div class="small text-muted mt-2">{{ $warehousePriorities->count() }} dari {{ $warehousePriorityCount }} kondisi perlu perhatian</div>@else<div class="warehouse-empty"><i class="bi bi-check-circle text-success me-1"></i>Tidak ada stok yang perlu penanganan.</div>@endif
+            <h6 id="priorityHeading" class="mb-2">Prioritas Penanganan</h6>
+            @include('notifications.summary')
         </section>
         <div class="row g-3 warehouse-work-queue">
             @if(auth()->user()->hasPermission('purchase.receipts.view'))<div class="col-lg-6"><section class="warehouse-section h-100" aria-labelledby="receiptHeading">
