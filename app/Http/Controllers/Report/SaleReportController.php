@@ -16,7 +16,12 @@ class SaleReportController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->validate(['per_page'=>'nullable|integer|in:25,50,100', 'tab'=>'nullable|in:transactions,products,margins']);
+        $filters = $request->validate([
+            'per_page'=>'nullable|integer|in:25,50,100', 'tab'=>'nullable|in:transactions,products,margins',
+            'products_sort'=>'nullable|in:revenue,quantity', 'products_page'=>'nullable|integer|min:1',
+            'margins_page'=>'nullable|integer|min:1',
+        ]);
+        $productsSort = $filters['products_sort'] ?? 'revenue';
         $activeTab = $filters['tab'] ?? 'transactions';
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());
@@ -52,29 +57,41 @@ class SaleReportController extends Controller
                     'gross_profit' => $profit,
                     'margin_percentage' => $profit !== null && $revenue > 0 ? round($profit / $revenue * 100, 2) : null,
                 ];
-            })->sortByDesc('revenue')->values();
+            })->sortBy([['revenue', 'desc'], ['product_id', 'asc']])->values();
 
-        // Produk terlaris
-        $topProducts = SaleItem::select('product_id', DB::raw('SUM(quantity) as total_qty'), DB::raw('SUM(subtotal) as total_amount'))
-            ->whereHas('sale', fn($q) => $q->paid()->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to))
-            ->with('product')
-            ->groupBy('product_id')
-            ->orderByDesc('total_amount')
-            ->limit(10)
-            ->get();
-
+        // Prefer the historical quantity snapshot; legacy rows fall back to their unit conversion.
+        $sourceQuantity = '(SELECT CASE WHEN COUNT(*) = COUNT(base_quantity) THEN SUM(base_quantity) ELSE NULL END FROM sale_item_sources WHERE sale_item_sources.sale_item_id = sale_items.id)';
+        $baseQuantity = "COALESCE(sale_items.cost_base_quantity, {$sourceQuantity}, sale_items.quantity * COALESCE(product_units.conversion_to_base, CASE WHEN sale_items.sale_type = 'grosir' AND products.can_retail = 1 THEN products.conversion_factor ELSE 1 END))";
         $perPage = (int) ($filters['per_page'] ?? 25);
+        $topProducts = SaleItem::select('sale_items.product_id', DB::raw("SUM({$baseQuantity}) as total_qty"), DB::raw('SUM(sale_items.subtotal) as total_amount'))
+            ->leftJoin('product_units', 'product_units.id', '=', 'sale_items.product_unit_id')
+            ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
+            ->whereHas('sale', fn($q) => $q->paid()->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to))
+            ->with(['product.productUnits.unit', 'product.buyUnit', 'product.retailUnit'])
+            ->groupBy('sale_items.product_id')
+            ->orderByDesc($productsSort === 'quantity' ? 'total_qty' : 'total_amount')
+            ->when($productsSort === 'quantity', fn ($query) => $query->orderByDesc('total_amount'))
+            ->orderBy('sale_items.product_id')
+            ->paginate($perPage, ['*'], 'products_page')->withQueryString()
+            ->appends(['tab'=>'products'])->fragment('saleReportTabs');
+
         $page = LengthAwarePaginator::resolveCurrentPage();
         $sales = (new LengthAwarePaginator(
             $sales->forPage($page, $perPage)->values(), $sales->count(), $perPage, $page,
             ['path'=>LengthAwarePaginator::resolveCurrentPath()]
         ))->withQueryString();
 
+        $marginPage = LengthAwarePaginator::resolveCurrentPage('margins_page');
+        $productMargins = (new LengthAwarePaginator(
+            $productMargins->forPage($marginPage, $perPage)->values(), $productMargins->count(), $perPage, $marginPage,
+            ['path'=>LengthAwarePaginator::resolveCurrentPath(), 'pageName'=>'margins_page']
+        ))->withQueryString()->appends(['tab'=>'margins'])->fragment('saleReportTabs');
+
         return view('report.sale', compact(
             'sales', 'from', 'to',
             'totalAmount', 'totalTunai', 'totalTransfer', 'totalTrx',
             'grossProfit', 'incompleteCostCount', 'productMargins',
-            'topProducts', 'activeTab'
+            'topProducts', 'activeTab', 'productsSort'
         ));
     }
 

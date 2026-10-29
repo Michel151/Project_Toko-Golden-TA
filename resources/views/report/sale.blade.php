@@ -3,9 +3,8 @@
 @section('page-title', 'Laporan Penjualan')
 @push('styles')
 <style>
-.sale-margin-scroll { min-height:0;max-height:360px;overflow:auto; }
-#productMarginTable thead th { position:sticky;top:0;z-index:1;background:#eef2ec; }
 .sale-report-tabs { gap:.5rem; }
+#saleReportTabs { scroll-margin-top:80px; }
 .sale-report-tabs .nav-link { color:var(--app-muted);background:#fff;border:1px solid var(--app-border); }
 </style>
 @endpush
@@ -15,6 +14,7 @@
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="d-flex flex-wrap gap-2 align-items-end" method="GET">
         <input type="hidden" name="tab" id="saleReportActiveTab" value="{{ $activeTab }}">
+        <input type="hidden" name="products_sort" value="{{ $productsSort }}">
         @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
         <div><label for="saleReportPerPage" class="d-block">Per Halaman</label><select id="saleReportPerPage" name="per_page" class="form-select form-select-sm">
             @foreach([25, 50, 100] as $size)<option value="{{ $size }}" @selected($sales->perPage() === $size)>{{ $size }}</option>@endforeach
@@ -95,23 +95,34 @@
     </div>
     <div class="tab-pane {{ $activeTab === 'products' ? 'show active' : '' }}" id="saleProductsPane" role="tabpanel" aria-labelledby="saleProductsTab" tabindex="0">
         <div class="card table-card">
-            <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Produk Terlaris</h6></div>
+            <div class="card-header bg-white border-0 pt-3 d-flex flex-wrap align-items-end justify-content-between gap-3">
+                <div><h6 class="fw-bold mb-1">Produk Terlaris</h6><div class="small text-muted">Semua barang terjual pada periode terpilih. Jumlah ditampilkan dalam satuan dasar masing-masing barang.</div></div>
+                <form method="GET" action="{{ route('report.sale') }}" class="d-flex flex-wrap align-items-end gap-2">
+                    <input type="hidden" name="from" value="{{ $from }}"><input type="hidden" name="to" value="{{ $to }}">
+                    <input type="hidden" name="per_page" value="{{ $sales->perPage() }}"><input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="tab" value="products">
+                    <input type="hidden" name="margins_page" value="{{ $productMargins->currentPage() }}">
+                    <div><label for="saleProductsSort" class="form-label small mb-1">Urutkan Berdasarkan</label><select id="saleProductsSort" name="products_sort" class="form-select form-select-sm"><option value="revenue" @selected($productsSort === 'revenue')>Omzet Tertinggi</option><option value="quantity" @selected($productsSort === 'quantity')>Jumlah Terjual Terbanyak</option></select></div>
+                    <button class="btn btn-sm btn-primary">Terapkan Urutan</button>
+                </form>
+            </div>
             <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Produk terlaris">
                 <table id="saleTopProductsTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
-                    <thead><tr><th>Peringkat</th><th>Barang</th><th class="text-end">Total Penjualan</th></tr></thead>
+                    <thead><tr><th>Peringkat</th><th>Barang</th><th class="text-end">Jumlah Terjual</th><th class="text-end">Total Penjualan</th></tr></thead>
                     <tbody>
                         @forelse($topProducts as $i => $tp)
                         <tr>
-                            <td class="text-muted">{{ $i + 1 }}</td>
+                            <td class="text-muted">{{ $topProducts->firstItem() + $loop->index }}</td>
                             <td class="small">{{ $tp->product->name ?? '-' }}</td>
+                            <td class="text-end small">{{ \App\Support\DisplayNumber::quantity($tp->total_qty) }} {{ $tp->product?->productUnits->firstWhere('is_base_unit', true)?->unit?->name ?? ($tp->product?->can_retail ? $tp->product?->retailUnit?->name : $tp->product?->buyUnit?->name) }}</td>
                             <td class="text-end small">Rp {{ number_format($tp->total_amount, 0, ',', '.') }}</td>
                         </tr>
                         @empty
-                        <tr><td colspan="3" class="report-empty">Tidak ada penjualan produk pada periode ini.</td></tr>
+                        <tr><td colspan="4" class="report-empty">Tidak ada penjualan produk pada periode ini.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
+            <div class="card-footer bg-white">{{ $topProducts->links() }}</div>
         </div>
     </div>
     <div class="tab-pane {{ $activeTab === 'margins' ? 'show active' : '' }}" id="saleMarginsPane" role="tabpanel" aria-labelledby="saleMarginsTab" tabindex="0">
@@ -120,7 +131,7 @@
         <h6 id="productMarginHeading" class="fw-bold mb-1">Margin per Produk</h6>
         <div class="small text-muted">Penjualan lunas pada periode terpilih. Margin = laba kotor ÷ omzet × 100%, sebelum biaya operasional.</div>
     </div>
-    <div class="card-body p-0 table-responsive sale-margin-scroll" tabindex="0" role="region" aria-label="Margin per produk, gulir untuk melihat produk lainnya">
+    <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Margin per produk">
         <table id="productMarginTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
             <thead><tr><th>Barang</th><th class="text-end">Omzet</th><th class="text-end">HPP</th><th class="text-end">Laba Kotor</th><th class="text-end">Margin</th></tr></thead>
             <tbody>
@@ -138,6 +149,7 @@
             </tbody>
         </table>
     </div>
+    <div class="card-footer bg-white">{{ $productMargins->links() }}</div>
 </section>
     </div>
 </div>
@@ -151,7 +163,7 @@
             const url = new URL(location.href);
             url.searchParams.set('tab', tab);
             history.replaceState(null, '', url);
-            document.querySelectorAll('#saleTransactionsPane .pagination a').forEach(link => {
+            document.querySelectorAll('.sale-report-overview .pagination a').forEach(link => {
                 const target = new URL(link.href, location.href);
                 target.searchParams.set('tab', tab);
                 link.href = target.href;

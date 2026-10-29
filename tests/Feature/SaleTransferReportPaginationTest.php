@@ -116,4 +116,92 @@ class SaleTransferReportPaginationTest extends TestCase
         }
         $this->checkPages('transfer', 'transfers', 'transfer_number', $filters);
     }
+
+    public function test_all_sold_products_have_independent_pages_and_revenue_or_quantity_ranking(): void
+    {
+        $ids=[];
+        for ($i=1;$i<=60;$i++) {
+            $product=$this->product->replicate(); $product->name='Barang '.$i; $product->save(); $ids[]=$product->id;
+            $sale=Sale::create(['sale_number'=>'TOP-'.$i,'sale_date'=>'2026-10-28','total_amount'=>$i*100,
+                'payment_method'=>'tunai','status'=>'paid','created_by'=>auth()->id()]);
+            $sale->items()->create(['product_id'=>$product->id,'quantity'=>61-$i,'cost_base_quantity'=>61-$i,
+                'unit_price'=>100,'subtotal'=>$i*100,'cost_subtotal'=>10,'cost_method'=>'moving_average','sale_type'=>'ecer']);
+        }
+        $seen=[];
+        foreach ([1,2,3] as $page) {
+            $response=$this->get(route('report.sale',$this->period+['tab'=>'products','page'=>2,'products_page'=>$page]))->assertOk()
+                ->assertViewHas('totalAmount',183000)->assertViewHas('sales',fn($rows)=>$rows->currentPage()===2&&$rows->count()===25)
+                ->assertViewHas('topProducts',fn($rows)=>$rows->total()===60&&$rows->count()===($page===3?10:25)&&$rows->firstItem()===1+25*($page-1));
+            $rows=$response->viewData('topProducts');
+            array_push($seen,...$rows->pluck('product_id')->all());
+            parse_str(parse_url($rows->url(2),PHP_URL_QUERY),$query);
+            $this->assertSame('products',$query['tab']); $this->assertEquals(2,$query['page']);
+            $this->assertEquals(2,$query['products_page']); $this->assertSame($this->period['from'],$query['from']);
+            if ($page===1) $this->capture('sale-all-products',$response);
+            if ($page===3) {
+                $this->capture('sale-all-products-last',$response);
+                $document=new \DOMDocument; @$document->loadHTML($response->getContent());
+                $xpath=new \DOMXPath($document);
+                $this->assertSame('51',trim($xpath->query('//table[@id="saleTopProductsTable"]/tbody/tr[1]/td[1]')->item(0)->textContent));
+            }
+        }
+        $this->assertSame(array_reverse($ids),$seen);
+        $marginIds=[];
+        foreach ([1,2,3] as $page) {
+            $marginResponse=$this->get(route('report.sale',$this->period+['tab'=>'margins','page'=>2,'products_page'=>2,'margins_page'=>$page]))->assertOk()
+                ->assertViewHas('sales',fn($rows)=>$rows->currentPage()===2)
+                ->assertViewHas('topProducts',fn($rows)=>$rows->currentPage()===2)
+                ->assertViewHas('grossProfit',182400.0)
+                ->assertViewHas('productMargins',fn($rows)=>$rows->total()===60&&$rows->count()===($page===3?10:25));
+            $margins=$marginResponse->viewData('productMargins');
+            array_push($marginIds,...$margins->pluck('product_id')->all());
+            $this->assertEquals($margins->first()->revenue-10,$margins->first()->gross_profit);
+            parse_str(parse_url($margins->url(3),PHP_URL_QUERY),$marginQuery);
+            $this->assertEquals(2,$marginQuery['page']); $this->assertEquals(2,$marginQuery['products_page']);
+            $this->assertEquals(3,$marginQuery['margins_page']); $this->assertSame('margins',$marginQuery['tab']);
+            $this->capture('sale-all-margins'.($page===1?'':'-'.$page),$marginResponse);
+        }
+        $this->assertSame(array_reverse($ids),$marginIds);
+        $quantity=$this->get(route('report.sale',$this->period+['tab'=>'products','products_sort'=>'quantity','page'=>2]))->assertOk()
+            ->assertViewHas('topProducts',fn($rows)=>$rows->first()->product_id===$ids[0]&&(float)$rows->first()->total_qty===60.0);
+        $this->capture('sale-products-quantity',$quantity);
+        foreach ([50=>50,100=>60] as $size=>$count) {
+            $this->get(route('report.sale',$this->period+['per_page'=>$size]))->assertOk()
+                ->assertViewHas('topProducts',fn($rows)=>$rows->total()===60&&$rows->count()===$count)
+                ->assertViewHas('productMargins',fn($rows)=>$rows->total()===60&&$rows->count()===$count);
+        }
+        $this->get(route('report.sale',['from'=>'2026-11-01','to'=>'2026-11-30','tab'=>'products']))->assertOk()
+            ->assertViewHas('topProducts',fn($rows)=>$rows->total()===0)
+            ->assertViewHas('productMargins',fn($rows)=>$rows->total()===0);
+        $this->getJson(route('report.sale',['products_sort'=>'bad']))->assertUnprocessable()->assertJsonValidationErrors('products_sort');
+        $this->getJson(route('report.sale',['products_page'=>-1]))->assertUnprocessable()->assertJsonValidationErrors('products_page');
+        $this->getJson(route('report.sale',['margins_page'=>-1]))->assertUnprocessable()->assertJsonValidationErrors('margins_page');
+    }
+
+    public function test_quantity_ranking_uses_historical_base_snapshots_then_legacy_unit_conversions(): void
+    {
+        $sale=Sale::create(['sale_number'=>'UNITS','sale_date'=>'2026-10-28','total_amount'=>1400,'payment_method'=>'tunai','status'=>'paid','created_by'=>auth()->id()]);
+        $productIds=[];
+        foreach ([['Snapshot',500,2,20,100],['Sumber',500,3,null,50],['Satuan Lama',300,2,null,10],['Legacy',100,2,null,12]] as [$name,$revenue,$qty,$snapshot,$conversion]) {
+            $product=$this->product->replicate(); $product->name=$name; $product->can_retail=true; $product->conversion_factor=$conversion; $product->retail_unit_id=$product->buy_unit_id; $product->save();
+            $productIds[]=$product->id;
+            $unit=null;
+            if ($name!=='Legacy') $unit=\App\Models\ProductUnit::create(['product_id'=>$product->id,'unit_id'=>$product->buy_unit_id,'conversion_to_base'=>$conversion,'buy_price'=>1,'sell_price'=>1]);
+            $item=$sale->items()->create(['product_id'=>$product->id,'product_unit_id'=>$unit?->id,'quantity'=>$qty,'cost_base_quantity'=>$snapshot,
+                'unit_price'=>1,'subtotal'=>$revenue,'cost_subtotal'=>1,'cost_method'=>'moving_average','sale_type'=>'grosir']);
+            if ($name==='Sumber') {
+                $item->sources()->create(['location_id'=>$this->from->id,'quantity'=>1,'base_quantity'=>2]);
+                $item->sources()->create(['location_id'=>$this->to->id,'quantity'=>2,'base_quantity'=>3]);
+            }
+        }
+        $quantity=$this->get(route('report.sale',$this->period+['tab'=>'products','products_sort'=>'quantity']))->assertOk()->viewData('topProducts');
+        $this->assertSame([$productIds[3],$productIds[0],$productIds[2],$productIds[1]],$quantity->pluck('product_id')->all());
+        $this->assertEquals([24,20,20,5],$quantity->pluck('total_qty')->all());
+        $revenue=$this->get(route('report.sale',$this->period))->assertOk()->viewData('topProducts');
+        $this->assertSame($productIds,$revenue->pluck('product_id')->all());
+        $pending=Sale::create(['sale_number'=>'NOT-PAID','sale_date'=>'2026-10-28','total_amount'=>9000,'payment_method'=>'tunai','status'=>'pending','created_by'=>auth()->id()]);
+        $pending->items()->create(['product_id'=>$this->product->id,'quantity'=>9000,'unit_price'=>1,'subtotal'=>9000,'sale_type'=>'ecer']);
+        $this->get(route('report.sale',$this->period))->assertOk()->assertViewHas('topProducts',fn($rows)=>$rows->total()===4);
+        $this->assertDatabaseCount('stock_movements',0);
+    }
 }
