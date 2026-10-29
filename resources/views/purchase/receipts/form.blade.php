@@ -29,7 +29,7 @@
 .receiving-search { width:290px; max-width:100%; }
 .receiving-filter { width:200px; }
 .receiving-footer { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:0 0 12px; }
-.receipt-batch-grid { display:grid; grid-template-columns:130px 180px minmax(200px,1fr) 36px; gap:8px; align-items:center; }
+.receipt-batch-grid { display:grid; grid-template-columns:minmax(100px,1fr) minmax(150px,1fr) 36px; gap:8px; align-items:center; max-width:650px; }
 .receipt-batch-grid + .receipt-batch-grid { margin-top:8px; }
 .receipt-batch-grid .input-group-text { max-width:65px; overflow:hidden; }
 .batch-delete { width:32px; height:32px; padding:0; }
@@ -44,6 +44,7 @@
 <form method="POST" action="{{ route('purchase.receipts.store') }}" id="receivingForm">
 @csrf
 <input type="hidden" name="submission_token" value="{{ old('submission_token', (string) Str::uuid()) }}">
+<input type="hidden" name="location_mode" value="single">
 <div class="bg-white border-bottom p-3 mb-3">
     <div class="row g-3">
         <div class="col-lg-5"><label class="form-label" for="poSelect">Purchase Order</label>
@@ -54,6 +55,21 @@
         </div>
         <div class="col-lg-3"><label class="form-label" for="receiptDate">Tanggal Terima</label><input type="date" id="receiptDate" name="receipt_date" class="form-control" value="{{ old('receipt_date', today()->toDateString()) }}" required></div>
         <div class="col-lg-4"><label class="form-label" for="receiptNotes">Catatan Penerimaan</label><input id="receiptNotes" name="notes" class="form-control" maxlength="5000" value="{{ old('notes') }}"></div>
+        <div class="col-md-6"><label class="form-label" for="receiptLocation">Lokasi Penerimaan <span class="text-danger">*</span></label>
+            <select name="receipt_location_id" id="receiptLocation" class="form-select" required>
+                <option value="">Pilih lokasi penerimaan</option>
+                @foreach($locations as $loc)<option value="{{ $loc->id }}" @selected(old('receipt_location_id') == $loc->id)>{{ $loc->name }}</option>@endforeach
+            </select>
+            <div class="form-text">Semua barang baik pada penerimaan ini masuk ke lokasi yang dipilih. Untuk lokasi lain, buat penerimaan terpisah dari sisa PO.</div>
+        </div>
+        <div class="col-md-6" id="receiptQuarantineField" @if(!collect(old('items', []))->contains(fn ($row) => ($row['quantity_damaged'] ?? 0) + ($row['quantity_wrong'] ?? 0) > 0)) hidden @endif>
+            <label class="form-label" for="receiptQuarantine">Lokasi Penahanan Barang Retur <span class="text-danger">*</span></label>
+            <select name="quarantine_location_id" id="receiptQuarantine" class="form-select">
+                <option value="">Pilih lokasi penahanan</option>
+                @foreach($locations as $loc)<option value="{{ $loc->id }}" @selected(old('quarantine_location_id') == $loc->id)>{{ $loc->name }}</option>@endforeach
+            </select>
+            <div class="form-text">Berlaku untuk semua barang rusak atau tidak sesuai. Barang ini tidak masuk stok jual.</div>
+        </div>
     </div>
 </div>
 @if($selectedOrder?->root_purchase_order_id)
@@ -82,7 +98,6 @@
                 <input type="hidden" name="items[{{ $i }}][purchase_order_item_id]" value="{{ $item->id }}">
                 <input type="hidden" name="items[{{ $i }}][product_id]" value="{{ $item->product_id }}">
                 <input type="hidden" name="items[{{ $i }}][product_unit_id]" value="{{ $item->product_unit_id }}">
-                @if(!$item->product->is_expirable)<input type="hidden" class="allocation-qty" name="items[{{ $i }}][allocations][0][quantity]" value="{{ old("items.$i.quantity_received", 0) }}">@endif
             </td>
             <td class="text-end">{{ rtrim(rtrim(number_format($item->receivableQuantity(), 4, ',', '.'),'0'),',') }}<br><small class="text-muted">{{ $unit }}</small></td>
             @foreach(['received' => 'Baik', 'damaged' => 'Rusak', 'wrong' => 'Tidak sesuai', 'missing' => 'Kurang'] as $field => $label)
@@ -96,31 +111,22 @@
             @php
                 $batchRows = array_values(old("items.$i.batches", [[
                     'quantity' => old("items.$i.quantity_received", 0),
-                    'location_id' => $locations->first()?->id,
                     'expired_date' => old("items.$i.expired_date"),
                 ]]));
                 if (!$batchRows) $batchRows = [['quantity' => 0]];
             @endphp
             <div class="batch-panel mb-3" data-item-index="{{ $i }}" data-next-index="{{ count($batchRows) }}">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2"><strong class="small">Rincian Kedaluwarsa</strong><div class="d-flex flex-wrap gap-3 align-items-center"><span class="batch-summary small" aria-live="polite"></span><button type="button" class="btn btn-sm btn-outline-primary batch-add"><i class="bi bi-plus-lg me-1"></i>Tambah Kedaluwarsa</button></div></div>
-                <div class="receipt-batch-grid small text-muted mb-1"><span>Jumlah ({{ $unit }})</span><span>Kedaluwarsa</span><span>Lokasi</span><span></span></div>
+                <div class="receipt-batch-grid small text-muted mb-1"><span>Jumlah ({{ $unit }})</span><span>Kedaluwarsa</span><span></span></div>
                 <div class="batch-list">
                 @foreach($batchRows as $batchIndex => $batchValues)
                     @include('purchase.receipts.batch-row')
                 @endforeach
                 </div>
-                <template class="batch-template">@include('purchase.receipts.batch-row', ['batchIndex' => '__BATCH__', 'batchValues' => ['quantity' => 0, 'location_id' => $locations->first()?->id]])</template>
+                <template class="batch-template">@include('purchase.receipts.batch-row', ['batchIndex' => '__BATCH__', 'batchValues' => ['quantity' => 0]])</template>
             </div>
             @endif
-                @if(!$item->product->is_expirable)
-                <div class="receiving-location"><label class="form-label small" for="good-location-{{ $i }}">Lokasi Barang Baik</label><select class="form-select form-select-sm good-location" id="good-location-{{ $i }}" name="items[{{ $i }}][allocations][0][location_id]">
-                    @foreach($locations as $loc)<option value="{{ $loc->id }}" @selected(old("items.$i.allocations.0.location_id") == $loc->id)>{{ $loc->name }}</option>@endforeach
-                </select></div>
-                @endif
             <div class="receiving-issues" hidden>
-                <div class="quarantine-field"><label class="form-label small" for="quarantine-{{ $i }}">Lokasi Barang Retur</label><select class="form-select form-select-sm quarantine-location" id="quarantine-{{ $i }}" name="items[{{ $i }}][quarantine_location_id]"><option value="">Pilih lokasi</option>
-                    @foreach($locations as $loc)<option value="{{ $loc->id }}" @selected(old("items.$i.quarantine_location_id") == $loc->id)>{{ $loc->name }}</option>@endforeach
-                </select></div>
                 <div><label class="form-label small" for="reason-{{ $i }}">Keterangan Masalah</label><input id="reason-{{ $i }}" class="form-control form-control-sm inspection-reason" name="items[{{ $i }}][reason]" maxlength="2000" value="{{ old("items.$i.reason") }}"></div>
             </div>
         </div></td></tr>

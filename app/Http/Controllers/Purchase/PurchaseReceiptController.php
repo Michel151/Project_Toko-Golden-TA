@@ -72,6 +72,14 @@ class PurchaseReceiptController extends Controller
             'submission_token' => 'nullable|uuid',
             'purchase_order_id' => 'required|exists:purchase_orders,id',
             'receipt_date' => 'required|date',
+            'location_mode' => 'nullable|in:single',
+            'receipt_location_id' => 'required_if:location_mode,single|nullable|exists:locations,id',
+            'quarantine_location_id' => [
+                \Illuminate\Validation\Rule::requiredIf(fn () => $request->input('location_mode') === 'single'
+                    && collect($request->input('items', []))->contains(fn ($row) =>
+                        (float) ($row['quantity_damaged'] ?? 0) + (float) ($row['quantity_wrong'] ?? 0) > 0)),
+                'nullable', 'exists:locations,id',
+            ],
             'notes' => 'nullable|string|max:5000',
             'items' => 'required|array|min:1|max:500',
             'items.*.purchase_order_item_id' => 'required|distinct|exists:purchase_order_items,id',
@@ -93,6 +101,23 @@ class PurchaseReceiptController extends Controller
             'items.*.batches.*.expired_date' => 'nullable|date_format:Y-m-d',
             'items.*.batches.*.batch_code' => 'nullable|string|max:100',
         ]);
+        if (($data['location_mode'] ?? null) === 'single') {
+            foreach ($data['items'] as &$row) {
+                if (array_key_exists('batches', $row)) {
+                    foreach ($row['batches'] as &$batch) {
+                        $batch['location_id'] = $data['receipt_location_id'];
+                    }
+                    unset($batch);
+                } else {
+                    $row['allocations'] = [[
+                        'location_id' => $data['receipt_location_id'],
+                        'quantity' => $row['quantity_received'],
+                    ]];
+                }
+                $row['quarantine_location_id'] = $data['quarantine_location_id'] ?? null;
+            }
+            unset($row);
+        }
         $receipt = $this->fulfillment->receive($data, (int) auth()->id());
 
         return redirect()->route('purchase.receipts.show', $receipt)

@@ -5,6 +5,8 @@
     const rows = [...form.querySelectorAll('.inspection-row')];
     const search = document.getElementById('receiptSearch');
     const filter = document.getElementById('receiptFilter');
+    const receiptLocation = document.getElementById('receiptLocation');
+    const quarantineLocation = document.getElementById('receiptQuarantine');
     const number = input => Number(input?.value) || 0;
     const format = value => value.toLocaleString('id-ID', { maximumFractionDigits: 4 });
     let edited = false;
@@ -46,7 +48,6 @@
             for (const batch of batches) {
                 const positive = number(batch.querySelector('.batch-quantity')) > 0;
                 batch.querySelector('.batch-expiry').required = positive;
-                batch.querySelector('.batch-location').required = positive;
                 batch.querySelector('.batch-delete').disabled = batches.length === 1;
             }
             panel.querySelector('.batch-add').disabled = batches.length >= 100;
@@ -54,18 +55,14 @@
         const invalid = total > max + 0.00001;
         const goodInput = row.querySelector('.good-qty');
         goodInput.setCustomValidity(invalid ? 'Total pemeriksaan melebihi sisa penerimaan PO.' : batchMismatch ? 'Total rincian kedaluwarsa harus sama dengan jumlah barang baik yang diterima.' : '');
-        const allocation = row.querySelector('.allocation-qty');
-        if (allocation) allocation.value = good;
-        const goodLocation = detail.querySelector('.good-location');
-        if (goodLocation) goodLocation.required = good > 0;
-        detail.querySelector('.quarantine-location').required = exceptions[0] + exceptions[1] > 0;
         detail.querySelector('.inspection-reason').required = exceptions.some(qty => qty > 0);
         const hasIssues = exceptions.some(qty => qty > 0);
         const physicalReturn = exceptions[0] + exceptions[1] > 0;
         detail.querySelector('.receiving-issues').hidden = !hasIssues;
-        detail.querySelector('.receiving-issues').classList.toggle('missing-only', !physicalReturn);
-        detail.querySelector('.quarantine-field').hidden = !physicalReturn;
-        const valid = [...row.querySelectorAll('.inspection-qty'), ...detail.querySelectorAll('input,select')].every(input => input.validity.valid);
+        detail.querySelector('.receiving-issues').classList.add('missing-only');
+        const valid = [...row.querySelectorAll('.inspection-qty'), ...detail.querySelectorAll('input,select')].every(input => input.validity.valid)
+            && (good <= 0 || receiptLocation.validity.valid)
+            && (!physicalReturn || quarantineLocation.validity.valid);
         row.dataset.status = total === 0 ? 'uninspected' : valid ? 'ready' : 'incomplete';
         const summary = row.querySelector('.receiving-summary');
         summary.textContent = invalid ? 'Melebihi sisa PO' : total === 0 ? 'Belum diperiksa' : valid ? 'Siap disimpan' : 'Lengkapi rincian';
@@ -80,13 +77,16 @@
         const preview = row.querySelector('.receiving-detail-preview');
         if (panel && good > 0) {
             const batches = [...panel.querySelectorAll('.batch-list .batch-row')].filter(batch => number(batch.querySelector('.batch-quantity')) > 0);
-            const locations = [...new Set(batches.map(batch => batch.querySelector('.batch-location').selectedOptions[0]?.textContent).filter(Boolean))];
             preview.textContent = batches.every(batch => batch.querySelector('.batch-expiry').value) && !batchMismatch
-                ? `${batches.length} kedaluwarsa | ${locations.join(', ')}` : 'Rincian kedaluwarsa belum lengkap';
-        } else preview.textContent = good > 0 && goodLocation ? `Lokasi: ${goodLocation.selectedOptions[0]?.textContent || '-'}` : '';
+                ? `${batches.length} kedaluwarsa | ${receiptLocation.value ? receiptLocation.selectedOptions[0].textContent : 'Pilih lokasi penerimaan'}` : 'Rincian kedaluwarsa belum lengkap';
+        } else preview.textContent = good > 0 ? `Lokasi: ${receiptLocation.value ? receiptLocation.selectedOptions[0].textContent : 'Belum dipilih'}` : '';
         return total;
     }
     function updateAll(syncRow = null) {
+        const hasPhysicalReturn = rows.some(row => [...row.querySelectorAll('.exception-qty')].slice(0, 2).some(input => number(input) > 0));
+        quarantineLocation.required = hasPhysicalReturn;
+        quarantineLocation.disabled = !hasPhysicalReturn;
+        document.getElementById('receiptQuarantineField').hidden = !hasPhysicalReturn;
         const count = rows.filter(row => update(row, row === syncRow) > 0).length;
         const counter = document.getElementById('inspectionCount');
         const ready = rows.filter(row => row.dataset.status === 'ready').length;

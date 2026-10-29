@@ -55,7 +55,9 @@ class ReceiptFormLayoutTest extends TestCase
         $this->assertCount(30,$xpath->query('//tr[contains(@class,"receiving-details") and @hidden]'));
         $this->assertCount(30,$xpath->query('//button[contains(@class,"receiving-toggle") and @aria-expanded="false"]'));
         $this->assertCount(1,$xpath->query('//input[@name="items[0][purchase_order_item_id]"]'));
-        $this->assertCount(1,$xpath->query('//select[@name="items[2][allocations][0][location_id]"]'));
+        $this->assertCount(1,$xpath->query('//select[@name="receipt_location_id" and @required]'));
+        $this->assertCount(1,$xpath->query('//select[@name="quarantine_location_id"]'));
+        $this->assertCount(0,$xpath->query('//select[contains(@name,"items[") and contains(@name,"location_id")]'));
         $this->assertCount(1,$xpath->query('//input[@name="items[0][batches][0][expired_date]"]'));
         $this->capture('blank',$response);
         $this->withSession(['_old_input'=>['items'=>[0=>['quantity_received'=>10,'batches'=>[
@@ -69,8 +71,14 @@ class ReceiptFormLayoutTest extends TestCase
     public function test_validation_errors_mark_the_affected_detail_to_reopen_and_keep_old_values(): void
     {
         $errors = new ViewErrorBag; $errors->put('default',new MessageBag(['items.0.batches.0.expired_date'=>'Isi kedaluwarsa']));
-        $this->withSession(['errors'=>$errors,'_old_input'=>['items'=>[0=>['quantity_received'=>3]]]]);
-        $this->page()->assertSee('data-start-open="true"',false)->assertSee('value="3"',false);
+        $this->withSession(['errors'=>$errors,'_old_input'=>[
+            'receipt_location_id'=>$this->location->id, 'quarantine_location_id'=>$this->location->id,
+            'items'=>[0=>['quantity_received'=>3, 'quantity_damaged'=>1]],
+        ]]);
+        $response = $this->page()->assertSee('data-start-open="true"',false)->assertSee('value="3"',false);
+        $dom = new \DOMDocument; @$dom->loadHTML($response->getContent()); $xpath = new \DOMXPath($dom);
+        $this->assertCount(1, $xpath->query('//select[@id="receiptLocation"]/option[@selected and @value="'.$this->location->id.'"]'));
+        $this->assertCount(1, $xpath->query('//select[@id="receiptQuarantine"]/option[@selected and @value="'.$this->location->id.'"]'));
     }
 
     public function test_receiving_payload_and_cost_calculation_still_accept_split_expiry_rows(): void
@@ -86,5 +94,87 @@ class ReceiptFormLayoutTest extends TestCase
         $this->assertDatabaseHas('stocks',['product_id'=>$item->product_id,'quantity'=>3]);
         $this->assertDatabaseHas('inventory_cost_balances',['product_id'=>$item->product_id,'inventory_value'=>30000]);
         $this->assertDatabaseCount('stock_batches',2);
+    }
+
+    private function singleLocationPayload(): array
+    {
+        $items = $this->order->items()->get();
+        return [
+            'location_mode' => 'single', 'receipt_location_id' => $this->location->id,
+            'submission_token' => (string) str()->uuid(),
+            'purchase_order_id' => $this->order->id, 'receipt_date' => '2026-10-21',
+            'items' => [
+                ['purchase_order_item_id' => $items[0]->id, 'product_id' => $items[0]->product_id,
+                    'product_unit_id' => $items[0]->product_unit_id, 'quantity_received' => 3,
+                    'batches' => [
+                        ['quantity' => 2, 'expired_date' => '2027-01-01'],
+                        ['quantity' => 1, 'expired_date' => '2027-02-01'],
+                    ]],
+                ['purchase_order_item_id' => $items[2]->id, 'product_id' => $items[2]->product_id,
+                    'product_unit_id' => $items[2]->product_unit_id, 'quantity_received' => 4],
+            ],
+        ];
+    }
+
+    public function test_single_location_handles_mixed_products_batches_returns_and_repeat_submission(): void
+    {
+        $payload = $this->singleLocationPayload();
+        $other = Location::where('name', 'Gudang 1')->firstOrFail();
+        $payload['quarantine_location_id'] = $other->id;
+        $payload['items'][0] += ['quantity_damaged' => 1, 'reason' => 'Kemasan rusak'];
+        $payload['items'][1] += ['quantity_wrong' => 1, 'reason' => 'Salah barang'];
+        // Nested locations cannot override the location chosen for the whole receipt.
+        $payload['items'][0]['batches'][0]['location_id'] = $other->id;
+        $payload['items'][1]['allocations'] = [['quantity' => 4, 'location_id' => $other->id]];
+        $payload['items'][1]['quarantine_location_id'] = $this->location->id;
+        $this->post(route('purchase.receipts.store'), $payload)->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertDatabaseCount('purchase_receipts', 1);
+        $this->assertDatabaseCount('purchase_receipt_items', 3);
+        $this->assertSame(0, \App\Models\PurchaseReceiptItem::where('location_id', '!=', $this->location->id)->count());
+        $this->assertSame(2, \App\Models\PurchaseInspection::where('quarantine_location_id', $other->id)->count());
+        $this->assertDatabaseHas('stocks', ['product_id' => $payload['items'][0]['product_id'], 'location_id' => $this->location->id, 'quantity' => 3]);
+        $this->assertDatabaseHas('stocks', ['product_id' => $payload['items'][1]['product_id'], 'location_id' => $this->location->id, 'quantity' => 4]);
+        $this->assertEquals(70000, \App\Models\InventoryCostBalance::sum('inventory_value'));
+        $this->assertEquals(0, \App\Models\Stock::where('location_id', $other->id)->sum('quantity'));
+        $this->post(route('purchase.receipts.store'), $payload)->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('purchase_receipts', 1);
+        $this->assertEquals(70000, \App\Models\InventoryCostBalance::sum('inventory_value'));
+    }
+
+    public function test_single_location_requires_valid_location_expiry_and_quarantine_atomically(): void
+    {
+        $payload = $this->singleLocationPayload();
+        foreach ([null, 999999] as $location) {
+            $this->post(route('purchase.receipts.store'), [...$payload, 'receipt_location_id' => $location])
+                ->assertSessionHasErrors('receipt_location_id');
+        }
+        $missingExpiry = $payload;
+        $missingExpiry['items'][0]['batches'][0]['expired_date'] = null;
+        $this->post(route('purchase.receipts.store'), $missingExpiry)
+            ->assertSessionHasErrors('items.0.batches.0.expired_date');
+        $payload['items'][1] += ['quantity_damaged' => 1, 'reason' => 'Rusak'];
+        $this->post(route('purchase.receipts.store'), $payload)->assertSessionHasErrors('quarantine_location_id');
+        $this->post(route('purchase.receipts.store'), [...$payload, 'quarantine_location_id' => 999999])
+            ->assertSessionHasErrors('quarantine_location_id');
+        $this->assertDatabaseCount('purchase_receipts', 0);
+        $this->assertDatabaseCount('inventory_cost_entries', 0);
+        $this->assertDatabaseCount('stocks', 0);
+    }
+
+    public function test_remaining_po_can_be_received_separately_at_another_location(): void
+    {
+        $payload = $this->singleLocationPayload();
+        $this->post(route('purchase.receipts.store'), $payload)->assertSessionHasNoErrors();
+        $other = Location::where('name', 'Gudang 1')->firstOrFail();
+        $payload['submission_token'] = (string) str()->uuid();
+        $payload['receipt_location_id'] = $other->id;
+        $payload['items'][0]['quantity_received'] = 7;
+        $payload['items'][0]['batches'] = [['quantity' => 7, 'expired_date' => '2027-03-01']];
+        $payload['items'][1]['quantity_received'] = 6;
+        $this->post(route('purchase.receipts.store'), $payload)->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('purchase_receipts', 2);
+        $this->assertDatabaseHas('stocks', ['product_id' => $payload['items'][0]['product_id'], 'location_id' => $other->id, 'quantity' => 7]);
+        $this->assertDatabaseHas('stocks', ['product_id' => $payload['items'][1]['product_id'], 'location_id' => $other->id, 'quantity' => 6]);
+        $this->assertEquals(200000, \App\Models\InventoryCostBalance::sum('inventory_value'));
     }
 }
