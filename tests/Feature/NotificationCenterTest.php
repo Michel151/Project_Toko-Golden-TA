@@ -144,10 +144,22 @@ class NotificationCenterTest extends TestCase
         $this->get(route('notifications.index', ['condition' => 'expired', 'location_id' => $warehouse->id]))->assertOk()->assertViewHas('notifications', fn ($page) => $page->total() === 0);
         $response = $this->get(route('notifications.index', ['search' => 'milk-123', 'condition' => 'expired', 'location_id' => $store->id]));
         $response->assertOk()->assertViewHas('notifications', fn ($page) => $page->total() === 1)->assertSee('Rincian kondisi');
+        $this->get(route('notifications.index', ['condition' => 'expiring', 'location_id' => $warehouse->id]))
+            ->assertOk()->assertSee('1 produk sesuai filter dari 1 produk perlu perhatian.')
+            ->assertViewHas('notifications', fn ($page) => $page->first()['summary'] === 'Stok Susu Filter di Gudang akan kedaluwarsa pada 08/11/2026 (sisa 10 hari). Sisa 5 Pcs.'
+                && collect($page->first()['conditions'])->contains('kind', 'expired')
+                && collect($page->first()['conditions'])->contains('kind', 'expiring'));
+        $this->get(route('notifications.index', ['location_id' => $warehouse->id]))
+            ->assertOk()->assertViewHas('notifications', fn ($page) => str_contains($page->first()['summary'], 'di Gudang'));
+        $this->get(route('notifications.index', ['condition' => 'expiring']))
+            ->assertOk()->assertViewHas('notifications', fn ($page) => str_contains($page->first()['summary'], 'sisa 10 hari'));
+        $this->get(route('notifications.index', ['search' => 'tidak cocok']))
+            ->assertOk()->assertSee('0 produk sesuai filter dari 1 produk perlu perhatian.');
         for ($i = 0; $i < 13; $i++) {
             $this->product('Produk '.$i);
         }
         $this->get(route('notifications.index'))->assertOk()->assertViewHas('notifications', fn ($page) => $page->total() === 14 && $page->count() === 12)->assertSee('14 produk perlu perhatian');
+        $this->get(route('notifications.index', ['search' => 'Produk', 'page' => 2]))->assertOk()->assertSee('13 produk sesuai filter dari 14 produk perlu perhatian.')->assertViewHas('notifications', fn ($page) => $page->count() === 1 && $page->total() === 13);
         $this->get(route('notifications.index', ['page' => 2]))->assertOk()->assertViewHas('notifications', fn ($page) => $page->count() === 2);
         $detail = $this->get(route('notifications.index', ['product_id' => $product->id]))->assertOk()->assertViewHas('notifications', fn ($page) => $page->total() === 1)->assertSee('Buat Transfer');
         if (getenv('CAPTURE_NOTIFICATION_UI') === '1') {

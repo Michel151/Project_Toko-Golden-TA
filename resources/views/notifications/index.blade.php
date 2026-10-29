@@ -4,7 +4,7 @@
 @section('content')
 <div class="mb-3">
     <h4 class="fw-bold">Notifikasi Persediaan</h4>
-    <p class="text-muted mb-0">{{ $totalProducts }} produk perlu perhatian. Diurutkan dari kondisi paling mendesak.</p>
+    <p class="text-muted mb-0">@if($hasAppliedFilters){{ $notifications->total() }} produk sesuai filter dari {{ $totalProducts }} produk perlu perhatian.@else{{ $totalProducts }} produk perlu perhatian.@endif Diurutkan dari kondisi paling mendesak.</p>
 </div>
 <form method="GET" action="{{ route('notifications.index') }}" class="card card-body mb-3">
     <div class="row g-3 align-items-end">
