@@ -1,14 +1,6 @@
 @extends('layouts.app')
 @section('title','Purchase Order')
 @section('page-title','Purchase Order')
-@push('styles')
-<style>
-.procurement-table tbody td:last-child .btn {
-    margin: 3px 4px;
-    min-width: 32px;
-}
-</style>
-@endpush
 
 @section('content')
 <div class="procurement-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3"><div class="d-flex align-items-center gap-3"><div class="heading-icon"><i class="bi bi-cart-check"></i></div><div><h5 class="fw-bold mb-1">Purchase Order</h5><div class="small text-white-50">Kelola pemesanan dan pantau progres penerimaan barang</div></div></div>@if(auth()->user()->canAccessRoute('purchase.orders.create')) <a href="{{ route('purchase.orders.create') }}" class="btn btn-primary btn-sm px-3"><i class="bi bi-plus-circle me-1"></i>Buat PO Baru</a> @endif</div>
@@ -42,10 +34,8 @@
     <td class="small text-muted">{{ $order->createdBy->name??'-' }}</td>
     <td class="text-center text-nowrap">
         <a href="{{ route('purchase.orders.show',$order) }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Detail"><i class="bi bi-eye"></i></a>
-        <details class="app-table-exports"><summary class="btn btn-sm btn-outline-secondary" aria-label="Ekspor {{ $order->po_number }}"><i class="bi bi-download" aria-hidden="true"></i> Ekspor</summary><div class="app-table-export-links">
             <a href="{{ route('purchase.orders.pdf',$order) }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" title="Unduh PDF"><i class="bi bi-file-pdf" aria-hidden="true"></i> PDF</a>
             <a href="{{ route('purchase.orders.excel',$order) }}" class="btn btn-sm btn-outline-secondary" title="Unduh Excel"><i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel</a>
-        </div></details>
         @if($order->canModify() && auth()->user()->canAccessRoute('purchase.orders.edit'))
         <a href="{{ route('purchase.orders.edit',$order) }}" class="btn btn-sm btn-outline-warning py-0 px-2" title="Ubah Draf"><i class="bi bi-pencil"></i></a>
         @endif

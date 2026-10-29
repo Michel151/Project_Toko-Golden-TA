@@ -51,6 +51,14 @@
     }
     function enhance(scope) {
         scope.querySelectorAll('form.app-unified-filter').forEach(normalizeFilters);
+        for (const table of scope.querySelectorAll('table')) {
+            const headings = [...table.querySelectorAll('thead th')];
+            const actionIndex = headings.findIndex(th => th.textContent.trim().toLowerCase() === 'aksi');
+            if (actionIndex < 0) continue;
+            for (const row of table.querySelectorAll('tbody tr')) {
+                if (row.cells.length === headings.length) row.cells[actionIndex].classList.add('app-actions-cell');
+            }
+        }
         const controls = scope.querySelectorAll('input:not([type="hidden"]),select,textarea');
         for (const input of controls) {
             if (!input.labels?.length && !input.getAttribute('aria-label') && !input.getAttribute('aria-labelledby')) {

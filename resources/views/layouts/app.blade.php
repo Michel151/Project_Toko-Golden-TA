@@ -408,11 +408,11 @@
         .page-content .table .app-icon-action { width:36px;height:36px;min-width:36px; }
         .page-content .table .btn-outline-warning { color:#536159;border-color:#b8c5bd; }
         .page-content .table .btn-outline-warning:hover { color:#253b2f;background:#eef2ec; }
-        .app-table-exports { display:inline-block;vertical-align:middle;text-align:left; }
-        .app-table-exports summary { list-style:none;cursor:pointer; }
-        .app-table-exports summary::-webkit-details-marker { display:none; }
-        .app-table-export-links { display:flex;flex-wrap:wrap;gap:4px;padding:4px; }
-        .page-content .table a:focus-visible,.app-table-exports summary:focus-visible { outline:3px solid #80ad99;outline-offset:2px; }
+        .page-content .table .app-actions-cell { white-space:nowrap; }
+        .page-content .table .app-actions-cell > .d-flex,
+        .page-content .table .app-actions-cell > .d-inline-flex { flex-wrap:nowrap!important; }
+        .page-content .table .app-actions-cell .btn { white-space:nowrap;vertical-align:middle; }
+        .page-content .table a:focus-visible { outline:3px solid #80ad99;outline-offset:2px; }
         @media(pointer:coarse){.page-content .table .btn-sm,.page-content .table .app-icon-action{min-width:44px;min-height:44px}}
 
         .card,
