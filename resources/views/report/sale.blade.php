@@ -5,6 +5,8 @@
 <style>
 .sale-margin-scroll { min-height:0;max-height:360px;overflow:auto; }
 #productMarginTable thead th { position:sticky;top:0;z-index:1;background:#eef2ec; }
+.sale-report-tabs { gap:.5rem; }
+.sale-report-tabs .nav-link { color:var(--app-muted);background:#fff;border:1px solid var(--app-border); }
 </style>
 @endpush
 
@@ -12,6 +14,7 @@
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-graph-up-arrow"></i></div><div><h5 class="fw-bold mb-1">Laporan Penjualan</h5><div class="text-white-50 small">Analisis transaksi, pembayaran, dan produk terlaris</div></div></div><span class="badge bg-success">{{ $totalTrx }} Transaksi</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="d-flex flex-wrap gap-2 align-items-end" method="GET">
+        <input type="hidden" name="tab" id="saleReportActiveTab" value="{{ $activeTab }}">
         @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
         <div><label for="saleReportPerPage" class="d-block">Per Halaman</label><select id="saleReportPerPage" name="per_page" class="form-select form-select-sm">
             @foreach([25, 50, 100] as $size)<option value="{{ $size }}" @selected($sales->perPage() === $size)>{{ $size }}</option>@endforeach
@@ -60,8 +63,12 @@
     </div>
 </div>
 
-<div class="row g-3 align-items-start sale-report-overview">
-    <div class="col-md-8">
+<div class="nav nav-pills sale-report-tabs mb-3" id="saleReportTabs" role="tablist" aria-label="Rincian laporan penjualan">
+    <button class="nav-link {{ $activeTab === 'transactions' ? 'active' : '' }}" id="saleTransactionsTab" data-bs-toggle="pill" data-bs-target="#saleTransactionsPane" data-report-tab="transactions" type="button" role="tab" aria-controls="saleTransactionsPane" aria-selected="{{ $activeTab === 'transactions' ? 'true' : 'false' }}"><i class="bi bi-receipt me-1" aria-hidden="true"></i>Daftar Transaksi</button>
+    <button class="nav-link {{ $activeTab === 'products' ? 'active' : '' }}" id="saleProductsTab" data-bs-toggle="pill" data-bs-target="#saleProductsPane" data-report-tab="products" type="button" role="tab" aria-controls="saleProductsPane" aria-selected="{{ $activeTab === 'products' ? 'true' : 'false' }}"><i class="bi bi-trophy me-1" aria-hidden="true"></i>Produk Terlaris</button>
+</div>
+<div class="tab-content sale-report-overview">
+    <div class="tab-pane {{ $activeTab === 'transactions' ? 'show active' : '' }}" id="saleTransactionsPane" role="tabpanel" aria-labelledby="saleTransactionsTab" tabindex="0">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Daftar Transaksi</h6></div>
             <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Daftar transaksi penjualan">
@@ -85,12 +92,12 @@
             <div class="card-footer bg-white">{{ $sales->links() }}</div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="tab-pane {{ $activeTab === 'products' ? 'show active' : '' }}" id="saleProductsPane" role="tabpanel" aria-labelledby="saleProductsTab" tabindex="0">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Produk Terlaris</h6></div>
             <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Produk terlaris">
-                <table class="table table-sm mb-0">
-                    <thead><tr><th>#</th><th>Barang</th><th class="text-end">Total</th></tr></thead>
+                <table id="saleTopProductsTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
+                    <thead><tr><th>Peringkat</th><th>Barang</th><th class="text-end">Total Penjualan</th></tr></thead>
                     <tbody>
                         @forelse($topProducts as $i => $tp)
                         <tr>
@@ -131,4 +138,24 @@
         </table>
     </div>
 </section>
+@push('scripts')
+<script>
+(() => {
+    document.querySelectorAll('#saleReportTabs [data-report-tab]').forEach(button => {
+        button.addEventListener('shown.bs.tab', () => {
+            const tab = button.dataset.reportTab;
+            document.getElementById('saleReportActiveTab').value = tab;
+            const url = new URL(location.href);
+            url.searchParams.set('tab', tab);
+            history.replaceState(null, '', url);
+            document.querySelectorAll('#saleTransactionsPane .pagination a').forEach(link => {
+                const target = new URL(link.href, location.href);
+                target.searchParams.set('tab', tab);
+                link.href = target.href;
+            });
+        });
+    });
+})();
+</script>
+@endpush
 @endsection

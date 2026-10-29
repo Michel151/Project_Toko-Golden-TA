@@ -16,7 +16,8 @@ class SaleReportController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->validate(['per_page'=>'nullable|integer|in:25,50,100']);
+        $filters = $request->validate(['per_page'=>'nullable|integer|in:25,50,100', 'tab'=>'nullable|in:transactions,products']);
+        $activeTab = $filters['tab'] ?? 'transactions';
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());
 
@@ -73,7 +74,7 @@ class SaleReportController extends Controller
             'sales', 'from', 'to',
             'totalAmount', 'totalTunai', 'totalTransfer', 'totalTrx',
             'grossProfit', 'incompleteCostCount', 'productMargins',
-            'topProducts'
+            'topProducts', 'activeTab'
         ));
     }
 

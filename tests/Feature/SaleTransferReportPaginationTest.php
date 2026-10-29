@@ -83,6 +83,13 @@ class SaleTransferReportPaginationTest extends TestCase
                 ->assertViewHas('productMargins', fn ($rows) => $rows->first()->revenue === 600.0 && $rows->first()->cost === 120.0);
         }
         $this->checkPages('sale', 'sales', 'sale_number', $this->period);
+        $productsTab=$this->get(route('report.sale',$this->period+['tab'=>'products','page'=>3]))->assertOk()
+            ->assertViewHas('activeTab','products')->assertViewHas('totalAmount',600)
+            ->assertSee('id="saleProductsTab"',false)->assertSee('name="tab" id="saleReportActiveTab" value="products"',false);
+        $this->capture('sale-products',$productsTab);
+        parse_str(parse_url($productsTab->viewData('sales')->url(2),PHP_URL_QUERY),$tabQuery);
+        $this->assertSame('products',$tabQuery['tab']);
+        $this->getJson(route('report.sale',$this->period+['tab'=>'unknown']))->assertUnprocessable()->assertJsonValidationErrors('tab');
     }
 
     public function test_transfer_pagination_keeps_location_filters_kpis_and_page_specific_item_details(): void
