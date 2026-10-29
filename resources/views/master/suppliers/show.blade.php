@@ -5,9 +5,7 @@
 @section('content')
 <div class="inventory-heading"><h5><i class="bi bi-truck me-2"></i>{{ $supplier->name }}</h5></div>
 <div class="mb-3">
-    <a href="{{ route('master.suppliers.index') }}" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Kembali
-    </a>
+    <x-back-link :fallback="route('master.suppliers.index')" />
 </div>
 
 <div class="row g-3">

@@ -13,6 +13,6 @@
 <div class="col-12"><label for="description" class="form-label">Keterangan / Dasar Pencatatan</label><textarea id="description" name="description" class="form-control" rows="3" maxlength="500" required>{{ old('description',$tax->description) }}</textarea></div>
 @if($tax->exists)<div class="col-12"><label for="reason" class="form-label">Alasan Koreksi {{ $tax->status === 'confirmed' ? '(wajib)' : '(opsional)' }}</label><textarea id="reason" name="correction_reason" class="form-control" maxlength="500" rows="2" @required($tax->status === 'confirmed')>{{ old('correction_reason') }}</textarea></div>@endif
 <div class="col-12"><label for="proof" class="form-label">Dokumen Pendukung (PDF, JPG, PNG; maksimal 5 MB)</label><input id="proof" name="proof" type="file" class="form-control" accept="application/pdf,image/jpeg,image/png">@if($tax->proof_path)<a href="{{ route('taxes.proof',$tax) }}" class="small">Unduh dokumen tersimpan</a>@endif</div>
-</div><div class="d-flex flex-wrap gap-2 mt-3"><button class="btn btn-success"><i class="bi bi-save me-1"></i>Simpan Draf</button><a class="btn btn-outline-secondary" href="{{ $tax->exists ? route('taxes.show',$tax) : route('taxes.index') }}">Batal</a></div>
+</div><div class="d-flex flex-wrap gap-2 mt-3"><button class="btn btn-success"><i class="bi bi-save me-1"></i>Simpan Draf</button><x-back-link :fallback="$tax->exists ? route('taxes.show',$tax) : route('taxes.index')" label="Batal" :small="false" /></div>
 </form>
 @endsection

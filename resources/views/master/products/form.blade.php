@@ -384,7 +384,7 @@
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-save me-1"></i>{{ isset($product) ? 'Simpan Perubahan Barang' : 'Simpan Barang' }}
                 </button>
-                <a href="{{ route('master.products.index') }}" class="btn btn-outline-secondary">Batal</a>
+                <x-back-link :fallback="route('master.products.index')" label="Batal" :small="false" />
             </div>
         </div>
     </div>

@@ -5,7 +5,7 @@
 @section('content')
 <div class="inventory-heading"><h5><i class="bi bi-receipt me-2"></i>{{ $sale->sale_number }}</h5></div>
 <div class="mb-3 d-flex gap-2">
-    <a href="{{ route('sale.sales.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
+    <x-back-link :fallback="route('sale.sales.index')" />
     @if($sale->status === 'paid')
         <a href="{{ route('sale.sales.print', ['sale' => $sale, 'popup' => 1]) }}" class="btn btn-sm btn-outline-secondary js-print-popup"><i class="bi bi-printer me-1"></i>Cetak Nota</a>
     @elseif($sale->status === 'pending')

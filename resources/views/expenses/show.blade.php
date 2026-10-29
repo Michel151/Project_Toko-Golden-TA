@@ -2,6 +2,7 @@
 @section('title', 'Detail Beban')
 @section('page-title', 'Detail Beban')
 @section('content')
+<div class="mb-3"><x-back-link :fallback="route('expenses.index')" /></div>
 <div class="inventory-heading d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><h5>{{ $expense->number }}</h5><span class="badge bg-{{ $expense->status === 'confirmed' ? 'success' : 'secondary' }}">{{ \App\Models\Expense::STATUSES[$expense->status] }}</span></div>
 <div class="bg-white border p-3 mb-3">
 <dl class="row mb-0">
@@ -17,7 +18,6 @@
 </dl>
 </div>
 <div class="d-flex flex-wrap gap-2 mb-3">
-<a class="btn btn-outline-secondary" href="{{ route('expenses.index') }}"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
 @if($expense->status === 'draft')
 <a class="btn btn-outline-success" href="{{ route('expenses.edit',$expense) }}"><i class="bi bi-pencil me-1"></i>Ubah Draf</a>
 <form method="POST" action="{{ route('expenses.confirm',$expense) }}">@csrf<input type="hidden" name="version" value="{{ $expense->version }}"><button class="btn btn-success"><i class="bi bi-check-circle me-1"></i>Konfirmasi Beban</button></form>

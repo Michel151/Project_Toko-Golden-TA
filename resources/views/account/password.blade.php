@@ -21,7 +21,12 @@
             </div>
             @include('components.password-fields', ['passwordOptional'=>false, 'passwordLabel'=>'Password Baru'])
             <div class="small text-muted mb-3">Setelah password diubah, sesi login di perangkat lain akan dibatalkan.</div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1" aria-hidden="true"></i>Simpan Password Baru</button>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1" aria-hidden="true"></i>Simpan Password Baru</button>
+                @unless(auth()->user()->must_change_password)
+                    <x-back-link :fallback="route('dashboard')" label="Batal" :small="false" />
+                @endunless
+            </div>
         </form>
     </div></div>
 </div></div>

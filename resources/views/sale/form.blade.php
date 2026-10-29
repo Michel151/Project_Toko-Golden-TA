@@ -159,7 +159,7 @@
                     @error('transaction_confirmed')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
                     <div class="text-danger small mb-2 d-none" id="salePaymentValidation">Jumlah bayar harus mencukupi total transaksi.</div>
                     <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="saveSaleButton" disabled><i class="bi bi-check-circle me-1"></i>{{ $editing ? 'Simpan Perubahan' : 'Simpan Transaksi' }}</button>
-                    <a href="{{ $editing ? route('sale.sales.show', $sale) : route('sale.sales.index') }}" class="btn btn-outline-secondary w-100 mt-2">Batal</a>
+                    <x-back-link :fallback="$editing ? route('sale.sales.show', $sale) : route('sale.sales.index')" label="Batal" :small="false" class="w-100 mt-2" />
                 </div>
             </div>
         </div>

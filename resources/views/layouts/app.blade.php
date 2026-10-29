@@ -575,6 +575,21 @@
             .page-content { padding: 1rem; }
             #topbar { padding: .75rem 1rem; flex-wrap: nowrap; gap: .75rem; }
             #topbar .topbar-title-group, #topbar .topbar-actions { gap: .75rem !important; }
+            #topbar .notification-hover { position: static; }
+            #topbar .notification-preview {
+                left: 1rem;
+                right: 1rem;
+                top: calc(100% + .5rem);
+                width: auto;
+                display: flex;
+                flex-direction: column;
+                max-height: calc(100vh - 6rem);
+                max-height: calc(100dvh - 6rem);
+            }
+            #topbar .notification-preview::before { display: none; }
+            #topbar .notification-preview-header,
+            #topbar .notification-preview-footer { flex-shrink: 0; }
+            #topbar .notification-preview-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
             .page-content > .d-flex > form { width: 100%; }
             .page-content > .d-flex > form > .form-control,
             .page-content > .d-flex > form > .form-select,
@@ -906,6 +921,8 @@
 </script>
 @include('layouts.partials.decimal-currency')
 @include('layouts.partials.presentation-scripts')
+<script>window.returnNavigationPatterns = {{ \Illuminate\Support\Js::from(\App\Support\ReturnNavigation::childPatterns()) }};</script>
+<script>{!! file_get_contents(public_path('js/return-navigation.js')) !!}</script>
 @stack('scripts')
 @if(session('completed_sale_draft'))
 <script>

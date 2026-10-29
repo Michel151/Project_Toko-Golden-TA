@@ -118,7 +118,7 @@
             @if(auth()->user()->canAccessRoute('purchase.orders.confirm'))
             <button type="submit" name="intent" value="confirm" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i>Konfirmasi PO</button>
             @endif
-            <a href="{{ route('purchase.orders.index') }}" class="btn btn-outline-secondary">Batal</a>
+            <x-back-link :fallback="route('purchase.orders.index')" label="Batal" :small="false" />
         </div>
     </div>
 </form>

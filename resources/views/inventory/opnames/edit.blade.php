@@ -14,7 +14,7 @@
 @section('content')
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div><h5 class="fw-bold mb-1">{{ $opname->opname_number }}</h5><div class="small text-muted">{{ $opname->location->name }} | {{ $opname->opname_date->format('d/m/Y') }}</div></div>
-    <a href="{{ route('inventory.opnames.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
+    <x-back-link :fallback="route('inventory.opnames.index')" />
 </div>
 <form method="POST" action="{{ route('inventory.opnames.update', $opname) }}" data-complete-url="{{ route('inventory.opnames.complete',$opname) }}" id="opnameForm">
     <div class="small text-muted mb-3">Petugas Opname: <strong class="text-body text-break">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: 'Belum dicatat' }}</strong></div>
@@ -94,7 +94,7 @@
     <div class="d-flex flex-wrap gap-2 mt-2 opname-actions">
         <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan Draf</button>
         <button type="button" class="btn btn-success" id="btnSelesaikan"><i class="bi bi-check-circle me-1"></i>Selesaikan Opname</button>
-        <a href="{{ route('inventory.opnames.index') }}" class="btn btn-outline-secondary">Batal</a>
+        <x-back-link :fallback="route('inventory.opnames.index')" label="Batal" :small="false" />
     </div>
 </form>
 @push('scripts')

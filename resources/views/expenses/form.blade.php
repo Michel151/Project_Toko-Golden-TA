@@ -16,7 +16,7 @@
     <div class="col-12"><label for="description" class="form-label">Keterangan <span class="text-danger">*</span></label><textarea id="description" name="description" maxlength="500" rows="2" class="form-control" required>{{ old('description',$expense->description) }}</textarea></div>
     <div class="col-12"><label for="proof" class="form-label">Bukti Transaksi (PDF, JPG, PNG; maksimal 5 MB)</label><input id="proof" name="proof" type="file" accept="application/pdf,image/jpeg,image/png" class="form-control">@if($expense->proof_path)<a class="small" href="{{ route('expenses.proof',$expense) }}">Unduh bukti tersimpan</a>@endif</div>
 </div>
-<div class="d-flex flex-wrap gap-2 mt-3"><button class="btn btn-success"><i class="bi bi-save me-1"></i>Simpan Draf</button><a class="btn btn-outline-secondary" href="{{ $expense->exists ? route('expenses.show',$expense) : route('expenses.index') }}">Batal</a></div>
+<div class="d-flex flex-wrap gap-2 mt-3"><button class="btn btn-success"><i class="bi bi-save me-1"></i>Simpan Draf</button><x-back-link :fallback="$expense->exists ? route('expenses.show',$expense) : route('expenses.index')" label="Batal" :small="false" /></div>
 </form>
 @endsection
 @push('scripts')

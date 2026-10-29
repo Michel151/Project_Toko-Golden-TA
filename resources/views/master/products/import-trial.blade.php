@@ -17,7 +17,7 @@
 @endpush
 @section('content')
 <div class="report-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3"><div><h5 class="fw-bold mb-1">Import Barang</h5><div class="small text-white-50">Pratinjau terlebih dahulu, lalu konfirmasi untuk membuat barang baru dan stok awal</div></div><span class="badge bg-warning text-dark">Pratinjau + Simpan</span></div>
-<div class="d-flex flex-wrap gap-2 mb-3"><a href="{{ route('master.products.import.template') }}" class="btn btn-sm btn-success"><i class="bi bi-download me-1"></i>Template Excel (3 Sheet)</a><a href="{{ route('master.products.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali</a></div>
+<div class="d-flex flex-wrap gap-2 mb-3"><a href="{{ route('master.products.import.template') }}" class="btn btn-sm btn-success"><i class="bi bi-download me-1"></i>Template Excel (3 Sheet)</a><x-back-link :fallback="route('master.products.index')" /></div>
 @section('validation-heading','File belum dapat diperiksa. Tidak ada data yang disimpan.')
 <section class="trial-section"><form method="POST" action="{{ route('master.products.import.preview') }}" enctype="multipart/form-data" class="trial-upload">@csrf<div><label for="trialFile" class="form-label">File Excel (.xlsx)</label><input id="trialFile" type="file" name="file" accept=".xlsx" class="form-control" required></div><button type="submit" class="btn btn-success"><i class="bi bi-search me-1"></i>Periksa & Pratinjau</button></form></section>
 @isset($preview)

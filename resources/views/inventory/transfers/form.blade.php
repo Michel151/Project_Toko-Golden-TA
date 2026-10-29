@@ -100,7 +100,7 @@
     </section>
     <div class="d-flex flex-wrap gap-2">
         <button type="submit" id="saveTransfer" class="btn btn-primary" disabled><i class="bi bi-arrow-left-right me-1"></i>Simpan Transfer</button>
-        <a href="{{ route('inventory.transfers.index') }}" class="btn btn-outline-secondary">Batal</a>
+        <x-back-link :fallback="route('inventory.transfers.index')" label="Batal" :small="false" />
     </div>
 </form>
 <div class="modal fade" id="transferProductCatalogModal" tabindex="-1" aria-labelledby="transferProductCatalogTitle" aria-hidden="true">

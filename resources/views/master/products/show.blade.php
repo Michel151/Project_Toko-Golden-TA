@@ -30,7 +30,7 @@
 @endphp
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <a href="{{ route('master.products.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
+    <x-back-link :fallback="route('master.products.index')" />
     @if(auth()->user()->canAccessRoute('master.products.edit')) <a href="{{ route('master.products.edit',$product) }}" class="btn btn-sm btn-warning"><i class="bi bi-pencil me-1"></i>Ubah Barang</a> @endif
 </div>
 

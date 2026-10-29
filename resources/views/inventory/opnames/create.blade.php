@@ -43,7 +43,7 @@
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-clipboard-plus me-1"></i>Buat Draf</button>
-                        <a href="{{ route('inventory.opnames.index') }}" class="btn btn-outline-secondary">Batal</a>
+                        <x-back-link :fallback="route('inventory.opnames.index')" label="Batal" :small="false" />
                     </div>
                 </form>
             </div>

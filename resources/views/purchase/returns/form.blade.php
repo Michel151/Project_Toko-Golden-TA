@@ -23,6 +23,6 @@
 @endforeach
 @if(!$rowIndex)<tr><td colspan="6" class="text-center text-muted p-4">Semua hasil pemeriksaan sudah dibuatkan retur/klaim.</td></tr>@endif
 </tbody></table></div></div>
-<div class="mb-3"><label class="form-label" for="returnNotes">Catatan Retur/Klaim</label><textarea class="form-control" id="returnNotes" name="notes" maxlength="5000" rows="2">{{ old('notes') }}</textarea></div>@if($rowIndex)<button class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan Draf Retur/Klaim</button>@endif <a class="btn btn-outline-secondary" href="{{ route('purchase.returns.index') }}">Kembali</a></form>
+<div class="mb-3"><label class="form-label" for="returnNotes">Catatan Retur/Klaim</label><textarea class="form-control" id="returnNotes" name="notes" maxlength="5000" rows="2">{{ old('notes') }}</textarea></div>@if($rowIndex)<button class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan Draf Retur/Klaim</button>@endif <x-back-link :fallback="route('purchase.returns.index')" label="Batal" :small="false" /></form>
 @endif
 @endsection

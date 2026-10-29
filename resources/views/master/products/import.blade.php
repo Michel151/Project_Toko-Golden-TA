@@ -8,7 +8,7 @@
     <div class="d-flex flex-wrap gap-2">
         @if(auth()->user()->canAccessRoute('master.products.import-trial'))<a href="{{ route('master.products.import-trial') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-table me-1"></i>Import Multi Satuan</a>@endif
         @if(auth()->user()->canAccessRoute('master.products.import.template')) <a href="{{ route('master.products.import.template') }}" class="btn btn-outline-success btn-sm"><i class="bi bi-download me-1"></i> Unduh Template</a> @endif
-        <a href="{{ route('master.products.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Kembali</a>
+        <x-back-link :fallback="route('master.products.index')" />
     </div>
 </div>
 @section('validation-heading','Impor dibatalkan. Tidak ada data yang disimpan.')

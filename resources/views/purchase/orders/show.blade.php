@@ -4,7 +4,7 @@
 @section('content')
 @php $colors=\App\Models\PurchaseOrder::STATUS_COLORS;$labels=\App\Models\PurchaseOrder::STATUS_LABELS;$progress=$order->items->count()?round($order->items->avg(fn($item)=>(float)$item->quantity_ordered>0?min(100,((float)$item->quantity_received/(float)$item->quantity_ordered)*100):0)):0; @endphp
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <a href="{{ route('purchase.orders.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
+    <x-back-link :fallback="route('purchase.orders.index')" />
     <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('purchase.orders.pdf',$order) }}" class="btn btn-sm btn-outline-danger" target="_blank"><i class="bi bi-file-pdf me-1"></i>PDF</a>
         <a href="{{ route('purchase.orders.excel',$order) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>

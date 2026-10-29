@@ -8,6 +8,6 @@
     <label for="temporaryPassword" class="form-label fw-semibold">Password Sementara</label>
     <input id="temporaryPassword" class="form-control font-monospace mb-3" type="text" value="{{ $temporaryPassword }}" readonly autocomplete="off" spellcheck="false">
     <p class="small text-muted">Salin dan berikan password ini kepada pengguna. Password hanya ditampilkan sekali di halaman ini. Pengguna wajib menggantinya setelah masuk; sesi login dan akses ingat saya sebelumnya sudah dibatalkan.</p>
-    <a href="{{ route('master.users.index') }}" class="btn btn-primary">Kembali ke Pengguna</a>
+    <x-back-link :fallback="route('master.users.index')" />
 </div></div></div></div>
 @endsection

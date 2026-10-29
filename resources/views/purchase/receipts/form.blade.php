@@ -135,7 +135,7 @@
     </div>
 </div>
 @endif
-<div class="receiving-footer">@if($selectedOrder)<button class="btn btn-primary" type="submit"><i class="bi bi-check-circle me-1"></i>Simpan Penerimaan</button>@endif<a class="btn btn-outline-secondary" href="{{ route('purchase.receipts.index') }}">Kembali</a></div>
+<div class="receiving-footer">@if($selectedOrder)<button class="btn btn-primary" type="submit"><i class="bi bi-check-circle me-1"></i>Simpan Penerimaan</button>@endif<x-back-link :fallback="route('purchase.receipts.index')" label="Batal" :small="false" /></div>
 </form>
 @push('scripts')
 @include('purchase.receipts.scripts')
