@@ -337,9 +337,9 @@ function renderCatalogProducts() {
     document.getElementById('catalogProducts').innerHTML = filtered.map(product => `
         <div class="col-md-6 col-lg-4">
             <button type="button" class="transfer-catalog-product w-100" data-product-id="${escapeHtml(product.id)}">
-                <div class="d-flex justify-content-between gap-2 mb-2">
-                    <span class="product-name">${escapeHtml(product.name)}</span>
-                    <span class="badge bg-light text-secondary border">${escapeHtml(product.category_name || 'Tanpa Kategori')}</span>
+                <div class="d-flex flex-column align-items-start gap-1 mb-2">
+                    <span class="product-name text-break">${escapeHtml(product.name)}</span>
+                    <span class="badge bg-light text-secondary border text-wrap text-start mw-100">${escapeHtml(product.category_name || 'Tanpa Kategori')}</span>
                 </div>
                 <div class="small text-muted mb-2">${product.barcode ? `Barcode: ${escapeHtml(product.barcode)}` : 'Tanpa barcode'}</div>
                 <div class="d-flex justify-content-between align-items-end">
