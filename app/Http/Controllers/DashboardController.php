@@ -127,16 +127,16 @@ class DashboardController extends Controller
             ->where('sales.status', 'paid')
             ->whereDate('sales.sale_date', '>=', $today->copy()->subDays(29))
             ->whereDate('sales.sale_date', '<=', $today)
-            ->groupBy('products.id', 'products.name');
-        $topProducts = (clone $topProductQuery)->orderByDesc(DB::raw('SUM(sale_items.subtotal)'))->limit(5)->get([
-                'products.name',
+            ->groupBy('products.id', 'products.name', 'products.category_id');
+        $topProducts = (clone $topProductQuery)->orderByDesc(DB::raw('SUM(sale_items.subtotal)'))->orderBy('products.id')->get([
+                'products.name', 'products.category_id',
                 DB::raw('SUM(sale_items.subtotal) as revenue'),
                 DB::raw('SUM(sale_items.quantity) as quantity'),
             ]);
         $topQuantityProducts = (clone $topProductQuery)
             ->join('product_units as sale_unit', 'sale_unit.id', '=', 'sale_items.product_unit_id')
             ->orderByDesc(DB::raw('SUM(sale_items.quantity * sale_unit.conversion_to_base)'))
-            ->get(['products.id','products.name',DB::raw('SUM(sale_items.quantity * sale_unit.conversion_to_base) as base_quantity')]);
+            ->get(['products.id','products.name','products.category_id',DB::raw('SUM(sale_items.quantity * sale_unit.conversion_to_base) as base_quantity')]);
         $rankedProducts = Product::with(['productUnits.unit', 'buyUnit', 'retailUnit'])->whereIn('id', $topQuantityProducts->pluck('id'))->get()->keyBy('id');
         $topQuantityProducts->each(function ($item) use ($rankedProducts) {
             $product = $rankedProducts->get($item->id);
@@ -160,8 +160,7 @@ class DashboardController extends Controller
         $topQuantityProducts = $topQuantityProducts->filter(fn ($item) => $item->package_quantity !== null)
             ->sort(fn ($a, $b) => ($b->package_quantity <=> $a->package_quantity) ?: strcmp($a->name, $b->name))
             ->values();
-        $rankingUnits = $topQuantityProducts->map(fn ($item) => ['id' => $item->package_unit_id, 'name' => $item->package_unit])
-            ->unique('id')->sortBy('name')->values();
+        $rankingCategories = \App\Models\Category::whereIn('id', $topProducts->pluck('category_id')->filter())->orderBy('name')->get(['id', 'name']);
 
         $paymentMethods = (clone $monthSalesQuery)
             ->select('payment_method', DB::raw('SUM(total_amount) as total'))
@@ -189,7 +188,7 @@ class DashboardController extends Controller
             'expiringSoonCount', 'expiredBatchCount', 'expiringBatches',
             'salesChart', 'lowStockProducts', 'outOfStockCount', 'inventoryValue', 'sellableStock',
             'grossProfit', 'missingCostCount', 'salesWithoutItemsCount', 'pendingSalesCount', 'pendingSalesAmount',
-            'topProducts', 'topQuantityProducts', 'rankingUnits', 'paymentMethods', 'locationValues', 'recentSales'
+            'topProducts', 'topQuantityProducts', 'rankingCategories', 'paymentMethods', 'locationValues', 'recentSales'
         ));
     }
 
