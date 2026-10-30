@@ -12,8 +12,8 @@ class NotificationController extends Controller
 {
     public function index(Request $request, NotificationService $service)
     {
-        $groups = ['expiry_all'=>['expired', 'expiry_today', 'expiring'], 'stock_all'=>['out_of_stock', 'low_stock']];
-        $conditionOptions = NotificationService::FILTERS + ['expiry_all'=>'Risiko kedaluwarsa (semua)', 'stock_all'=>'Stok habis/rendah'];
+        $groups = ['expiry_all'=>['expired', 'expiry_today', 'expiring'], 'stock_all'=>['out_of_stock', 'low_stock'], 'return_all'=>['return_pending','return_approval']];
+        $conditionOptions = NotificationService::FILTERS + ['expiry_all'=>'Risiko kedaluwarsa (semua)', 'stock_all'=>'Stok habis/rendah', 'return_all'=>'Retur/klaim (semua)'];
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:150'],
             'condition' => ['nullable', Rule::in(array_keys($conditionOptions))],
@@ -47,7 +47,7 @@ class NotificationController extends Controller
             'products' => $items->count(),
             'expiry' => $countConditions(['expired', 'expiry_today', 'expiring']),
             'stock' => $countConditions(['out_of_stock', 'low_stock']),
-            'returns' => $countConditions(['return_pending']),
+            'returns' => $countConditions(['return_pending','return_approval']),
         ];
         $page = min((int) ($filters['page'] ?? 1), max(1, (int) ceil($items->count() / 12)));
         $notifications = new LengthAwarePaginator($items->forPage($page, 12)->values(), $items->count(), 12, $page,

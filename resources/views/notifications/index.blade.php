@@ -14,7 +14,7 @@
     ['label'=>'Produk Perlu Perhatian', 'value'=>number_format($summary['products'],0,',','.').' produk', 'hint'=>'Dari '.number_format($totalProducts,0,',','.').' produk perlu perhatian', 'icon'=>'bell', 'tone'=>'primary', 'href'=>$cardUrl(), 'active'=>$selectedCondition === ''],
     ['label'=>'Risiko Kedaluwarsa', 'value'=>number_format($summary['expiry'],0,',','.').' produk', 'hint'=>'Sudah, hari ini, atau mendekati kedaluwarsa', 'icon'=>'calendar-x', 'tone'=>'danger', 'href'=>$cardUrl('expiry_all'), 'active'=>in_array($selectedCondition, ['expiry_all','expired','expiry_today','expiring'], true)],
     ['label'=>'Stok Habis/Rendah', 'value'=>number_format($summary['stock'],0,',','.').' produk', 'hint'=>'Stok layak jual perlu perhatian', 'icon'=>'box-seam', 'tone'=>'warning', 'href'=>$cardUrl('stock_all'), 'active'=>in_array($selectedCondition, ['stock_all','out_of_stock','low_stock'], true)],
-    ['label'=>'Perlu Retur/Klaim', 'value'=>number_format($summary['returns'],0,',','.').' produk', 'hint'=>'Masih ada masalah yang belum diajukan', 'icon'=>'box-arrow-up', 'tone'=>'warning', 'href'=>$cardUrl('return_pending'), 'active'=>$selectedCondition === 'return_pending'],
+    ['label'=>'Perlu Retur/Klaim', 'value'=>number_format($summary['returns'],0,',','.').' produk', 'hint'=>'Belum diajukan atau menunggu persetujuan', 'icon'=>'box-arrow-up', 'tone'=>'warning', 'href'=>$cardUrl('return_all'), 'active'=>in_array($selectedCondition, ['return_all','return_pending','return_approval'], true)],
 ]])
 <p class="small text-muted mb-3">Ringkasan mengikuti filter. Satu produk dapat masuk lebih dari satu kelompok kondisi.</p>
 <form method="GET" action="{{ route('notifications.index') }}" class="app-unified-filter card card-body mb-3">

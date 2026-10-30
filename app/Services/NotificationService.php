@@ -6,7 +6,7 @@ use App\Models\Product;
 
 class NotificationService
 {
-    public const FILTERS = ['expired' => 'Sudah kedaluwarsa', 'out_of_stock' => 'Stok habis', 'expiry_today' => 'Kedaluwarsa hari ini', 'expiring' => 'Mendekati kedaluwarsa', 'low_stock' => 'Stok rendah', 'return_pending' => 'Perlu Retur/Klaim'];
+    public const FILTERS = ['expired' => 'Sudah kedaluwarsa', 'out_of_stock' => 'Stok habis', 'expiry_today' => 'Kedaluwarsa hari ini', 'expiring' => 'Mendekati kedaluwarsa', 'low_stock' => 'Stok rendah', 'return_pending' => 'Perlu Retur/Klaim', 'return_approval'=>'Retur/Klaim Menunggu Persetujuan'];
 
     // Share a snapshot within this request only, never across requests.
     public function forRequest(?\Illuminate\Database\Eloquent\Collection $products = null): array
@@ -22,6 +22,10 @@ class NotificationService
     {
         $notifications = [];
         $issues = $this->returnIssues();
+        foreach ($this->returnApprovals() as $id => $approval) {
+            $issues[$id]['product'] = $approval['product'];
+            $issues[$id]['conditions'] = [...($issues[$id]['conditions'] ?? []), ...$approval['conditions']];
+        }
         $seen = [];
         $relations = [
             'productLocations.location', 'stocks.location', 'stockBatches' => fn ($q) => $q->where('quantity_remaining', '>', 0), 'stockBatches.location', 'buyUnit', 'retailUnit', 'productUnits.unit',
@@ -103,6 +107,43 @@ class NotificationService
             'summary' => $primary['message'], 'message' => $conditions->pluck('message')->implode(' '),
             'transfers' => $stock['transfers'], 'incoming_quantity' => $incoming, 'orders' => $orders, 'advice' => $advice, 'shortfall' => $shortfall,
         ])];
+    }
+
+    private function returnApprovals(): array
+    {
+        if (! auth()->user()?->canAccessRoute('purchase.returns.approve')) return [];
+        $returns = \App\Models\PurchaseReturn::where('status', 'draft')->whereHas('items')
+            ->with(['createdBy', 'purchaseReceipt.purchaseOrder.supplier',
+                'items.purchaseInspection.purchaseOrderItem.product', 'items.purchaseInspection.purchaseOrderItem.productUnit.unit',
+                'items.purchaseInspection.quarantineLocation'])->orderBy('id')->get();
+        $issues = [];
+        foreach ($returns as $return) {
+            $order = $return->purchaseReceipt->purchaseOrder;
+            foreach ($return->items as $item) {
+                $inspection = $item->purchaseInspection;
+                $line = $inspection?->purchaseOrderItem;
+                $product = $line?->product;
+                if (! $product) continue;
+                $location = $item->kind === 'missing' ? null : $inspection->quarantineLocation;
+                $storage = $item->kind === 'missing' ? 'Barang belum diterima; tidak memiliki lokasi penyimpanan.'
+                    : ($location ? 'Lokasi penyimpanan retur: '.$location->name.'.' : 'Lokasi penyimpanan retur belum tercatat.');
+                $unit = $line->productUnit?->unit?->name;
+                $amount = \App\Support\DisplayNumber::quantity((float) $item->quantity).($unit ? ' '.$unit : ' (satuan penerimaan belum tersedia)');
+                $label = \App\Models\PurchaseReturnItem::KINDS[$item->kind] ?? $item->kind;
+                $message = 'Pengajuan '.$return->return_number.' · '.$order->po_number.' · '.($order->supplier?->name ?? 'Supplier tidak tersedia')
+                    .', diajukan oleh '.($return->createdBy?->name ?? 'Pengguna tidak tersedia').' pada '.$return->created_at->format('d/m/Y')
+                    .', menunggu persetujuan. '.$label.' '.$amount.'. '.$storage;
+                $issues[$product->id]['product'] = $product;
+                $issues[$product->id]['conditions'][] = [
+                    'kind'=>'return_approval', 'type'=>'return', 'rank'=>2.4, 'level'=>'warning',
+                    'badge_label'=>'Retur/Klaim Menunggu Persetujuan', 'badge_class'=>'warning text-dark',
+                    'location_ids'=>$location ? [$location->id] : [], 'location_names'=>$location ? [$location->name] : [],
+                    'location_name'=>$location?->name ?? ($item->kind === 'missing' ? 'Belum diterima' : 'Belum tercatat'),
+                    'message'=>$message, 'return_id'=>$return->id, 'return_number'=>$return->return_number,
+                ];
+            }
+        }
+        return $issues;
     }
 
     private function returnIssues(): array

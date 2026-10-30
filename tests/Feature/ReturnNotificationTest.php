@@ -95,4 +95,46 @@ class ReturnNotificationTest extends TestCase
         $this->assertSame(1, $response->viewData('notifications')->total());
         $this->assertCount(4, collect($response->viewData('notifications')->first()['conditions'])->where('kind', 'return_pending'));
     }
+
+    public function test_approval_notifications_follow_permission_and_disappear_after_real_workflow_transitions(): void
+    {
+        extract($this->receivingIssue());
+        $makeDraft = function (string $number) use ($receipt, $owner, $inspection) {
+            $draft = PurchaseReturn::create(['return_number'=>$number, 'purchase_receipt_id'=>$receipt->id, 'created_by'=>$owner->id, 'status'=>'draft']);
+            foreach (['damaged'=>2, 'wrong'=>1, 'missing'=>3] as $kind=>$quantity) {
+                $draft->items()->create(['purchase_inspection_id'=>$inspection->id, 'kind'=>$kind, 'quantity'=>$quantity]);
+            }
+            return $draft;
+        };
+        $draft = $makeDraft('RT-APPROVAL-1');
+        $url = route('notifications.index', ['condition'=>'return_approval']);
+        $response = $this->get($url)->assertOk()->assertSee('Tinjau Pengajuan · RT-APPROVAL-1')
+            ->assertSee(route('purchase.returns.show', $draft->id), false)
+            ->assertSee('Supplier Retur')->assertSee('Area Retur Gudang 1')->assertSee('diajukan oleh Owner');
+        $this->assertSame(1, $response->viewData('notifications')->total());
+        $this->assertSame(1, $response->viewData('summary')['returns']);
+        $this->get(route('notifications.index', ['condition'=>'return_all']))->assertOk()
+            ->assertViewHas('summary', ['products'=>1, 'expiry'=>0, 'stock'=>0, 'returns'=>1]);
+
+        $staff = User::create(['name'=>'Staf', 'email'=>'approval-notif@test.com', 'password'=>'password', 'role'=>'staf_gudang']);
+        DB::table('role_permissions')->where('role', 'staf_gudang')->delete();
+        foreach (['inventory.stock.view', 'purchase.returns.view'] as $permission) {
+            DB::table('role_permissions')->insert(['role'=>'staf_gudang', 'permission'=>$permission]);
+        }
+        $hidden = $this->actingAs($staff)->get($url)->assertOk()->assertDontSee('Tinjau Pengajuan');
+        $this->assertSame(0, $hidden->viewData('notifications')->total());
+        DB::table('role_permissions')->insert(['role'=>'staf_gudang', 'permission'=>'purchase.returns.approve']);
+        $this->get($url)->assertOk()->assertSee('Tinjau Pengajuan · RT-APPROVAL-1');
+
+        $this->actingAs($owner)->post(route('purchase.returns.reject', $draft), ['rejection_reason'=>'Perlu diperiksa ulang'])->assertRedirect();
+        $this->assertSame('rejected', $draft->fresh()->status);
+        $this->assertSame(0, $this->get($url)->assertOk()->viewData('notifications')->total());
+        $this->assertSame(1, $this->get(route('notifications.index', ['condition'=>'return_pending']))->assertOk()->viewData('notifications')->total());
+        $newDraft = $makeDraft('RT-APPROVAL-2');
+        $this->get($url)->assertOk()->assertSee('Tinjau Pengajuan · RT-APPROVAL-2');
+        $this->post(route('purchase.returns.approve', $newDraft))->assertRedirect();
+        $this->assertSame('approved', $newDraft->fresh()->status);
+        $this->assertNotNull($newDraft->fresh()->replacement_purchase_order_id);
+        $this->assertSame(0, $this->get($url)->assertOk()->viewData('notifications')->total());
+    }
 }

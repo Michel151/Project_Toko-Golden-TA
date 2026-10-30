@@ -1,4 +1,9 @@
 <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top" role="group" aria-label="Tindakan untuk {{ $notif['product_name'] }}">
+    @if(auth()->user()->canAccessRoute('purchase.returns.approve'))
+        @foreach(collect($notif['conditions'])->where('kind', 'return_approval')->unique('return_id') as $approval)
+        <a class="btn btn-sm btn-primary" href="{{ route('purchase.returns.show', $approval['return_id']) }}"><i class="bi bi-clipboard-check me-1" aria-hidden="true"></i>Tinjau Pengajuan · {{ $approval['return_number'] }}</a>
+        @endforeach
+    @endif
     @foreach(collect($notif['conditions'])->where('kind', 'return_pending')->unique('receipt_id') as $issue)
         @if(auth()->user()->canAccessRoute('purchase.receipts.show'))
         <a class="btn btn-sm btn-outline-secondary" href="{{ route('purchase.receipts.show', $issue['receipt_id']) }}"><i class="bi bi-receipt me-1" aria-hidden="true"></i>Lihat Penerimaan · #{{ $issue['receipt_id'] }}</a>
