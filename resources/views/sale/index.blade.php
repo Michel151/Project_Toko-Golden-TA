@@ -14,7 +14,12 @@
 @endpush
 
 @section('content')
-<div class="inventory-heading"><h5><i class="bi bi-cart-check me-2"></i>Transaksi Penjualan</h5></div>
+<div class="inventory-heading d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <h5><i class="bi bi-cart-check me-2"></i>Transaksi Penjualan</h5>
+    @if(auth()->user()->canAccessRoute('sale.sales.create')) <a href="{{ route('sale.sales.create') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i> Transaksi Baru
+    </a> @endif
+</div>
 <div class="app-filter-bar sale-list-toolbar mb-3">
     <form class="app-unified-filter sale-list-filters" method="GET">
         @include('components.date-range',['prefix'=>'saleList', 'fromValue'=>$from, 'toValue'=>$to])
@@ -34,9 +39,6 @@
         <a href="{{ route('sale.sales.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
         </div>
     </form>
-    @if(auth()->user()->canAccessRoute('sale.sales.create')) <a href="{{ route('sale.sales.create') }}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-circle me-1"></i> Transaksi Baru
-    </a> @endif
 </div>
 
 @if(request()->hasAny(['from','to','payment_method','status']))

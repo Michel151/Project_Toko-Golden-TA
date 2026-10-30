@@ -44,9 +44,11 @@ class SaleReportController extends Controller
             'per_page'=>'nullable|integer|in:25,50,100', 'tab'=>'nullable|in:transactions,products,margins',
             'products_sort'=>'nullable|in:revenue,quantity', 'products_page'=>'nullable|integer|min:1',
             'margins_page'=>'nullable|integer|min:1', 'products_unit'=>'nullable|integer|exists:units,id',
+            'margins_sort'=>'nullable|in:revenue,margin_desc,margin_asc,profit_desc,profit_asc',
         ]);
         $productsUnit = $filters['products_unit'] ?? null;
         $productsSort = $filters['products_sort'] ?? 'revenue';
+        $marginsSort = $filters['margins_sort'] ?? 'revenue';
         $activeTab = $filters['tab'] ?? 'transactions';
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());
@@ -77,7 +79,18 @@ class SaleReportController extends Controller
                     'gross_profit' => $profit,
                     'margin_percentage' => $profit !== null && $revenue > 0 ? round($profit / $revenue * 100, 2) : null,
                 ];
-            })->sortBy([['revenue', 'desc'], ['product_id', 'asc']])->values();
+            })->sort(function ($a, $b) use ($marginsSort) {
+                $field = match ($marginsSort) {
+                    'margin_desc', 'margin_asc' => 'margin_percentage',
+                    'profit_desc', 'profit_asc' => 'gross_profit',
+                    default => 'revenue',
+                };
+                // Incomplete costs and undefined percentages always follow known values.
+                if (($a->$field === null) !== ($b->$field === null)) return $a->$field === null ? 1 : -1;
+                $comparison = in_array($marginsSort, ['margin_asc', 'profit_asc'], true)
+                    ? $a->$field <=> $b->$field : $b->$field <=> $a->$field;
+                return $comparison ?: (($b->revenue <=> $a->revenue) ?: ($a->product_id <=> $b->product_id));
+            })->values();
 
         // Prefer the historical quantity snapshot; legacy rows fall back to their unit conversion.
         $sourceQuantity = '(SELECT CASE WHEN COUNT(*) = COUNT(base_quantity) THEN SUM(base_quantity) ELSE NULL END FROM sale_item_sources WHERE sale_item_sources.sale_item_id = sale_items.id)';
@@ -145,7 +158,7 @@ class SaleReportController extends Controller
             'sales', 'from', 'to',
             'totalAmount', 'totalTunai', 'totalTransfer', 'totalTrx',
             'grossProfit', 'incompleteCostCount', 'productMargins',
-            'topProducts', 'activeTab', 'productsSort', 'productsUnit', 'rankingUnits', 'categories', 'category', 'categoryId'
+            'topProducts', 'activeTab', 'productsSort', 'productsUnit', 'marginsSort', 'rankingUnits', 'categories', 'category', 'categoryId'
         ));
     }
 

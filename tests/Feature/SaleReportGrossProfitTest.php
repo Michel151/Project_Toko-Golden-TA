@@ -40,6 +40,42 @@ class SaleReportGrossProfitTest extends TestCase
         return $this->get(route('report.sale',['from'=>'2026-10-20','to'=>'2026-10-25']))->assertOk();
     }
 
+    public function test_margin_sort_orders_all_products_before_pagination_and_keeps_unknown_values_last(): void
+    {
+        $ids = [];
+        for ($i = 1; $i <= 30; $i++) {
+            $product = $this->product->replicate();
+            $product->name = 'Margin '.$i;
+            $product->save();
+            $ids[] = $product->id;
+            $sale = $this->sale('paid', '2026-10-21', 1000 + $i * 10, 1300 - $i * 30);
+            $sale->items()->update(['product_id'=>$product->id, 'product_unit_id'=>null]);
+        }
+        $unknown = $this->sale('paid', '2026-10-21', 20000, 0);
+        $filters = ['from'=>'2026-10-20', 'to'=>'2026-10-25', 'tab'=>'margins',
+            'category_id'=>$this->product->category_id, 'products_sort'=>'quantity'];
+        foreach (['margin_desc', 'profit_desc', 'margin_asc', 'profit_asc'] as $sort) {
+            $expected = str_ends_with($sort, '_desc') ? array_reverse($ids) : $ids;
+            $response = $this->get(route('report.sale', $filters + ['margins_sort'=>$sort]))->assertOk()
+                ->assertViewHas('activeTab', 'margins')->assertViewHas('marginsSort', $sort)
+                ->assertSee('Margin Tertinggi (%)')->assertSee('Laba Kotor Terendah (Rp)');
+            $rows = $response->viewData('productMargins');
+            $this->assertSame(31, $rows->total());
+            $this->assertSame(array_slice($expected, 0, 25), $rows->pluck('product_id')->all());
+            parse_str(parse_url($rows->url(2), PHP_URL_QUERY), $query);
+            $this->assertSame($sort, $query['margins_sort']);
+            $this->assertEquals($filters['category_id'], $query['category_id']);
+            $second = $this->get($rows->url(2))->assertOk()->viewData('productMargins');
+            $this->assertSame(array_merge(array_slice($expected, 25), [$this->product->id]), $second->pluck('product_id')->all());
+            $this->assertNull($second->last()->gross_profit);
+        }
+        $this->get(route('report.sale', $filters))->assertOk()
+            ->assertViewHas('marginsSort', 'revenue')
+            ->assertViewHas('productMargins', fn ($rows) => $rows->first()->product_id === $this->product->id);
+        $this->getJson(route('report.sale', ['margins_sort'=>'invalid']))->assertUnprocessable();
+        $this->assertSame('0.00', $unknown->items()->first()->cost_subtotal);
+    }
+
     public function test_category_filter_uses_only_matching_lines_in_mixed_invoices_and_exports(): void
     {
         $mixed=$this->sale('paid','2026-10-21',10000,6000);
