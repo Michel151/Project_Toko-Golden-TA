@@ -6,7 +6,7 @@ use App\Models\Product;
 
 class NotificationService
 {
-    public const FILTERS = ['expired' => 'Sudah kedaluwarsa', 'out_of_stock' => 'Stok habis', 'expiry_today' => 'Kedaluwarsa hari ini', 'expiring' => 'Mendekati kedaluwarsa', 'low_stock' => 'Stok rendah'];
+    public const FILTERS = ['expired' => 'Sudah kedaluwarsa', 'out_of_stock' => 'Stok habis', 'expiry_today' => 'Kedaluwarsa hari ini', 'expiring' => 'Mendekati kedaluwarsa', 'low_stock' => 'Stok rendah', 'return_pending' => 'Perlu Retur/Klaim'];
 
     // Share a snapshot within this request only, never across requests.
     public function forRequest(?\Illuminate\Database\Eloquent\Collection $products = null): array
@@ -21,13 +21,16 @@ class NotificationService
     public function checkAllProducts(?\Illuminate\Database\Eloquent\Collection $products = null): array
     {
         $notifications = [];
+        $issues = $this->returnIssues();
+        $seen = [];
         $relations = [
             'productLocations.location', 'stocks.location', 'stockBatches' => fn ($q) => $q->where('quantity_remaining', '>', 0), 'stockBatches.location', 'buyUnit', 'retailUnit', 'productUnits.unit',
             'purchaseOrderItems' => fn ($q) => $q->whereHas('purchaseOrder', fn ($orders) => $orders->whereIn('status', ['pending', 'partial'])),
             'purchaseOrderItems.productUnit', 'purchaseOrderItems.purchaseOrder',
         ];
-        $consume = function ($product) use (&$notifications) {
-            foreach ($this->checkProduct($product) as $notification) {
+        $consume = function ($product) use (&$notifications, &$seen, $issues) {
+            $seen[$product->id] = true;
+            foreach ($this->checkProduct($product, $issues[$product->id]['conditions'] ?? []) as $notification) {
                 $notifications[] = $notification;
             }
         };
@@ -36,11 +39,14 @@ class NotificationService
         } else {
             Product::active()->with($relations)->each($consume);
         }
+        // Receiving issues remain actionable even if the product was later deactivated.
+        $remaining = new \Illuminate\Database\Eloquent\Collection(collect($issues)->reject(fn ($issue, $id) => isset($seen[$id]))->pluck('product')->all());
+        $remaining->loadMissing($relations)->each($consume);
 
         return collect($notifications)->sortBy(fn ($item) => [$item['rank'], $item['expired_date'] ?? '9999', mb_strtolower($item['product_name']), $item['product_id']])->values()->all();
     }
 
-    public function checkProduct(Product $product): array
+    public function checkProduct(Product $product, array $returnConditions = []): array
     {
         $today = today();
         $formatted = [];
@@ -49,7 +55,7 @@ class NotificationService
             return $formatted[$key] ??= $product->displayStock($quantity);
         };
         $stock = $this->stockConditions($product, $today->toDateString(), $display);
-        $conditions = collect([...$stock['conditions'], ...$this->expiryConditions($product, $today, $display)])
+        $conditions = collect([...$stock['conditions'], ...$this->expiryConditions($product, $today, $display), ...$returnConditions])
             ->sortBy(fn ($item) => [$item['rank'], $item['expired_date'] ?? '9999', $item['location_name']])->values();
         if ($conditions->isEmpty()) {
             return [];
@@ -92,11 +98,54 @@ class NotificationService
             'product_id' => $product->id, 'product_name' => $product->name, 'barcode' => $product->barcode,
             'type' => $conditions->pluck('type')->unique()->count() > 1 ? 'combined' : $primary['type'],
             'level' => $conditions->contains(fn ($item) => $item['level'] === 'danger') ? 'danger' : 'warning',
-            'location_name' => count($locations) > 1 ? count($locations).' lokasi' : ($locations[0] ?? 'Semua lokasi'),
+            'location_name' => count($locations) > 1 ? count($locations).' lokasi' : ($locations[0] ?? $primary['location_name']),
             'location_names' => $locations, 'badges' => $badges, 'conditions' => $conditions->all(),
             'summary' => $primary['message'], 'message' => $conditions->pluck('message')->implode(' '),
             'transfers' => $stock['transfers'], 'incoming_quantity' => $incoming, 'orders' => $orders, 'advice' => $advice, 'shortfall' => $shortfall,
         ])];
+    }
+
+    private function returnIssues(): array
+    {
+        $user = auth()->user();
+        if (! $user || ! ($user->canAccessRoute('purchase.returns.create') || $user->canAccessRoute('purchase.returns.show') || $user->canAccessRoute('purchase.receipts.show'))) {
+            return [];
+        }
+        $inspections = \App\Models\PurchaseInspection::withClaimableIssues()
+            ->whereHas('purchaseReceipt.purchaseOrder', fn ($q) => $q->where('status', '!=', 'completed'))
+            ->with(['purchaseReceipt.purchaseOrder.supplier', 'purchaseOrderItem.product', 'purchaseOrderItem.productUnit.unit',
+                'quarantineLocation', 'returnItems.purchaseReturn'])->orderBy('id')->get();
+        $issues = [];
+        foreach ($inspections as $inspection) {
+            $product = $inspection->purchaseOrderItem?->product;
+            if (! $product) continue;
+            $receipt = $inspection->purchaseReceipt;
+            $order = $receipt->purchaseOrder;
+            foreach (\App\Models\PurchaseReturnItem::KINDS as $kind => $label) {
+                $claimed = $inspection->returnItems->filter(fn ($item) => $item->kind === $kind
+                    && in_array($item->purchaseReturn?->status, ['draft', 'approved'], true))->sum('quantity');
+                $quantity = max(0, round((float) $inspection->{'quantity_'.$kind} - (float) $claimed, 4));
+                if ($quantity <= 0) continue;
+                // Inspection quantities use the PO line's unit, not the product's current sale unit.
+                $unit = $inspection->purchaseOrderItem->productUnit?->unit?->name;
+                $amount = \App\Support\DisplayNumber::quantity($quantity).($unit ? ' '.$unit : ' (satuan penerimaan belum tersedia)');
+                $location = $kind === 'missing' ? null : $inspection->quarantineLocation;
+                $storage = $kind === 'missing' ? 'Barang belum diterima; tidak memiliki lokasi penyimpanan.'
+                    : ($location ? 'Lokasi penyimpanan retur: '.$location->name.'.' : 'Lokasi penyimpanan retur belum tercatat.');
+                $supplier = $order->supplier?->name ?? 'Supplier tidak tersedia';
+                $message = $label.' '.$amount.' pada penerimaan #'.$receipt->id.' · '.$order->po_number.' · '.$supplier.'. Belum diajukan retur/klaim. '.$storage;
+                $issues[$product->id]['product'] = $product;
+                $issues[$product->id]['conditions'][] = [
+                    'kind'=>'return_pending', 'type'=>'return', 'rank'=>2.5, 'level'=>'warning',
+                    'badge_label'=>'Perlu Retur/Klaim', 'badge_class'=>'warning text-dark',
+                    'location_ids'=>$location ? [$location->id] : [], 'location_names'=>$location ? [$location->name] : [],
+                    'location_name'=>$location?->name ?? ($kind === 'missing' ? 'Belum diterima' : 'Belum tercatat'),
+                    'message'=>$message, 'receipt_id'=>$receipt->id, 'issue_kind'=>$kind, 'quantity'=>$quantity,
+                    'storage'=>$storage, 'order_number'=>$order->po_number, 'supplier_name'=>$supplier,
+                ];
+            }
+        }
+        return $issues;
     }
 
     private function stockConditions(Product $product, string $today, callable $display): array

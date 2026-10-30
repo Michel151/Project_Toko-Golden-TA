@@ -23,6 +23,13 @@
             <div class="d-flex flex-wrap gap-1 align-items-start">@foreach($notif['badges'] as $badge)<span class="badge bg-{{ $badge['class'] }}">{{ $badge['label'] }}</span>@endforeach</div>
         </div>
         <p class="mb-2">{{ $notif['summary'] }}</p>
+        @if(collect($notif['conditions'])->contains('kind', 'return_pending'))
+        <div class="small mb-2 border-start border-warning border-3 ps-2">
+            @foreach(collect($notif['conditions'])->where('kind', 'return_pending')->unique(fn ($issue) => $issue['receipt_id'].'|'.$issue['storage']) as $issue)
+            <div>Penerimaan #{{ $issue['receipt_id'] }} · {{ $issue['order_number'] }} · {{ $issue['supplier_name'] }} — {{ $issue['storage'] }}</div>
+            @endforeach
+        </div>
+        @endif
         <details @if(!empty($filters['product_id'])) open @endif>
             <summary class="text-primary">Rincian kondisi ({{ count($notif['conditions']) }})</summary>
             <ul class="mt-2 mb-2">@foreach($notif['conditions'] as $condition)<li class="mb-2"><strong>{{ $condition['badge_label'] }}:</strong> {{ $condition['message'] }}</li>@endforeach</ul>
