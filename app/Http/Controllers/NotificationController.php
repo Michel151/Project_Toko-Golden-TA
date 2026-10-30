@@ -12,15 +12,17 @@ class NotificationController extends Controller
 {
     public function index(Request $request, NotificationService $service)
     {
+        $groups = ['expiry_all'=>['expired', 'expiry_today', 'expiring'], 'stock_all'=>['out_of_stock', 'low_stock']];
+        $conditionOptions = NotificationService::FILTERS + ['expiry_all'=>'Risiko kedaluwarsa (semua)', 'stock_all'=>'Stok habis/rendah'];
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:150'],
-            'condition' => ['nullable', Rule::in(array_keys(NotificationService::FILTERS))],
+            'condition' => ['nullable', Rule::in(array_keys($conditionOptions))],
             'location_id' => ['nullable', 'integer', 'exists:locations,id'],
             'product_id' => ['nullable', 'integer'],
             'page' => ['nullable', 'integer', 'min:1'],
         ]);
         $all = collect($service->forRequest());
-        $matchesCondition = fn ($condition) => (empty($filters['condition']) || $condition['kind'] === $filters['condition'])
+        $matchesCondition = fn ($condition) => (empty($filters['condition']) || in_array($condition['kind'], $groups[$filters['condition']] ?? [$filters['condition']], true))
             && (empty($filters['location_id']) || in_array((int) $filters['location_id'], $condition['location_ids']));
         $items = $all->filter(function ($item) use ($filters, $matchesCondition) {
             $search = mb_strtolower(trim($filters['search'] ?? ''));
@@ -54,7 +56,7 @@ class NotificationController extends Controller
         return view('notifications.index', [
             'notifications' => $notifications, 'totalProducts' => $all->count(), 'summary' => $summary,
             'hasAppliedFilters' => trim($filters['search'] ?? '') !== '' || ! empty($filters['condition']) || ! empty($filters['location_id']) || ! empty($filters['product_id']),
-            'filters' => $filters, 'conditionOptions' => NotificationService::FILTERS,
+            'filters' => $filters, 'conditionOptions' => $conditionOptions,
             'locations' => Location::orderBy('name')->get(),
         ]);
     }

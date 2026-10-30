@@ -59,6 +59,14 @@ class NotificationCenterTest extends TestCase
             ->assertViewHas('summary', ['products'=>2, 'expiry'=>1, 'stock'=>2, 'returns'=>0]);
         $this->get(route('notifications.index', ['condition'=>'expired']))->assertOk()
             ->assertViewHas('summary', ['products'=>1, 'expiry'=>1, 'stock'=>0, 'returns'=>0]);
+        $this->get(route('notifications.index', ['condition'=>'expiry_all']))->assertOk()
+            ->assertViewHas('summary', ['products'=>1, 'expiry'=>1, 'stock'=>0, 'returns'=>0])
+            ->assertSee('aria-current="true"', false);
+        $this->get(route('notifications.index', ['condition'=>'stock_all']))->assertOk()
+            ->assertViewHas('summary', ['products'=>2, 'expiry'=>0, 'stock'=>2, 'returns'=>0]);
+        $filtered = $this->get(route('notifications.index', ['search'=>'Gabungan', 'location_id'=>$b->id, 'page'=>2]))->assertOk();
+        $filtered->assertSee(e(route('notifications.index', ['search'=>'Gabungan', 'location_id'=>$b->id, 'condition'=>'expiry_all'])), false)
+            ->assertSee(e(route('notifications.index', ['search'=>'Gabungan', 'location_id'=>$b->id])), false);
         $this->get(route('notifications.index', ['condition'=>'expired', 'location_id'=>$b->id]))->assertOk()
             ->assertViewHas('summary', ['products'=>0, 'expiry'=>0, 'stock'=>0, 'returns'=>0]);
         $this->get(route('notifications.index', ['search'=>'Kosong']))->assertOk()

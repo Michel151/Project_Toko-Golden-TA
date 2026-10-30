@@ -567,6 +567,10 @@
         .report-toolbar label, .procurement-filter label, .audit-filter label { color:var(--app-muted);font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;margin-bottom:4px; }
         .report-kpis .card-body { min-width:0;overflow-wrap:anywhere; }
         .report-kpi-value { font-size:1.2rem;font-variant-numeric:tabular-nums;margin:3px 0; }
+        .report-kpis .summary-card-link { cursor:pointer; }
+        .report-kpis .summary-card-link:hover { background:#f5f8f5; }
+        .report-kpis .summary-card-active { border:2px solid var(--stat-color)!important;background:#f5f8f5; }
+        .report-kpis .summary-card-link:focus-within { outline:3px solid var(--stat-color);outline-offset:2px; }
         @media(max-width:575px){.report-kpi-value{font-size:1.05rem}.report-kpis .card-body{padding:.85rem}}
         .report-page { min-width:0; }
         @media(max-width:767px) {
