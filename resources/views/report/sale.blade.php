@@ -15,7 +15,7 @@
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="app-unified-filter d-flex flex-wrap gap-2 align-items-end" method="GET">
         <input type="hidden" name="tab" id="saleReportActiveTab" value="{{ $activeTab }}">
-        <input type="hidden" name="products_sort" value="{{ $productsSort }}"><input type="hidden" name="products_unit" value="{{ $productsUnit }}">
+        <input type="hidden" name="products_sort" value="{{ $productsSort }}">
         <input type="hidden" name="margins_sort" value="{{ $marginsSort }}">
         @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
         <div><label for="saleReportCategory" class="d-block">Kategori</label><select id="saleReportCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $option)<option value="{{ $option->id }}" @selected($categoryId === $option->id)>{{ $option->name }}</option>@endforeach</select></div>
@@ -106,11 +106,10 @@
                     <input type="hidden" name="per_page" value="{{ $sales->perPage() }}"><input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="tab" value="products">
                     <input type="hidden" name="margins_page" value="{{ $productMargins->currentPage() }}">
                     <input type="hidden" name="margins_sort" value="{{ $marginsSort }}">
-                    <input type="hidden" name="category_id" value="{{ $categoryId }}">
                     <div><label for="saleProductsSort" class="form-label small mb-1">Urutkan Berdasarkan</label><select id="saleProductsSort" name="products_sort" class="form-select form-select-sm"><option value="revenue" @selected($productsSort === 'revenue')>Omzet Tertinggi</option><option value="quantity" @selected($productsSort === 'quantity')>Jumlah Kemasan</option></select></div>
-                    <div id="saleProductsUnitField" @if($productsSort !== 'quantity') hidden @endif><label for="saleProductsUnit" class="form-label small mb-1">Satuan Jual Utama</label><select id="saleProductsUnit" name="products_unit" class="form-select form-select-sm"><option value="">Semua satuan</option>@foreach($rankingUnits as $unit)<option value="{{ $unit['id'] }}" @selected((string)$productsUnit === (string)$unit['id'])>{{ $unit['name'] }}</option>@endforeach</select></div>
+                    <div><label for="saleProductsCategory" class="form-label small mb-1">Kategori</label><select id="saleProductsCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $option)<option value="{{ $option->id }}" @selected($categoryId === $option->id)>{{ $option->name }}</option>@endforeach</select></div>
                     <button class="btn btn-sm btn-primary">Terapkan</button>
-                <a href="{{ route('report.sale', ['from'=>$from,'to'=>$to,'category_id'=>$categoryId,'tab'=>'products','per_page'=>$sales->perPage()]) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
+                <a href="{{ route('report.sale', ['from'=>$from,'to'=>$to,'tab'=>'products','per_page'=>$sales->perPage(),'margins_sort'=>$marginsSort]) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
             </div>
             <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Produk terlaris">
                 <table id="saleTopProductsTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
@@ -142,7 +141,7 @@
             <input type="hidden" name="from" value="{{ $from }}"><input type="hidden" name="to" value="{{ $to }}">
             <input type="hidden" name="category_id" value="{{ $categoryId }}"><input type="hidden" name="per_page" value="{{ $sales->perPage() }}">
             <input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="products_page" value="{{ $topProducts->currentPage() }}">
-            <input type="hidden" name="products_sort" value="{{ $productsSort }}"><input type="hidden" name="products_unit" value="{{ $productsUnit }}">
+            <input type="hidden" name="products_sort" value="{{ $productsSort }}">
             <div><label for="saleMarginsSort">Urutkan Berdasarkan</label><select id="saleMarginsSort" name="margins_sort" class="form-select form-select-sm">
                 @foreach(['revenue'=>'Omzet Tertinggi','margin_desc'=>'Margin Tertinggi (%)','margin_asc'=>'Margin Terendah (%)','profit_desc'=>'Laba Kotor Tertinggi (Rp)','profit_asc'=>'Laba Kotor Terendah (Rp)'] as $value=>$label)
                     <option value="{{ $value }}" @selected($marginsSort === $value)>{{ $label }}</option>
@@ -196,11 +195,3 @@
 @endpush
 </div>
 @endsection
-
-@push('scripts')
-<script>
-document.getElementById('saleProductsSort').addEventListener('change', function () {
-    document.getElementById('saleProductsUnitField').hidden = this.value !== 'quantity';
-});
-</script>
-@endpush

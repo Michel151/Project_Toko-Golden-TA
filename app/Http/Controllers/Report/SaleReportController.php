@@ -43,10 +43,9 @@ class SaleReportController extends Controller
         $filters = $request->validate([
             'per_page'=>'nullable|integer|in:25,50,100', 'tab'=>'nullable|in:transactions,products,margins',
             'products_sort'=>'nullable|in:revenue,quantity', 'products_page'=>'nullable|integer|min:1',
-            'margins_page'=>'nullable|integer|min:1', 'products_unit'=>'nullable|integer|exists:units,id',
+            'margins_page'=>'nullable|integer|min:1',
             'margins_sort'=>'nullable|in:revenue,margin_desc,margin_asc,profit_desc,profit_asc',
         ]);
-        $productsUnit = $filters['products_unit'] ?? null;
         $productsSort = $filters['products_sort'] ?? 'revenue';
         $marginsSort = $filters['margins_sort'] ?? 'revenue';
         $activeTab = $filters['tab'] ?? 'transactions';
@@ -123,12 +122,6 @@ class SaleReportController extends Controller
                 $item->display_quantity = $displayProduct->displayStock((float) $item->total_qty);
             }
         });
-        $rankingUnits = $topProducts->filter(fn ($item) => $item->package_unit_id !== null)
-            ->map(fn ($item) => ['id'=>$item->package_unit_id, 'name'=>$item->package_unit])
-            ->unique('id')->sortBy('name')->values();
-        if ($productsSort === 'quantity' && $productsUnit) {
-            $topProducts = $topProducts->where('package_unit_id', (int) $productsUnit);
-        }
         $topProducts = $topProducts->sort(function ($a, $b) use ($productsSort) {
             if ($productsSort === 'quantity') {
                 $comparison = ($b->package_quantity ?? -1) <=> ($a->package_quantity ?? -1);
@@ -158,7 +151,7 @@ class SaleReportController extends Controller
             'sales', 'from', 'to',
             'totalAmount', 'totalTunai', 'totalTransfer', 'totalTrx',
             'grossProfit', 'incompleteCostCount', 'productMargins',
-            'topProducts', 'activeTab', 'productsSort', 'productsUnit', 'marginsSort', 'rankingUnits', 'categories', 'category', 'categoryId'
+            'topProducts', 'activeTab', 'productsSort', 'marginsSort', 'categories', 'category', 'categoryId'
         ));
     }
 

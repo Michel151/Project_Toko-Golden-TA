@@ -229,15 +229,16 @@ class SaleReportGrossProfitTest extends TestCase
         $this->report()->assertViewHas('productMargins',fn ($rows) => $rows->first()->gross_profit === -500.0
             && $rows->first()->margin_percentage === null)->assertSee('Rp -500');
     }
-    public function test_package_sort_and_unit_filter_use_main_sale_unit_before_pagination(): void
+    public function test_package_sort_and_category_filter_preserve_multi_units_before_pagination(): void
     {
         $box = Unit::create(['name'=>'Dus']);
         ProductUnit::create(['product_id'=>$this->product->id, 'unit_id'=>$box->id, 'conversion_to_base'=>12, 'is_default_sale'=>true]);
         $sale = $this->sale('paid','2026-10-21',100000,500);
         // Historical quantity remains usable even when a legacy item has no unit reference.
         $sale->items()->update(['product_unit_id'=>null, 'quantity'=>999, 'cost_base_quantity'=>27]);
+        $otherCategory = Category::create(['name'=>'Kategori Botol']);
         for ($i=0; $i<26; $i++) {
-            $product=$this->product->replicate(); $product->name='Botol '.$i; $product->save();
+            $product=$this->product->replicate(); $product->name='Botol '.$i; $product->category_id=$otherCategory->id; $product->save();
             $unit=$this->unit->replicate(); $unit->product_id=$product->id; $unit->is_default_sale=true; $unit->save();
             $other=$this->sale('paid','2026-10-21',1000,500);
             $other->items()->update(['product_id'=>$product->id,'product_unit_id'=>$unit->id,'quantity'=>10]);
@@ -247,13 +248,15 @@ class SaleReportGrossProfitTest extends TestCase
             ->assertViewHas('topProducts',fn($rows)=>$rows->first()->product_id===$this->product->id);
         $this->get(route('report.sale',$params+['products_sort'=>'quantity']))->assertOk()
             ->assertViewHas('topProducts',fn($rows)=>$rows->total()===27 && $rows->first()->package_quantity===10.0);
-        $this->get(route('report.sale',$params+['products_sort'=>'quantity','products_unit'=>$box->id]))->assertOk()
+        $this->get(route('report.sale',$params+['products_sort'=>'quantity','category_id'=>$this->product->category_id]))->assertOk()
             ->assertViewHas('topProducts',fn($rows)=>$rows->total()===1 && $rows->first()->package_quantity===2.25
                 && $rows->first()->display_quantity==='2 Dus 3 Botol')
-            ->assertSee('2 Dus 3 Botol');
-        $this->get(route('report.sale',$params+['products_sort'=>'quantity','products_unit'=>$this->unit->unit_id,'products_page'=>2]))->assertOk()
-            ->assertViewHas('topProducts',fn($rows)=>$rows->total()===26 && $rows->count()===1 && str_contains($rows->url(1),'products_unit='));
-        $this->getJson(route('report.sale',$params+['products_unit'=>999999]))->assertUnprocessable();
+            ->assertSee('2 Dus 3 Botol')->assertSee('saleProductsCategory')->assertDontSee('saleProductsUnit');
+        $this->get(route('report.sale',$params+['category_id'=>$otherCategory->id]))->assertOk()
+            ->assertViewHas('productsSort','revenue')->assertViewHas('topProducts',fn($rows)=>$rows->total()===26);
+        $this->get(route('report.sale',$params+['products_sort'=>'quantity','category_id'=>$otherCategory->id,'products_page'=>2]))->assertOk()
+            ->assertViewHas('topProducts',fn($rows)=>$rows->total()===26 && $rows->count()===1 && str_contains($rows->url(1),'category_id='));
+        $this->getJson(route('report.sale',$params+['category_id'=>999999]))->assertUnprocessable();
     }
 
 }
