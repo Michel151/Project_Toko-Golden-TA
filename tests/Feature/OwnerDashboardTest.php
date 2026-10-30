@@ -11,6 +11,50 @@ class OwnerDashboardTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_dashboard_and_report_share_historical_quantities_and_tie_order(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-30 12:00:00', 'Asia/Jakarta'));
+        $user = User::create(['name'=>'Owner', 'email'=>'ranking-parity@test.com', 'password'=>'password', 'role'=>'owner']);
+        $this->actingAs($user);
+        $category = Category::create(['name'=>'Perbandingan']);
+        $pcs = Unit::create(['name'=>'Pcs']);
+        $box = Unit::create(['name'=>'Dus']);
+        $old = Unit::create(['name'=>'Bal']);
+        $location = Location::create(['name'=>'Toko', 'is_active'=>true]);
+        $sale = Sale::create(['sale_number'=>'INV-PARITY', 'sale_date'=>'2026-10-25', 'status'=>'paid',
+            'total_amount'=>10000, 'payment_method'=>'tunai', 'created_by'=>$user->id]);
+        $ids = [];
+        foreach (['A snapshot', 'Z sources', 'Y conversion', 'B equal revenue'] as $i=>$name) {
+            $product = Product::create(['name'=>$name, 'category_id'=>$category->id, 'buy_unit_id'=>$box->id,
+                'buy_price'=>100, 'sell_price_wholesale'=>200, 'is_active'=>true]);
+            $ids[] = $product->id;
+            $base = ProductUnit::create(['product_id'=>$product->id, 'unit_id'=>$pcs->id, 'conversion_to_base'=>1, 'is_base_unit'=>true]);
+            $main = ProductUnit::create(['product_id'=>$product->id, 'unit_id'=>$box->id, 'conversion_to_base'=>12, 'is_default_sale'=>true]);
+            $changed = ProductUnit::create(['product_id'=>$product->id, 'unit_id'=>$old->id, 'conversion_to_base'=>100]);
+            $item = $sale->items()->create(['product_id'=>$product->id,
+                'product_unit_id'=>$i < 2 ? $changed->id : ($i === 2 ? $main->id : $base->id),
+                'quantity'=>$i === 3 ? 24 : 2, 'cost_base_quantity'=>$i === 0 ? 24 : null,
+                'sale_type'=>'grosir', 'unit_price'=>100, 'subtotal'=>[1000,3000,2000,2000][$i], 'cost_subtotal'=>100, 'cost_method'=>'moving_average']);
+            if ($i < 2) {
+                $item->sources()->create(['location_id'=>$location->id, 'quantity'=>1, 'base_quantity'=>$i === 0 ? 999 : 12]);
+                $item->sources()->create(['location_id'=>$location->id, 'quantity'=>1, 'base_quantity'=>12]);
+            }
+        }
+        $dashboard = $this->get(route('dashboard'))->assertOk()->viewData('topQuantityProducts');
+        $report = $this->get(route('report.sale', ['from'=>'2026-10-01', 'to'=>'2026-10-30',
+            'category_id'=>$category->id, 'products_sort'=>'quantity', 'tab'=>'products']))->assertOk()->viewData('topProducts');
+        $expected = [$ids[1], $ids[2], $ids[3], $ids[0]];
+        $this->assertSame($expected, $dashboard->pluck('id')->all());
+        $this->assertSame($expected, $report->pluck('product_id')->all());
+        foreach ($dashboard as $row) {
+            $matching = $report->firstWhere('product_id', $row->id);
+            $this->assertEquals(24, $row->base_quantity);
+            $this->assertEquals($row->base_quantity, $matching->total_qty);
+            $this->assertSame('2 Dus', $row->display_quantity);
+            $this->assertSame($row->display_quantity, $matching->display_quantity);
+        }
+    }
+
     public function test_owner_metrics_use_paid_sales_historical_cost_and_matching_dates(): void
     {
         $this->travelTo(\Carbon\Carbon::parse('2026-10-14 10:00:00', 'Asia/Jakarta'));

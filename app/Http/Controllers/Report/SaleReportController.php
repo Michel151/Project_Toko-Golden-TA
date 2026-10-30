@@ -92,8 +92,7 @@ class SaleReportController extends Controller
             })->values();
 
         // Prefer the historical quantity snapshot; legacy rows fall back to their unit conversion.
-        $sourceQuantity = '(SELECT CASE WHEN COUNT(*) = COUNT(base_quantity) THEN SUM(base_quantity) ELSE NULL END FROM sale_item_sources WHERE sale_item_sources.sale_item_id = sale_items.id)';
-        $baseQuantity = "COALESCE(sale_items.cost_base_quantity, {$sourceQuantity}, sale_items.quantity * COALESCE(product_units.conversion_to_base, CASE WHEN sale_items.sale_type = 'grosir' AND products.can_retail = 1 THEN products.conversion_factor ELSE 1 END))";
+        $baseQuantity = \App\Support\SaleQuantity::baseQuantitySql();
         $perPage = (int) ($filters['per_page'] ?? 25);
         $topProducts = SaleItem::select('sale_items.product_id', DB::raw("SUM({$baseQuantity}) as total_qty"), DB::raw('SUM(sale_items.subtotal) as total_amount'))
             ->leftJoin('product_units', 'product_units.id', '=', 'sale_items.product_unit_id')

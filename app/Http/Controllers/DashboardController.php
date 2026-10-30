@@ -133,10 +133,10 @@ class DashboardController extends Controller
                 DB::raw('SUM(sale_items.subtotal) as revenue'),
                 DB::raw('SUM(sale_items.quantity) as quantity'),
             ]);
+        $baseQuantity = \App\Support\SaleQuantity::baseQuantitySql();
         $topQuantityProducts = (clone $topProductQuery)
-            ->join('product_units as sale_unit', 'sale_unit.id', '=', 'sale_items.product_unit_id')
-            ->orderByDesc(DB::raw('SUM(sale_items.quantity * sale_unit.conversion_to_base)'))
-            ->get(['products.id','products.name','products.category_id',DB::raw('SUM(sale_items.quantity * sale_unit.conversion_to_base) as base_quantity')]);
+            ->join('product_units', 'product_units.id', '=', 'sale_items.product_unit_id')
+            ->get(['products.id','products.name','products.category_id',DB::raw("SUM({$baseQuantity}) as base_quantity"), DB::raw('SUM(sale_items.subtotal) as revenue')]);
         $rankedProducts = Product::with(['productUnits.unit', 'buyUnit', 'retailUnit'])->whereIn('id', $topQuantityProducts->pluck('id'))->get()->keyBy('id');
         $topQuantityProducts->each(function ($item) use ($rankedProducts) {
             $product = $rankedProducts->get($item->id);
@@ -158,7 +158,7 @@ class DashboardController extends Controller
             }
         });
         $topQuantityProducts = $topQuantityProducts->filter(fn ($item) => $item->package_quantity !== null)
-            ->sort(fn ($a, $b) => ($b->package_quantity <=> $a->package_quantity) ?: strcmp($a->name, $b->name))
+            ->sort(fn ($a, $b) => ($b->package_quantity <=> $a->package_quantity) ?: (($b->revenue <=> $a->revenue) ?: ($a->id <=> $b->id)))
             ->values();
         $rankingCategories = \App\Models\Category::whereIn('id', $topProducts->pluck('category_id')->filter())->orderBy('name')->get(['id', 'name']);
 
