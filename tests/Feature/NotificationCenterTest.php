@@ -44,6 +44,32 @@ class NotificationCenterTest extends TestCase
             'buy_price' => 1000, 'sell_price_wholesale' => 1500, 'is_active' => true, 'min_stock_total' => 0], $attributes));
     }
 
+    public function test_summary_counts_unique_products_and_only_conditions_matching_the_filters(): void
+    {
+        $this->actingAs($this->owner);
+        $mixed = $this->product('Gabungan', ['is_expirable'=>true, 'min_stock_total'=>100]);
+        $a = $this->stock($mixed, 'Lokasi A', 5, 10);
+        $b = $this->stock($mixed, 'Lokasi B', 4, 10);
+        $this->batch($mixed, $a, -1, 1);
+        $this->batch($mixed, $a, 5, 4);
+        $this->batch($mixed, $b, 5, 4);
+        $empty = $this->product('Kosong');
+        $this->stock($empty, 'Lokasi C', 0, 5);
+        $this->get(route('notifications.index'))->assertOk()->assertSee('Ringkasan notifikasi')
+            ->assertViewHas('summary', ['products'=>2, 'expiry'=>1, 'stock'=>2, 'returns'=>0]);
+        $this->get(route('notifications.index', ['condition'=>'expired']))->assertOk()
+            ->assertViewHas('summary', ['products'=>1, 'expiry'=>1, 'stock'=>0, 'returns'=>0]);
+        $this->get(route('notifications.index', ['condition'=>'expired', 'location_id'=>$b->id]))->assertOk()
+            ->assertViewHas('summary', ['products'=>0, 'expiry'=>0, 'stock'=>0, 'returns'=>0]);
+        $this->get(route('notifications.index', ['search'=>'Kosong']))->assertOk()
+            ->assertViewHas('summary', ['products'=>1, 'expiry'=>0, 'stock'=>1, 'returns'=>0]);
+        for ($i=0; $i<12; $i++) {
+            $this->stock($this->product('Stock '.$i), 'Vide '.$i, 0, 1);
+        }
+        $this->get(route('notifications.index', ['page'=>2]))->assertOk()
+            ->assertViewHas('summary', ['products'=>14, 'expiry'=>1, 'stock'=>14, 'returns'=>0]);
+    }
+
     private function stock(Product $product, string $name, float $quantity, float $minimum): Location
     {
         $location = Location::firstOrCreate(['name' => $name]);

@@ -42,6 +42,7 @@ class ReturnNotificationTest extends TestCase
             ->assertSee(route('purchase.returns.create', ['receipt_id'=>$receipt->id]), false)
             ->assertSee(route('purchase.receipts.show', $receipt->id), false);
         $this->assertSame(1, $response->viewData('notifications')->total());
+        $this->assertSame(['products'=>1, 'expiry'=>0, 'stock'=>0, 'returns'=>1], $response->viewData('summary'));
         $issues = collect($response->viewData('notifications')->first()['conditions'])->where('kind', 'return_pending');
         $this->assertCount(3, $issues);
         $this->assertSame([], $issues->firstWhere('issue_kind', 'missing')['location_ids']);

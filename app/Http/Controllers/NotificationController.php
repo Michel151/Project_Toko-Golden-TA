@@ -39,12 +39,20 @@ class NotificationController extends Controller
             $item['summary'] = $primary['message'];
             return $item;
         })->values();
+        $countConditions = fn (array $kinds) => $items->filter(fn ($item) => collect($item['conditions'])
+            ->contains(fn ($condition) => $matchesCondition($condition) && in_array($condition['kind'], $kinds, true)))->count();
+        $summary = [
+            'products' => $items->count(),
+            'expiry' => $countConditions(['expired', 'expiry_today', 'expiring']),
+            'stock' => $countConditions(['out_of_stock', 'low_stock']),
+            'returns' => $countConditions(['return_pending']),
+        ];
         $page = min((int) ($filters['page'] ?? 1), max(1, (int) ceil($items->count() / 12)));
         $notifications = new LengthAwarePaginator($items->forPage($page, 12)->values(), $items->count(), 12, $page,
             ['path' => $request->url(), 'query' => $request->except('page')]);
 
         return view('notifications.index', [
-            'notifications' => $notifications, 'totalProducts' => $all->count(),
+            'notifications' => $notifications, 'totalProducts' => $all->count(), 'summary' => $summary,
             'hasAppliedFilters' => trim($filters['search'] ?? '') !== '' || ! empty($filters['condition']) || ! empty($filters['location_id']) || ! empty($filters['product_id']),
             'filters' => $filters, 'conditionOptions' => NotificationService::FILTERS,
             'locations' => Location::orderBy('name')->get(),

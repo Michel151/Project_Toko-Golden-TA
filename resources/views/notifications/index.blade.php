@@ -6,6 +6,13 @@
     <h4 class="fw-bold">Notifikasi Persediaan</h4>
     <p class="text-muted mb-0">@if($hasAppliedFilters){{ $notifications->total() }} produk sesuai filter dari {{ $totalProducts }} produk perlu perhatian.@else{{ $totalProducts }} produk perlu perhatian.@endif Diurutkan dari kondisi paling mendesak.</p>
 </div>
+@include('components.report-kpis', ['summaryLabel'=>'Ringkasan notifikasi', 'metrics'=>[
+    ['label'=>'Produk Perlu Perhatian', 'value'=>number_format($summary['products'],0,',','.').' produk', 'hint'=>'Dari '.number_format($totalProducts,0,',','.').' produk perlu perhatian', 'icon'=>'bell', 'tone'=>'primary'],
+    ['label'=>'Risiko Kedaluwarsa', 'value'=>number_format($summary['expiry'],0,',','.').' produk', 'hint'=>'Sudah, hari ini, atau mendekati kedaluwarsa', 'icon'=>'calendar-x', 'tone'=>'danger'],
+    ['label'=>'Stok Habis/Rendah', 'value'=>number_format($summary['stock'],0,',','.').' produk', 'hint'=>'Stok layak jual perlu perhatian', 'icon'=>'box-seam', 'tone'=>'warning'],
+    ['label'=>'Perlu Retur/Klaim', 'value'=>number_format($summary['returns'],0,',','.').' produk', 'hint'=>'Masih ada masalah yang belum diajukan', 'icon'=>'box-arrow-up', 'tone'=>'warning'],
+]])
+<p class="small text-muted mb-3">Ringkasan mengikuti filter. Satu produk dapat masuk lebih dari satu kelompok kondisi.</p>
 <form method="GET" action="{{ route('notifications.index') }}" class="app-unified-filter card card-body mb-3">
     <div class="row g-3 align-items-end">
         <div class="col-md-4"><label for="notificationSearch" class="form-label">Cari produk</label><input id="notificationSearch" name="search" class="form-control" value="{{ $filters['search'] ?? '' }}" maxlength="150" placeholder="Nama atau kode/barcode produk"></div>

@@ -1,4 +1,4 @@
-<div class="row g-3 mb-3 report-kpis" aria-label="Ringkasan laporan">
+<div class="row g-3 mb-3 report-kpis" aria-label="{{ $summaryLabel ?? 'Ringkasan laporan' }}">
     @foreach($metrics as $metric)
     @php
         $accent = ['primary'=>'#0d6efd', 'success'=>'#198754', 'warning'=>'#c8960c', 'danger'=>'#dc3545', 'info'=>'#0dcaf0'][$metric['tone']] ?? '#6c757d';
