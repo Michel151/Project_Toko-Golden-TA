@@ -2,6 +2,13 @@
 @section('title', 'Stock Opname')
 @section('page-title', 'Stock Opname')
 
+@push('styles')
+<style>
+.page-content .table .btn.opname-edit-action:hover,
+.page-content .table .btn.opname-edit-action:focus-visible{color:#253b2f;background:#f2c75c;border-color:#f2c75c}
+</style>
+@endpush
+
 @section('content')
 <div class="inventory-heading d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h5><i class="bi bi-clipboard-check me-2"></i>Stock Opname</h5>
@@ -55,7 +62,7 @@
                     <td class="text-center">
                         <a href="{{ route('inventory.opnames.show', $opname) }}" class="btn btn-sm btn-outline-info py-0 px-2"><i class="bi bi-eye"></i></a>
                         @if($opname->status === 'draft')
-                        @if(auth()->user()->canAccessRoute('inventory.opnames.edit')) <a href="{{ route('inventory.opnames.edit', $opname) }}" class="btn btn-sm btn-outline-warning py-0 px-2"><i class="bi bi-pencil"></i></a> @endif
+                        @if(auth()->user()->canAccessRoute('inventory.opnames.edit')) <a href="{{ route('inventory.opnames.edit', $opname) }}" class="btn btn-sm btn-outline-warning opname-edit-action py-0 px-2"><i class="bi bi-pencil"></i></a> @endif
                         @endif
                         @if($opname->status === 'draft')
                         @if(auth()->user()->canAccessRoute('inventory.opnames.destroy')) <form method="POST" action="{{ route('inventory.opnames.destroy', $opname) }}" class="d-inline" data-confirm="Hapus draft opname ini?">
