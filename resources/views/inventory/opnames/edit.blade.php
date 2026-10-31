@@ -65,8 +65,8 @@
                     </td>
                     <td class="opname-notes-cell">
                         <label class="visually-hidden" for="opnameNotes{{ $item->id }}">Keterangan {{ $product->name }}</label>
-                        <textarea id="opnameNotes{{ $item->id }}" name="items[{{ $item->id }}][notes]" rows="1" maxlength="1000" class="form-control form-control-sm opname-notes @error('items.'.$item->id.'.notes') is-invalid @enderror" aria-describedby="opnameNotesHelp{{ $item->id }} opnameNotesError{{ $item->id }}" placeholder="Keterangan hasil pemeriksaan">{{ old('items.'.$item->id.'.notes', $item->notes) }}</textarea>
-                        <div id="opnameNotesHelp{{ $item->id }}" class="small text-muted" data-notes-help>Opsional</div>
+                        <textarea id="opnameNotes{{ $item->id }}" name="items[{{ $item->id }}][notes]" rows="1" maxlength="1000" class="form-control form-control-sm opname-notes @error('items.'.$item->id.'.notes') is-invalid @enderror" aria-describedby="opnameNotesHelp{{ $item->id }} opnameNotesError{{ $item->id }}" placeholder="Keterangan (opsional)">{{ old('items.'.$item->id.'.notes', $item->notes) }}</textarea>
+                        <div id="opnameNotesHelp{{ $item->id }}" class="small text-muted" data-notes-help hidden></div>
                         <div id="opnameNotesError{{ $item->id }}" class="invalid-feedback">{{ $errors->first('items.'.$item->id.'.notes') ?: 'Keterangan wajib diisi sebelum menyelesaikan opname karena terdapat perbedaan.' }}</div>
                     </td>
                 </tr>

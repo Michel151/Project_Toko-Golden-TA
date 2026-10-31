@@ -78,8 +78,10 @@
         const changed = difference !== 0 || expiryChanged;
         main.dataset.countChanged = String(changed);
         const notes = main.querySelector('.opname-notes');
-        main.querySelector('[data-notes-help]').textContent = changed
-            ? '* Wajib saat menyelesaikan opname' : 'Opsional';
+        notes.placeholder = changed ? 'Keterangan selisih' : 'Keterangan (opsional)';
+        const notesHelp = main.querySelector('[data-notes-help]');
+        notesHelp.textContent = changed ? '* Wajib saat menyelesaikan opname' : '';
+        notesHelp.hidden = !changed;
         if (!changed || notes.value.trim()) {
             notes.classList.remove('is-invalid');
             notes.removeAttribute('aria-invalid');

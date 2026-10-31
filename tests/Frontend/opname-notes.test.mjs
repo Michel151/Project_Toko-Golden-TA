@@ -55,6 +55,8 @@ test('quantity differences mark notes for completion without requiring them for 
         ui.update();
         assert.equal(ui.main.dataset.countChanged, 'true');
         assert.match(ui.help.textContent, /Wajib saat menyelesaikan/);
+        assert.equal(ui.help.hidden, false);
+        assert.equal(ui.notes.placeholder, 'Keterangan selisih');
         assert.ok(!ui.notes.required);
         ui.notes.value = '   ';
         await ui.complete();
@@ -96,7 +98,8 @@ test('matching counts leave notes optional including after a correction is rever
     ui.expiryRows[0].physical.value = 5;
     ui.update();
     assert.equal(ui.main.dataset.countChanged, 'false');
-    assert.equal(ui.help.textContent, 'Opsional');
+    assert.equal(ui.help.hidden, true);
+    assert.equal(ui.notes.placeholder, 'Keterangan (opsional)');
     assert.ok(!ui.classes.has('is-invalid'));
     await ui.complete();
     assert.equal(ui.form.submitted, true);
