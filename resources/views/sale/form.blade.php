@@ -122,8 +122,9 @@
                         <span>Subtotal (Rp)</span>
                         <span class="text-end">Aksi</span>
                     </div>
-                    <div id="itemsContainer"></div>
-                    <div id="cartEmpty" class="cart-empty">Keranjang kosong</div>
+                    <div id="cartLoading" class="cart-empty" role="status" aria-live="polite" @if(!$editing) hidden @endif>Memuat barang transaksi…</div>
+                    <div id="itemsContainer" aria-busy="{{ $editing ? 'true' : 'false' }}" @if($editing) hidden @endif></div>
+                    <div id="cartEmpty" class="cart-empty" @if($editing) hidden @endif>Keranjang kosong</div>
                 </div>
             </div>
         </div>
@@ -220,6 +221,7 @@ document.getElementById('defaultSourceLocation').innerHTML = locations.map(locat
 let itemIndex = 0;
 let activeCatalogRow = null;
 let activeCatalogCategory = 'all';
+let cartLoading = @json($editing);
 
 function formatNumber(n) {
     return new Intl.NumberFormat('id-ID').format(Math.round(n));
@@ -261,7 +263,7 @@ function filterCart() {
     });
     document.getElementById('cartFilterCount').textContent = query ? `${visible} dari ${rows.length} baris` : '';
     const empty = document.getElementById('cartEmpty');
-    empty.hidden = visible > 0;
+    empty.hidden = cartLoading || visible > 0;
     empty.textContent = rows.length ? 'Barang tidak ditemukan di keranjang' : 'Keranjang kosong';
 }
 document.getElementById('cartSearch').addEventListener('input', filterCart);
@@ -1026,9 +1028,12 @@ function restoreItemFromOld(div, item) {
 const oldItemList = normalizeOldList(oldItems);
 if (oldItemList.length) {
     oldItemList.forEach(item => restoreItemFromOld(addItem(false), item));
-} else {
-    updateItemCounter();
 }
+cartLoading = false;
+document.getElementById('itemsContainer').hidden = false;
+document.getElementById('itemsContainer').setAttribute('aria-busy', 'false');
+document.getElementById('cartLoading').hidden = true;
+updateItemCounter();
 
 function renderCatalogCategories() {
     const categories = [...new Map(products.map(product => [
