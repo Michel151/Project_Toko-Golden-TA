@@ -25,7 +25,9 @@ function initializeDecimalCurrencyInputs(container = document) {
         initializedDecimalCurrencyInputs.add(input);
         input.type = 'text';
         input.inputMode = 'decimal';
-        input.classList.add('text-end');
+        const alignLeft = input.dataset.currencyAlign === 'left';
+        input.classList.toggle('text-start', alignLeft);
+        input.classList.toggle('text-end', !alignLeft);
         input.value = formatDecimalCurrencyValue(input.value);
         const sync = () => {
             const entered = input.value;
