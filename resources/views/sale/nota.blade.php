@@ -107,8 +107,8 @@
     <div class="item-name">{{ $item->product->name }}</div>
     <table>
         <tr>
-            <td>{{ \App\Support\DisplayNumber::quantity($item->quantity) }} {{ $item->productUnit->unit->name ?? '' }} x Rp {{ number_format($item->unit_price, 0, ',', '.') }}</td>
-            <td class="right item-subtotal">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
+            <td>{{ \App\Support\DisplayNumber::quantity($item->quantity) }} {{ $item->productUnit->unit->name ?? '' }} x {{ number_format($item->unit_price, 0, ',', '.') }}</td>
+            <td class="right item-subtotal">{{ number_format($item->subtotal, 0, ',', '.') }}</td>
         </tr>
     </table>
 </div>
