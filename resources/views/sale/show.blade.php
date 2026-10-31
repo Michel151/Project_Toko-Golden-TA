@@ -2,6 +2,15 @@
 @section('title', $sale->sale_number)
 @section('page-title', 'Detail Transaksi')
 
+@push('styles')
+<style>
+.sale-items-scroll { max-height:65vh; max-height:65dvh; overflow:auto; }
+.sale-items-table { min-width:780px; }
+.sale-items-table > thead > tr > th { position:sticky; top:0; z-index:2; background:#edf2ee!important; white-space:nowrap; }
+@media(max-width:575px) { .sale-items-scroll { max-height:70vh; max-height:70dvh; } }
+</style>
+@endpush
+
 @section('content')
 <div class="inventory-heading"><h5><i class="bi bi-receipt me-2"></i>{{ $sale->sale_number }}</h5></div>
 <div class="mb-3 d-flex gap-2">
@@ -60,8 +69,8 @@
     <div class="col-md-8">
         <div class="card table-card">
             <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Daftar Barang</h6></div>
-            <div class="card-body p-0 table-responsive">
-                <table class="table table-sm mb-0">
+            <div class="card-body p-0 table-responsive sale-items-scroll" tabindex="0" role="region" aria-label="Daftar barang transaksi penjualan">
+                <table class="table table-sm mb-0 sale-items-table">
                     <thead><tr><th>Barang</th><th class="text-center">Jenis</th><th class="text-end">Qty</th><th class="text-end">Harga</th><th class="text-end">Subtotal</th><th>Sumber Stok</th></tr></thead>
                     <tbody>
                         @foreach($sale->items as $item)
