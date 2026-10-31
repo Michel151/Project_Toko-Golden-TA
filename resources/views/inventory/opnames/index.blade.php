@@ -53,10 +53,10 @@
                     </td>
                     <td class="text-muted small">{{ $opname->createdBy->name ?? '-' }}</td>
                     <td class="text-center">
+                        <a href="{{ route('inventory.opnames.show', $opname) }}" class="btn btn-sm btn-outline-info py-0 px-2"><i class="bi bi-eye"></i></a>
                         @if($opname->status === 'draft')
                         @if(auth()->user()->canAccessRoute('inventory.opnames.edit')) <a href="{{ route('inventory.opnames.edit', $opname) }}" class="btn btn-sm btn-outline-warning py-0 px-2"><i class="bi bi-pencil"></i></a> @endif
                         @endif
-                        <a href="{{ route('inventory.opnames.show', $opname) }}" class="btn btn-sm btn-outline-info py-0 px-2"><i class="bi bi-eye"></i></a>
                         @if($opname->status === 'draft')
                         @if(auth()->user()->canAccessRoute('inventory.opnames.destroy')) <form method="POST" action="{{ route('inventory.opnames.destroy', $opname) }}" class="d-inline" data-confirm="Hapus draft opname ini?">
                             @csrf @method('DELETE')
