@@ -33,7 +33,7 @@
         page-break-inside: avoid;
     }
     .item-name {
-        width: 100%;
+        max-width: 140px;
         line-height: 1.35;
         overflow-wrap: anywhere;
         word-wrap: break-word;
