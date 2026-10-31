@@ -48,7 +48,7 @@
                         @endif
                     </td>
                     <td class="text-end fw-semibold opname-difference"><span class="item-difference"></span>
-                        @if(auth()->user()->isOwner() && app(\App\Services\MovingAverageCostService::class)->canTrack($item->product))
+                        @if($trackableProducts[$item->product_id] ?? false)
                             @php
                                 $valuationCost = old('items.'.$item->id.'.valuation_unit_cost', $item->valuation_unit_cost);
                                 if (is_string($valuationCost) && str_contains($valuationCost, '.')) {

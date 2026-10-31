@@ -116,7 +116,11 @@ class OpnameController extends Controller
             return redirect()->route('inventory.opnames.index')->with('error', collect($exception->errors())->flatten()->first());
         }
         $opname->load(['location', 'items.expiryCounts', 'items.product.buyUnit', 'items.product.retailUnit', 'items.product.baseProductUnit.unit', 'items.product.productUnits.unit']);
-        return view('inventory.opnames.edit', compact('opname'));
+        $trackableProducts = auth()->user()->isOwner()
+            ? app(\App\Services\MovingAverageCostService::class)->canTrackMany(
+                new \Illuminate\Database\Eloquent\Collection($opname->items->pluck('product')->all())
+            ) : [];
+        return view('inventory.opnames.edit', compact('opname', 'trackableProducts'));
     }
 
     public function update(Request $request, StockOpname $opname)

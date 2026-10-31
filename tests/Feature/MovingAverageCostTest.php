@@ -43,6 +43,66 @@ class MovingAverageCostTest extends TestCase
         app(MovingAverageCostService::class)->activate();
     }
 
+    public function test_batch_tracking_matches_individual_checks_in_all_cost_modes(): void
+    {
+        $empty = $this->product->replicate();
+        $empty->name = 'Empty';
+        $empty->save();
+        Stock::create(['product_id'=>$this->product->id, 'location_id'=>$this->location->id, 'quantity'=>5]);
+        $pending = $this->sale(5, 'pending');
+        $service = app(MovingAverageCostService::class);
+        $assertEquivalent = function () use ($service) {
+            $expected = Product::all()->mapWithKeys(fn ($product) => [$product->id=>$service->canTrack($product)])->all();
+            $this->assertSame($expected, $service->canTrackMany(Product::all()));
+        };
+        $assertEquivalent(); // Disabled, including an empty product.
+        $this->automatic();
+        $assertEquivalent(); // Zero stock with a known pending reservation must remain legacy.
+        $otherLocation = Location::create(['name'=>'Gudang lain']);
+        $fractionalStock = Stock::create(['product_id'=>$empty->id, 'location_id'=>$otherLocation->id, 'quantity'=>'0.0001']);
+        $assertEquivalent(); // Eligibility includes fractional stock in every location.
+        $fractionalStock->delete();
+        DB::table('sale_item_sources')->update(['base_quantity'=>null]);
+        $assertEquivalent(); // Unknown legacy reservation must not be treated as zero.
+        $pending->update(['status'=>'paid']);
+        $assertEquivalent(); // Paid reservations do not contribute to owned stock.
+        InventoryCostBalance::create(['product_id'=>$this->product->id, 'quantity'=>0,
+            'inventory_value'=>0, 'average_cost'=>0, 'activated_at'=>now()]);
+        $assertEquivalent();
+        DB::table('inventory_cost_settings')->where('id', 1)->update(['automatic_from_zero'=>false, 'enabled_at'=>now()]);
+        $assertEquivalent(); // Manual mode accepts activated balances only.
+        DB::table('inventory_cost_settings')->where('id', 1)->update(['enabled_at'=>null]);
+        $assertEquivalent(); // Disabled mode ignores even an activated balance.
+    }
+
+    public function test_opname_edit_cost_queries_are_bounded_for_many_products(): void
+    {
+        $this->automatic();
+        $opname = \App\Models\StockOpname::create(['opname_number'=>'OPN/query-test',
+            'location_id'=>$this->location->id, 'opname_date'=>today(), 'status'=>'draft', 'created_by'=>$this->owner->id]);
+        for ($i = 0; $i < 40; $i++) {
+            $product = $this->product->replicate();
+            $product->name = 'Query product '.$i;
+            $product->save();
+            Stock::create(['product_id'=>$product->id, 'location_id'=>$this->location->id, 'quantity'=>$i % 2]);
+            $opname->items()->create(['product_id'=>$product->id, 'system_quantity'=>$i % 2,
+                'physical_quantity'=>$i % 2, 'difference'=>0, 'tracks_expiry'=>false]);
+        }
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            $response = $this->get(route('inventory.opnames.edit', $opname))->assertOk();
+            $queries = collect(DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+        }
+        $costQueries = $queries->filter(fn ($query) => preg_match('/inventory_cost_settings|inventory_cost_balances|sale_item_sources|SUM\(quantity\) AS total/', $query['query']));
+        $this->assertCount(4, $costQueries, $costQueries->pluck('query')->implode("\n"));
+        $this->assertSame(40, substr_count($response->getContent(), 'data-opname-item='));
+        $this->assertSame(20, substr_count($response->getContent(), '<div data-valuation-field hidden>'));
+        $response->assertSee('Simpan Draf')->assertSee('Selesaikan Opname');
+    }
+
     private function sale(float $quantity, string $status = 'paid'): Sale
     {
         $this->post(route('sale.sales.store'), ['sale_status' => $status, 'sale_date' => '2026-10-21',

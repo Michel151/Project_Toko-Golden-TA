@@ -31,6 +31,39 @@ class MovingAverageCostService
         catch (ValidationException) { return false; }
     }
 
+    /** Read-only eligibility for a page of products, without per-product queries. */
+    public function canTrackMany(\Illuminate\Database\Eloquent\Collection $products): array
+    {
+        $result = $products->mapWithKeys(fn (Product $product) => [$product->id => false])->all();
+        if ($products->isEmpty()) return $result;
+        $settings = DB::table('inventory_cost_settings')->where('id', 1)->firstOrFail();
+        if ($settings->enabled_at === null && !(bool) $settings->automatic_from_zero) return $result;
+
+        $products->loadMissing('costBalance');
+        $pending = [];
+        foreach ($products as $product) {
+            if ($product->costBalance?->activated_at) $result[$product->id] = true;
+            elseif ((bool) $settings->automatic_from_zero) $pending[] = $product->id;
+        }
+        if (!$pending) return $result;
+
+        $stocks = Stock::whereIn('product_id', $pending)->select('product_id')
+            ->selectRaw('SUM(quantity) AS total')->groupBy('product_id')->pluck('total', 'product_id');
+        $reserved = DB::table('sale_item_sources')->join('sale_items', 'sale_items.id', '=', 'sale_item_sources.sale_item_id')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')->whereIn('sale_items.product_id', $pending)
+            ->where('sales.status', 'pending')->select('sale_items.product_id')
+            ->selectRaw('SUM(base_quantity) AS total, SUM(CASE WHEN base_quantity IS NULL THEN 1 ELSE 0 END) AS unknown_quantity')
+            ->groupBy('sale_items.product_id')->get()->keyBy('product_id');
+        foreach ($pending as $id) {
+            $held = $reserved->get($id);
+            // Match ownedQuantity(): unknown legacy reservations cannot start automatic costing.
+            if ($held && $held->unknown_quantity > 0) continue;
+            $result[$id] = BigDecimal::of((string) ($stocks->get($id) ?? '0'))
+                ->plus((string) ($held?->total ?? '0'))->toScale(4, RoundingMode::HalfUp)->isZero();
+        }
+        return $result;
+    }
+
     // All stock/cost writers take this gate before changing quantities or valuation.
     public function lock(): void
     {

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 const source = readFileSync(new URL('../../resources/views/inventory/opnames/count-scripts.blade.php', import.meta.url), 'utf8');
-const updateItem = source.slice(source.indexOf('    function updateItem('), source.indexOf('    function bindQuantity('));
+const updateItem = source.slice(source.indexOf('    function clearNotesError('), source.indexOf('    function bindQuantity('));
 const completion = source.slice(source.indexOf("    document.getElementById('btnSelesaikan')"), source.lastIndexOf('})();'));
 
 function fixture(expiry = false) {
@@ -36,7 +36,10 @@ function fixture(expiry = false) {
     const button = { addEventListener(_, handler) { this.click = handler; } };
     const search = { value: 'filtered out', dispatchEvent() { this.refreshed = true; } };
     let confirmations = 0;
+    const detail = form.querySelector('[data-expiry-item="1"]');
     const context = vm.createContext({ form, search, Event, Number, Math,
+        mainRows: [main], mainById: new Map([['1', main]]), detailById: new Map([['1', detail]]),
+        itemCache: new WeakMap(), expiryCache: new WeakMap(),
         round: value => Math.round(value * 10000) / 10000,
         formatQuantity: () => '', paintDifference() {},
         document: { getElementById: () => button },
@@ -101,6 +104,31 @@ test('matching counts leave notes optional including after a correction is rever
     assert.equal(ui.help.hidden, true);
     assert.equal(ui.notes.placeholder, 'Keterangan (opsional)');
     assert.ok(!ui.classes.has('is-invalid'));
+    await ui.complete();
+    assert.equal(ui.form.submitted, true);
+});
+
+test('cached item references still include added expiry rows and exclude removed rows', async () => {
+    const ui = fixture(true);
+    ui.update();
+    const added = {
+        physical: { value: 0.25 }, diff: { dataset: { system: '0' } },
+        querySelector(selector) { return selector === '.physical-value' ? this.physical : this.diff; },
+    };
+    ui.expiryRows.push(added);
+    ui.update();
+    assert.equal(ui.physical.value, 10.25);
+    assert.equal(ui.main.dataset.countChanged, 'true');
+    await ui.complete();
+    assert.equal(ui.form.submitted, false);
+    // Reuse the same input references, but always read their current values.
+    added.physical.value = 0.5;
+    ui.update();
+    assert.equal(ui.physical.value, 10.5);
+    ui.expiryRows.pop();
+    ui.update();
+    assert.equal(ui.physical.value, 10);
+    assert.equal(ui.main.dataset.countChanged, 'false');
     await ui.complete();
     assert.equal(ui.form.submitted, true);
 });
