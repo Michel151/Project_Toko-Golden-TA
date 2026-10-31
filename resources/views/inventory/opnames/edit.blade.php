@@ -53,7 +53,7 @@
                                     $valuationCost = rtrim(rtrim($valuationCost, '0'), '.');
                                 }
                             @endphp
-                            <div data-valuation-field>
+                            <div data-valuation-field hidden>
                             <label class="d-block small fw-normal mt-1" for="opnameCost{{ $item->id }}">Nilai perolehan penambahan / satuan dasar (Rp)</label>
                             <input id="opnameCost{{ $item->id }}" type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end" data-valuation-display aria-describedby="opnameCostHelp{{ $item->id }}">
                             <input type="hidden" name="items[{{ $item->id }}][valuation_unit_cost]" value="{{ $valuationCost }}" data-valuation-value>
