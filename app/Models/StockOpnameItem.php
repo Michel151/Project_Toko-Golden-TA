@@ -14,6 +14,7 @@ class StockOpnameItem extends Model
         'difference',
         'tracks_expiry',
         'valuation_unit_cost',
+        'notes',
     ];
 
     protected $casts = [
@@ -37,5 +38,12 @@ class StockOpnameItem extends Model
     public function expiryCounts()
     {
         return $this->hasMany(StockOpnameExpiry::class)->orderByRaw('expired_date IS NULL')->orderBy('expired_date')->orderBy('id');
+    }
+
+    public function hasCountDifference(): bool
+    {
+        return round((float) $this->physical_quantity - (float) $this->system_quantity, 4) != 0
+            || $this->expiryCounts->contains(fn ($entry) =>
+                round((float) $entry->physical_quantity - (float) $entry->system_quantity, 4) != 0);
     }
 }

@@ -381,7 +381,7 @@ class MovingAverageCostTest extends TestCase
         $opname = \App\Models\StockOpname::firstOrFail();
         $item = $opname->items()->firstOrFail();
         $this->capture('costing-opname', route('inventory.opnames.edit', $opname));
-        $payload = ['items' => [$item->id => ['physical_quantity' => 105, 'valuation_unit_cost' => '12000']]];
+        $payload = ['items' => [$item->id => ['physical_quantity' => 105, 'valuation_unit_cost' => '12000', 'notes' => 'Ditemukan stok tambahan saat pemeriksaan.']]];
         $this->post(route('inventory.opnames.complete', $opname), $payload)->assertSessionHasNoErrors();
         $this->balance(105, 1060000, 10095.2380952381);
         $this->assertSame('completed', $opname->fresh()->status);

@@ -4,6 +4,7 @@
 @section('page-title', 'Buat Stock Opname Baru')
 @push('styles')
 <style>
+#opnameParticipants[hidden], #opnameParticipantsLoading[hidden] { display:none!important; }
 #opnameParticipantsMenu .form-check-input:checked { background-color:var(--app-accent-2);border-color:var(--app-accent-2); }
 </style>
 @endpush
@@ -33,11 +34,13 @@
                     <div class="mb-4">
                         @php $chosenParticipants = collect(old('participant_ids', [auth()->id()]))->filter(fn ($id) => is_scalar($id))->map(fn ($id) => (string) $id)->all(); @endphp
                         <label id="opnameParticipantsLabel" for="opnameParticipants" class="form-label fw-semibold">Petugas Opname <span class="text-danger">*</span></label>
-                        <select id="opnameParticipants" name="participant_ids[]" multiple size="5" class="form-select @error('participant_ids') is-invalid @enderror @error('participant_ids.*') is-invalid @enderror" required>
+                        <div id="opnameParticipantsLoading" class="form-select text-muted" role="status" aria-live="polite">Memuat pilihan petugas…</div>
+                        <select id="opnameParticipants" name="participant_ids[]" multiple size="5" class="form-select @error('participant_ids') is-invalid @enderror @error('participant_ids.*') is-invalid @enderror" required hidden>
                             @foreach($users as $user)
                             <option value="{{ $user->id }}" @selected(in_array((string) $user->id, $chosenParticipants, true))>{{ $user->name }} ({{ ['owner'=>'Owner','kasir'=>'Kasir','staf_gudang'=>'Staf Gudang'][$user->role] ?? $user->role }})</option>
                             @endforeach
                         </select>
+                        <noscript><style>#opnameParticipants[hidden] { display:block!important; } #opnameParticipantsLoading { display:none; }</style></noscript>
                         @error('participant_ids')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         @error('participant_ids.*')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>

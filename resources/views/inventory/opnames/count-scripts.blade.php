@@ -58,12 +58,15 @@
         if (!main) return;
         const units = JSON.parse(main.dataset.displayUnits);
         const detail = form.querySelector(`[data-expiry-item="${id}"]`);
+        let expiryChanged = false;
         if (detail) {
             let total = 0;
             detail.querySelectorAll('[data-expiry-row]').forEach(row => {
                 const quantity = Number(row.querySelector('.physical-value').value) || 0;
                 const diff = row.querySelector('.expiry-difference');
-                paintDifference(diff, round(quantity - Number(diff.dataset.system)), units);
+                const expiryDifference = round(quantity - Number(diff.dataset.system));
+                paintDifference(diff, expiryDifference, units);
+                if (expiryDifference !== 0) expiryChanged = true;
                 total += quantity;
             });
             main.querySelector('.item-physical').value = round(total);
@@ -72,6 +75,15 @@
         }
         const difference = round(Number(main.querySelector('.item-physical').value) - Number(main.dataset.system));
         paintDifference(main.querySelector('.item-difference'), difference, units);
+        const changed = difference !== 0 || expiryChanged;
+        main.dataset.countChanged = String(changed);
+        const notes = main.querySelector('.opname-notes');
+        main.querySelector('[data-notes-help]').textContent = changed
+            ? '* Wajib saat menyelesaikan opname' : 'Opsional';
+        if (!changed || notes.value.trim()) {
+            notes.classList.remove('is-invalid');
+            notes.removeAttribute('aria-invalid');
+        }
         const valuation = main.querySelector('[data-valuation-field]');
         if (valuation) {
             valuation.hidden = difference <= 0;
@@ -94,6 +106,7 @@
     }
     form.querySelectorAll('[data-opname-item]').forEach(main => {
         const id = main.dataset.opnameItem;
+        main.querySelector('.opname-notes').addEventListener('input', () => updateItem(id));
         main.querySelectorAll('.opname-quantity').forEach(widget => bindQuantity(widget, id));
         const detail = form.querySelector(`[data-expiry-item="${id}"]`);
         if (detail) {
@@ -152,6 +165,23 @@
     }, true);
     document.getElementById('btnSelesaikan').addEventListener('click', async () => {
         if (!form.reportValidity()) return;
+        let missingNotes = null;
+        form.querySelectorAll('[data-opname-item]').forEach(main => {
+            const notes = main.querySelector('.opname-notes');
+            const missing = main.dataset.countChanged === 'true' && !notes.value.trim();
+            notes.classList.toggle('is-invalid', missing);
+            if (missing) {
+                notes.setAttribute('aria-invalid', 'true');
+                missingNotes ??= notes;
+            } else notes.removeAttribute('aria-invalid');
+        });
+        if (missingNotes) {
+            search.value = '';
+            search.dispatchEvent(new Event('input'));
+            missingNotes.focus();
+            missingNotes.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
         if (!await appDialog.confirm({ title: 'Selesaikan Opname?', text: 'Stok fisik dan rincian kedaluwarsa akan disesuaikan dengan hasil penghitungan.', confirmText: 'Selesaikan Opname' })) return;
         form.action = form.dataset.completeUrl;
         form.querySelector('[name="_method"]').disabled = true;

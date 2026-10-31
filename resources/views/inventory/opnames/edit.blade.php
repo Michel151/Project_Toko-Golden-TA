@@ -3,7 +3,8 @@
 @section('page-title', 'Isi Jumlah Fisik - ' . $opname->opname_number)
 @push('styles')
 <style>
-.opname-count-table{min-width:740px}.opname-count-table>tbody>tr>td{vertical-align:middle;padding:7px 10px}
+.opname-count-table{min-width:1100px}.opname-count-table>tbody>tr>td{vertical-align:middle;padding:7px 10px}
+.opname-notes-cell{min-width:240px;width:26%}.opname-notes{resize:vertical;min-height:36px}
 .opname-expiry-cell{background:#f8faf9;padding:6px 12px 10px!important}.opname-expiry-cell .table{min-width:680px}
 .opname-quantity{width:max-content;flex-wrap:nowrap}.opname-quantity .input-group{width:128px;min-width:128px;flex:0 0 128px}.opname-quantity .form-control{min-width:0}.opname-quantity .input-group-text{max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .expiry-list td{vertical-align:middle}.opname-difference{min-width:115px}.expiry-date{max-width:170px}
@@ -18,6 +19,7 @@
 </div>
 <form method="POST" action="{{ route('inventory.opnames.update', $opname) }}" data-complete-url="{{ route('inventory.opnames.complete',$opname) }}" id="opnameForm">
     <div class="small text-muted mb-3">Petugas Opname: <strong class="text-body text-break">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: 'Belum dicatat' }}</strong></div>
+    <div class="small text-muted mb-3">Keterangan per barang boleh dikosongkan saat menyimpan draf. Wajib diisi saat menyelesaikan opname jika jumlah stok atau rincian kedaluwarsa berubah.</div>
     @csrf @method('PUT')
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <span class="small text-muted" id="opnameItemCount">{{ $opname->items->count() }} barang</span>
@@ -25,7 +27,7 @@
     </div>
     <div class="table-responsive bg-white border rounded">
         <table class="table table-hover mb-0 opname-count-table">
-            <thead><tr><th>Barang</th><th class="text-end">Stok Sistem</th><th style="width:310px">Stok Fisik</th><th class="text-end">Selisih</th></tr></thead>
+            <thead><tr><th>Barang</th><th class="text-end">Stok Sistem</th><th style="width:310px">Stok Fisik</th><th class="text-end">Selisih</th><th>Keterangan</th></tr></thead>
             <tbody>
             @foreach($opname->items as $item)
                 @php
@@ -61,6 +63,12 @@
                             </div>
                         @endif
                     </td>
+                    <td class="opname-notes-cell">
+                        <label class="visually-hidden" for="opnameNotes{{ $item->id }}">Keterangan {{ $product->name }}</label>
+                        <textarea id="opnameNotes{{ $item->id }}" name="items[{{ $item->id }}][notes]" rows="1" maxlength="1000" class="form-control form-control-sm opname-notes @error('items.'.$item->id.'.notes') is-invalid @enderror" aria-describedby="opnameNotesHelp{{ $item->id }} opnameNotesError{{ $item->id }}" placeholder="Keterangan hasil pemeriksaan">{{ old('items.'.$item->id.'.notes', $item->notes) }}</textarea>
+                        <div id="opnameNotesHelp{{ $item->id }}" class="small text-muted" data-notes-help>Opsional</div>
+                        <div id="opnameNotesError{{ $item->id }}" class="invalid-feedback">{{ $errors->first('items.'.$item->id.'.notes') ?: 'Keterangan wajib diisi sebelum menyelesaikan opname karena terdapat perbedaan.' }}</div>
+                    </td>
                 </tr>
                 @if($item->tracks_expiry)
                     @php
@@ -77,7 +85,7 @@
                         unset($expiryRow);
                     @endphp
                     <tr id="expiry-{{ $item->id }}" data-expiry-item="{{ $item->id }}" data-next-index="{{ count($expiryRows) }}" hidden>
-                        <td colspan="4" class="opname-expiry-cell">
+                        <td colspan="5" class="opname-expiry-cell">
                             <div class="d-flex justify-content-end mb-1"><button class="btn btn-sm btn-outline-success add-expiry" type="button"><i class="bi bi-plus-lg me-1"></i>Tambah Kedaluwarsa</button></div>
                             <table class="table table-sm mb-0"><caption class="visually-hidden">Rincian Kedaluwarsa {{ $product->name }}</caption><thead><tr><th style="width:24%">Kedaluwarsa</th><th class="text-end" style="width:18%">Stok Sistem</th><th style="width:34%">Stok Fisik</th><th class="text-end" style="width:18%">Selisih</th><th style="width:6%"></th></tr></thead>
                                 <tbody class="expiry-list">@foreach($expiryRows as $index=>$row)@include('inventory.opnames.expiry-row')@endforeach</tbody>

@@ -176,7 +176,15 @@ class OpnameController extends Controller
             app(\App\Services\MovingAverageCostService::class)->lock();
             $opname = $this->lockDraft($opname);
             $this->savePhysicalQuantities($opname, $validated['items']);
-            $opname->load(['items.product', 'location']);
+            $opname->load(['items.product', 'items.expiryCounts', 'location']);
+
+            $errors = [];
+            foreach ($opname->items as $item) {
+                if ($item->hasCountDifference() && trim((string) $item->notes) === '') {
+                    $errors["items.{$item->id}.notes"] = 'Isi keterangan untuk '.$item->product->name.' karena jumlah stok atau rincian kedaluwarsa berubah.';
+                }
+            }
+            if ($errors) throw ValidationException::withMessages($errors);
 
             foreach ($opname->items as $item) {
                 if ($item->tracks_expiry) {
@@ -215,7 +223,8 @@ class OpnameController extends Controller
     {
         return $request->validate([
             'items' => 'required|array|max:10000',
-            'items.*' => 'required|array:physical_quantity,expiries,valuation_unit_cost',
+            'items.*' => 'required|array:physical_quantity,expiries,valuation_unit_cost,notes',
+            'items.*.notes' => 'nullable|string|max:1000',
             'items.*.valuation_unit_cost' => 'nullable|numeric|min:0|max:999999999999.99|decimal:0,10',
             'items.*.physical_quantity' => 'nullable|numeric|decimal:0,4|min:0|max:99999999999.9999',
             'items.*.expiries' => 'nullable|array|max:500',
@@ -237,6 +246,10 @@ class OpnameController extends Controller
 
         foreach ($items as $itemId => $data) {
             $item = $opnameItems->get((int) $itemId);
+            if (array_key_exists('notes', $data)) {
+                $notes = trim((string) $data['notes']);
+                $item->update(['notes' => $notes === '' ? null : $notes]);
+            }
             if (auth()->user()?->isOwner()) $item->update(['valuation_unit_cost' => $data['valuation_unit_cost'] ?? $item->valuation_unit_cost]);
             app(OpnameExpiryService::class)->capture($item, (int) $opname->location_id);
             if ((bool)$item->tracks_expiry !== (bool)$item->product->is_expirable) {

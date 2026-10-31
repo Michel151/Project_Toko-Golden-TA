@@ -6,7 +6,8 @@
 .opname-document{border-bottom:1px solid #dce3de;padding-bottom:16px;margin-bottom:16px}.opname-meta{display:flex;flex-wrap:wrap;gap:10px 28px;font-size:13px;color:#647168}.opname-meta strong{color:#25362b;font-weight:600}
 .opname-summary{display:flex;flex-wrap:wrap;background:#fff;border-top:1px solid #dce3de;border-bottom:1px solid #dce3de;margin-bottom:16px}.opname-stat{flex:1;min-width:140px;padding:12px 16px;border-right:1px solid #edf0ee}.opname-stat:last-child{border-right:0}.opname-stat strong{font-size:20px;display:block}.opname-stat span{font-size:12px;color:#647168}
 .opname-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-bottom:12px}.opname-filters input{max-width:320px}.opname-filters select{width:auto;max-width:100%}
-.opname-results{background:#fff;border:1px solid #dce3de;border-radius:6px;overflow:hidden}.opname-scroll{max-height:65vh;max-height:65dvh;overflow:auto}.opname-results-table{min-width:780px}.opname-results-table>thead{position:sticky;top:0;z-index:2}.opname-results-table>thead th{background:#edf2ee!important;white-space:nowrap}.opname-results-table>tbody>tr>td{padding:9px 12px;vertical-align:middle}.opname-results-table th:first-child{width:40%}.opname-results-table [hidden]{display:none!important}
+.opname-results{background:#fff;border:1px solid #dce3de;border-radius:6px;overflow:hidden}.opname-scroll{max-height:65vh;max-height:65dvh;overflow:auto}.opname-results-table{min-width:1000px}.opname-results-table>thead{position:sticky;top:0;z-index:2}.opname-results-table>thead th{background:#edf2ee!important;white-space:nowrap}.opname-results-table>tbody>tr>td{padding:9px 12px;vertical-align:middle}.opname-results-table th:first-child{width:30%}.opname-results-table [hidden]{display:none!important}
+.opname-notes-result{min-width:220px;max-width:360px;white-space:pre-wrap;overflow-wrap:anywhere}
 .opname-quantity-result{font-variant-numeric:tabular-nums;min-width:140px}.opname-detail-toggle{display:flex;align-items:center;gap:6px;background:none;border:0;padding:3px 0 0;font-size:12px;color:#196447}.opname-detail-toggle[aria-expanded="true"] .bi-chevron-right{transform:rotate(90deg)}.opname-date-cell{background:#f7f9f8!important;padding:8px 16px!important}.opname-date-table{min-width:700px}.opname-date-table td{padding:6px 8px;vertical-align:middle}.opname-pagination{padding:12px 16px;border-top:1px solid #dce3de}.opname-pagination nav{margin:0}.opname-pagination .pagination{margin:0}
 @media(max-width:575px){.opname-filters input{max-width:none;width:100%}.opname-stat{min-width:95px;padding:10px}.opname-stat strong{font-size:18px}.opname-scroll{max-height:70vh}}
 </style>
@@ -40,7 +41,7 @@
     <div class="opname-scroll" tabindex="0" role="region" aria-label="Hasil perhitungan opname">
         <table class="table table-sm table-hover mb-0 opname-results-table">
             <caption class="visually-hidden">Hasil Perhitungan</caption>
-            <thead><tr><th class="ps-3">Barang</th><th class="text-end">Stok Sistem</th><th class="text-end">Stok Fisik</th><th class="text-end pe-3">Selisih</th></tr></thead>
+            <thead><tr><th class="ps-3">Barang</th><th class="text-end">Stok Sistem</th><th class="text-end">Stok Fisik</th><th class="text-end">Selisih</th><th>Keterangan</th></tr></thead>
             <tbody>
             @forelse($items as $item)
                 @php
@@ -55,9 +56,10 @@
                     <td class="text-end opname-quantity-result">{{ \App\Support\OpnameQuantity::format((float)$item->system_quantity,$units) }}</td>
                     <td class="text-end opname-quantity-result">{{ \App\Support\OpnameQuantity::format((float)$item->physical_quantity,$units) }}</td>
                     <td class="text-end fw-semibold opname-quantity-result {{ $diff>0 ? 'text-success' : ($diff<0 ? 'text-danger' : 'text-muted') }}">{{ \App\Support\OpnameQuantity::format($diff,$units,true) }}</td>
+                    <td class="opname-notes-result">{{ $item->notes ?: '—' }}</td>
                 </tr>
                 @if($item->expiryCounts->isNotEmpty())
-                <tr id="result-expiry-{{ $item->id }}" hidden><td colspan="4" class="opname-date-cell">
+                <tr id="result-expiry-{{ $item->id }}" hidden><td colspan="5" class="opname-date-cell">
                     <table class="table table-sm mb-0 opname-date-table"><caption class="visually-hidden">Rincian Kedaluwarsa {{ $p->name }}</caption><thead><tr><th>Kedaluwarsa</th><th class="text-end">Stok Sistem</th><th class="text-end">Stok Fisik</th><th class="text-end">Selisih</th></tr></thead><tbody>
                     @foreach($item->expiryCounts as $entry)
                         @php $dateDiff=round((float)$entry->physical_quantity-(float)$entry->system_quantity,4); @endphp
@@ -69,7 +71,7 @@
                 </td></tr>
                 @endif
             @empty
-                <tr><td colspan="4" class="text-center text-muted py-5">{{ $summary['total'] ? 'Tidak ada barang yang sesuai pencarian atau filter.' : 'Belum ada barang dalam opname ini.' }}</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-5">{{ $summary['total'] ? 'Tidak ada barang yang sesuai pencarian atau filter.' : 'Belum ada barang dalam opname ini.' }}</td></tr>
             @endforelse
             </tbody>
         </table>

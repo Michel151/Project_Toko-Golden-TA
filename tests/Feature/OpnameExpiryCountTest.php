@@ -53,7 +53,7 @@ class OpnameExpiryCountTest extends TestCase
     {
         $items=[];
         foreach ($opname->items()->with('expiryCounts')->get() as $item) {
-            $items[$item->id]=['physical_quantity'=>$item->physical_quantity];
+            $items[$item->id]=['physical_quantity'=>$item->physical_quantity, 'notes'=>'Penyesuaian berdasarkan pemeriksaan fisik.'];
             if (!$item->tracks_expiry) continue;
             $items[$item->id]['physical_quantity']=999;
             $items[$item->id]['expiries']=$item->expiryCounts->map(fn ($row)=>[

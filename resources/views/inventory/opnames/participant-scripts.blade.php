@@ -1,9 +1,16 @@
 <script>
 (() => {
     const select = document.getElementById('opnameParticipants');
-    if (!select || !window.bootstrap?.Dropdown) return;
+    if (!select) return;
+    const loading = document.getElementById('opnameParticipantsLoading');
+    if (!window.bootstrap?.Dropdown) {
+        select.hidden = false;
+        if (loading) loading.hidden = true;
+        return;
+    }
     const wrapper = document.createElement('div');
     wrapper.className = 'dropdown';
+    wrapper.hidden = true;
     const button = document.createElement('button');
     button.type = 'button';
     button.id = 'opnameParticipantsToggle';
@@ -96,5 +103,7 @@
     button.addEventListener('shown.bs.dropdown', () => search.focus());
     select.form.addEventListener('reset', () => setTimeout(refresh, 0));
     refresh();
+    wrapper.hidden = false;
+    if (loading) loading.hidden = true;
 })();
 </script>
