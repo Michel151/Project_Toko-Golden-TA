@@ -19,6 +19,12 @@
         <input type="hidden" name="margins_sort" value="{{ $marginsSort }}">
         @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
         <div><label for="saleReportCategory" class="d-block">Kategori</label><select id="saleReportCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $option)<option value="{{ $option->id }}" @selected($categoryId === $option->id)>{{ $option->name }}</option>@endforeach</select></div>
+        @if(auth()->user()->isOwner())
+        <div><label for="saleReportCashier" class="d-block">Kasir</label><select id="saleReportCashier" name="cashier_id" class="form-select form-select-sm">
+            <option value="">Semua Kasir</option>
+            @foreach($cashiers as $option)<option value="{{ $option->id }}" @selected($cashierId === $option->id)>{{ $option->name }}</option>@endforeach
+        </select></div>
+        @endif
         <div><label for="saleReportPerPage" class="d-block">Per Halaman</label><select id="saleReportPerPage" name="per_page" class="form-select form-select-sm">
             @foreach([25, 50, 100] as $size)<option value="{{ $size }}" @selected($sales->perPage() === $size)>{{ $size }}</option>@endforeach
         </select></div>
@@ -32,6 +38,7 @@
 
 {{-- Summary cards --}}
 @if($category)<div class="small text-muted mb-3">Kategori: <strong>{{ $category->name }}</strong>. Nominal dan laba hanya mencakup barang dalam kategori terpilih, termasuk pada nota campuran.</div>@endif
+@if($cashier)<div class="small text-muted mb-3">Kasir: <strong>{{ $cashier->name }}</strong>. Seluruh ringkasan dan ekspor mengikuti kasir terpilih.</div>@endif
 <div class="row g-3 mb-3">
     <div class="col-6 col-md-4 col-xl">
         <div class="card report-stat h-100" style="--stat-color:#198754"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-cash-stack"></i></div><div>
@@ -106,10 +113,11 @@
                     <input type="hidden" name="per_page" value="{{ $sales->perPage() }}"><input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="tab" value="products">
                     <input type="hidden" name="margins_page" value="{{ $productMargins->currentPage() }}">
                     <input type="hidden" name="margins_sort" value="{{ $marginsSort }}">
+                    @if($cashierId)<input type="hidden" name="cashier_id" value="{{ $cashierId }}">@endif
                     <div><label for="saleProductsSort" class="form-label small mb-1">Urutkan Berdasarkan</label><select id="saleProductsSort" name="products_sort" class="form-select form-select-sm"><option value="revenue" @selected($productsSort === 'revenue')>Omzet Tertinggi</option><option value="quantity" @selected($productsSort === 'quantity')>Jumlah Kemasan</option></select></div>
                     <div><label for="saleProductsCategory" class="form-label small mb-1">Kategori</label><select id="saleProductsCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $option)<option value="{{ $option->id }}" @selected($categoryId === $option->id)>{{ $option->name }}</option>@endforeach</select></div>
                     <button class="btn btn-sm btn-primary">Terapkan</button>
-                <a href="{{ route('report.sale', ['from'=>$from,'to'=>$to,'tab'=>'products','per_page'=>$sales->perPage(),'margins_sort'=>$marginsSort]) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
+                <a href="{{ route('report.sale', ['from'=>$from,'to'=>$to,'tab'=>'products','per_page'=>$sales->perPage(),'margins_sort'=>$marginsSort,'cashier_id'=>$cashierId]) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
             </div>
             <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Produk terlaris">
                 <table id="saleTopProductsTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
@@ -138,6 +146,7 @@
         <div class="small text-muted mb-3">Penjualan lunas pada periode terpilih. Margin = laba kotor ÷ omzet × 100%, sebelum biaya operasional.</div>
         <form method="GET" action="{{ route('report.sale') }}#saleReportTabs" class="app-unified-filter">
             <input type="hidden" name="tab" value="margins">
+            @if($cashierId)<input type="hidden" name="cashier_id" value="{{ $cashierId }}">@endif
             <input type="hidden" name="from" value="{{ $from }}"><input type="hidden" name="to" value="{{ $to }}">
             <input type="hidden" name="category_id" value="{{ $categoryId }}"><input type="hidden" name="per_page" value="{{ $sales->perPage() }}">
             <input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="products_page" value="{{ $topProducts->currentPage() }}">

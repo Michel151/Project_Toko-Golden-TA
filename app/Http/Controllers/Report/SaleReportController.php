@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Category;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -21,11 +22,19 @@ class SaleReportController extends Controller
         return isset($data['category_id']) ? (int) $data['category_id'] : null;
     }
 
-    private function periodSales(string $from, string $to, ?int $categoryId)
+    private function cashier(Request $request): ?User
+    {
+        if (! $request->user()->isOwner()) return null;
+        $data = $request->validate(['cashier_id' => 'nullable|integer|exists:users,id']);
+        return isset($data['cashier_id']) ? User::find($data['cashier_id']) : null;
+    }
+
+    private function periodSales(string $from, string $to, ?int $categoryId, ?int $cashierId)
     {
         $sales = Sale::with(['createdBy', 'items'=>fn ($query) => $query->with('product')
             ->when($categoryId, fn ($query) => $query->whereHas('product', fn ($products) => $products->where('category_id', $categoryId)))])
             ->paid()->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to)
+            ->when($cashierId, fn ($query) => $query->where('created_by', $cashierId))
             ->when($categoryId, fn ($query) => $query->whereHas('items.product', fn ($products) => $products->where('category_id', $categoryId)))
             ->latest('sale_date')->latest('created_at')->latest('id')->get();
         foreach ($sales as $sale) {
@@ -38,6 +47,12 @@ class SaleReportController extends Controller
     public function index(Request $request)
     {
         $categoryId = $this->categoryId($request);
+        $cashier = $this->cashier($request);
+        $cashierId = $cashier?->id;
+        $cashiers = $request->user()->isOwner()
+            ? User::where(fn ($users) => $users->whereIn('role', ['owner', 'kasir'])->orWhereHas('sales'))
+                ->orderBy('name')->orderBy('id')->get(['id', 'name'])
+            : collect();
         $categories = Category::orderBy('name')->get(['id', 'name']);
         $category = $categories->firstWhere('id', $categoryId);
         $filters = $request->validate([
@@ -52,7 +67,7 @@ class SaleReportController extends Controller
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());
 
-        $sales = $this->periodSales($from, $to, $categoryId);
+        $sales = $this->periodSales($from, $to, $categoryId, $cashierId);
 
         $totalAmount   = $sales->sum('report_total_amount');
         $totalTunai    = $sales->where('payment_method', 'tunai')->sum('report_total_amount');
@@ -98,7 +113,8 @@ class SaleReportController extends Controller
             ->leftJoin('product_units', 'product_units.id', '=', 'sale_items.product_unit_id')
             ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
             ->when($categoryId, fn ($query) => $query->where('products.category_id', $categoryId))
-            ->whereHas('sale', fn($q) => $q->paid()->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to))
+            ->whereHas('sale', fn($q) => $q->paid()->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to)
+                ->when($cashierId, fn ($query) => $query->where('created_by', $cashierId)))
             ->with(['product.productUnits.unit', 'product.buyUnit', 'product.retailUnit'])
             ->groupBy('sale_items.product_id')
             ->get();
@@ -150,19 +166,21 @@ class SaleReportController extends Controller
             'sales', 'from', 'to',
             'totalAmount', 'totalTunai', 'totalTransfer', 'totalTrx',
             'grossProfit', 'incompleteCostCount', 'productMargins',
-            'topProducts', 'activeTab', 'productsSort', 'marginsSort', 'categories', 'category', 'categoryId'
+            'topProducts', 'activeTab', 'productsSort', 'marginsSort', 'categories', 'category', 'categoryId',
+            'cashier', 'cashierId', 'cashiers'
         ));
     }
 
     public function pdf(Request $request)
     {
         $categoryId = $this->categoryId($request);
+        $cashier = $this->cashier($request);
         $from  = $request->get('from', now()->startOfMonth()->toDateString());
         $to    = $request->get('to', now()->toDateString());
-        $sales = $this->periodSales($from, $to, $categoryId);
+        $sales = $this->periodSales($from, $to, $categoryId, $cashier?->id);
         $category = $categoryId ? Category::find($categoryId) : null;
 
-        $pdf = Pdf::loadView('report.pdf.sale', compact('sales', 'from', 'to', 'category'))
+        $pdf = Pdf::loadView('report.pdf.sale', compact('sales', 'from', 'to', 'category', 'cashier'))
                   ->setPaper('a4', 'portrait');
         return $pdf->stream("Laporan-Penjualan-{$from}-sd-{$to}.pdf");
     }
@@ -170,17 +188,21 @@ class SaleReportController extends Controller
     public function excel(Request $request)
     {
         $categoryId = $this->categoryId($request);
+        $cashier = $this->cashier($request);
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
-        $sales = $this->periodSales($from, $to, $categoryId);
+        $sales = $this->periodSales($from, $to, $categoryId, $cashier?->id);
         $category = $categoryId ? Category::find($categoryId) : null;
         $rows = $sales->map(fn ($sale) => [
             $sale->sale_number, $sale->sale_date->format('d/m/Y'), $sale->customer_name ?? 'Umum',
             ucfirst($sale->payment_method), $sale->createdBy->name ?? '-', (float) $sale->report_total_amount,
         ])->all();
 
+        $metadata = $category ? ['Kategori: '.$category->name, 'Nominal hanya mencakup barang dalam kategori terpilih.'] : [];
+        if ($cashier) $metadata[] = 'Kasir: '.$cashier->name;
+
         return Excel::download(
-            new ReportExport("Laporan Penjualan {$from} s.d. {$to}", ['No. Invoice', 'Tanggal', 'Pelanggan', 'Pembayaran', 'Kasir', $category ? 'Total Kategori' : 'Total'], $rows, [6], [], 'Penjualan', $category ? ['Kategori: '.$category->name, 'Nominal hanya mencakup barang dalam kategori terpilih.'] : []),
+            new ReportExport("Laporan Penjualan {$from} s.d. {$to}", ['No. Invoice', 'Tanggal', 'Pelanggan', 'Pembayaran', 'Kasir', $category ? 'Total Kategori' : 'Total'], $rows, [6], [], 'Penjualan', $metadata),
             "Laporan-Penjualan-{$from}-sd-{$to}.xlsx"
         );
     }

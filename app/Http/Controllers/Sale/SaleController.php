@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SaleItemSource;
+use App\Models\User;
 use App\Services\StockService;
 use App\Services\HeldSaleService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -27,6 +28,16 @@ class SaleController extends Controller
             $query->where('created_by', auth()->id());
         }
 
+        $cashiers = collect();
+        if (auth()->user()->isOwner()) {
+            $filters = $request->validate(['cashier_id' => 'nullable|integer|exists:users,id']);
+            $cashiers = User::where(fn ($users) => $users->whereIn('role', ['owner', 'kasir'])->orWhereHas('sales'))
+                ->orderBy('name')->orderBy('id')->get(['id', 'name']);
+            if (isset($filters['cashier_id'])) {
+                $query->where('created_by', $filters['cashier_id']);
+            }
+        }
+
         if ($from) {
             $query->whereDate('sale_date', '>=', $from);
         }
@@ -40,10 +51,10 @@ class SaleController extends Controller
             $query->where('status', $request->status);
         }
 
-        $sales = $query->latest()->latest('id')->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
         $totalAmount = (clone $query)->paid()->sum('total_amount');
+        $sales = $query->latest()->latest('id')->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
 
-        return view('sale.index', compact('sales', 'totalAmount', 'from', 'to'));
+        return view('sale.index', compact('sales', 'totalAmount', 'from', 'to', 'cashiers'));
     }
 
     public function create()

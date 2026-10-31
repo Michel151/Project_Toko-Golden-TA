@@ -35,13 +35,21 @@
             <option value="cancelled" @selected(request('status') === 'cancelled')>Dibatalkan</option>
             <option value="cancelled_auto" @selected(request('status') === 'cancelled_auto')>Dibatalkan Otomatis</option>
         </select></div>
+        @if(auth()->user()->isOwner())
+        <div class="app-filter-field"><label for="saleCashier">Kasir</label><select id="saleCashier" name="cashier_id" class="form-select form-select-sm">
+            <option value="">Semua Kasir</option>
+            @foreach($cashiers as $cashier)
+                <option value="{{ $cashier->id }}" @selected((string) request('cashier_id') === (string) $cashier->id)>{{ $cashier->name }}</option>
+            @endforeach
+        </select></div>
+        @endif
         <div class="app-filter-actions"><button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
         <a href="{{ route('sale.sales.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
         </div>
     </form>
 </div>
 
-@if(request()->hasAny(['from','to','payment_method','status']))
+@if(request()->hasAny(['from','to','payment_method','status']) || (auth()->user()->isOwner() && request()->filled('cashier_id')))
 <div class="alert alert-info py-2 mb-3">
     Total penjualan periode ini: <strong>Rp {{ number_format($totalAmount, 0, ',', '.') }}</strong>
 </div>
