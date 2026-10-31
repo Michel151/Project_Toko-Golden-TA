@@ -408,6 +408,8 @@
         .page-content .table .app-icon-action { width:36px;height:36px;min-width:36px; }
         .page-content .table .btn-outline-warning { color:#536159;border-color:#b8c5bd; }
         .page-content .table .btn-outline-warning:hover { color:#253b2f;background:#eef2ec; }
+        .page-content .btn:has(.bi-pencil):hover,
+        .page-content .btn:has(.bi-pencil):focus-visible { color:#253b2f;background:#f2c75c;border-color:#f2c75c; }
         .page-content .table .app-actions-cell { white-space:nowrap; }
         .page-content .table .app-actions-cell > .d-flex,
         .page-content .table .app-actions-cell > .d-inline-flex { flex-wrap:nowrap!important; }
