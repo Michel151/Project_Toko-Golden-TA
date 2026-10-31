@@ -27,7 +27,18 @@
     .header { margin-bottom: 8px; }
     table { width: 100%; }
     td { vertical-align: top; padding: 1px 2px; }
-    .item-name { max-width: 140px; word-wrap: break-word; }
+    .receipt-item {
+        margin-bottom: 2mm;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    .item-name {
+        width: 100%;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+        word-wrap: break-word;
+    }
+    .item-subtotal { white-space: nowrap; }
     .preview-toolbar {
         position: sticky;
         top: 0;
@@ -92,13 +103,15 @@
 <div class="divider"></div>
 
 @foreach($sale->items as $item)
-<div class="item-name">{{ $item->product->name }}</div>
-<table>
-    <tr>
-        <td>{{ number_format($item->quantity, 2) }} {{ $item->productUnit->unit->name ?? '' }} x Rp {{ number_format($item->unit_price, 0, ',', '.') }}</td>
-        <td class="right">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
-    </tr>
-</table>
+<div class="receipt-item">
+    <div class="item-name">{{ $item->product->name }}</div>
+    <table>
+        <tr>
+            <td>{{ \App\Support\DisplayNumber::quantity($item->quantity) }} {{ $item->productUnit->unit->name ?? '' }} x Rp {{ number_format($item->unit_price, 0, ',', '.') }}</td>
+            <td class="right item-subtotal">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
+        </tr>
+    </table>
+</div>
 @endforeach
 
 <div class="divider"></div>

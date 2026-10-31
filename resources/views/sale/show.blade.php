@@ -7,6 +7,7 @@
 .sale-items-scroll { max-height:65vh; max-height:65dvh; overflow:auto; }
 .sale-items-table { min-width:780px; }
 .sale-items-table > thead > tr > th { position:sticky; top:0; z-index:2; background:#edf2ee!important; white-space:nowrap; }
+.sale-items-table > tfoot > tr > td { position:sticky; bottom:0; z-index:1; background:#f8f9fa!important; box-shadow:inset 0 1px 0 #dce3de; }
 @media(max-width:575px) { .sale-items-scroll { max-height:70vh; max-height:70dvh; } }
 </style>
 @endpush
