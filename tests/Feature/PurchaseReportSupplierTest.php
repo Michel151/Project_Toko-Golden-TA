@@ -115,4 +115,69 @@ class PurchaseReportSupplierTest extends TestCase
             }
         }
     }
+
+    public function test_po_type_filters_rows_totals_and_combines_with_supplier(): void
+    {
+        $root = PurchaseOrder::where('po_number', 'PO-A-PENDING')->firstOrFail();
+        for ($i = 1; $i <= 26; $i++) {
+            $this->order('RETUR-'.$i, $this->a, 'pending', 999, ['root_purchase_order_id'=>$root->id]);
+        }
+        $filters = $this->period + ['po_type'=>'return', 'supplier_id'=>$this->a->id, 'page'=>2];
+        $page = $this->get(route('report.purchase', $filters))->assertOk()
+            ->assertViewHas('orderCount', 27)->assertViewHas('completed', 1)->assertViewHas('pending', 26)
+            ->assertViewHas('totalValue', 0.0)
+            ->assertViewHas('orders', fn ($rows) => $rows->total() === 27 && $rows->count() === 2
+                && $rows->every(fn ($order) => $order->root_purchase_order_id !== null))
+            ->assertSee('Semua Jenis PO')->assertSee('PO Retur');
+        parse_str(parse_url($page->viewData('orders')->url(1), PHP_URL_QUERY), $query);
+        $this->assertEquals(array_replace($filters, ['page'=>1]), $query);
+        $document = new \DOMDocument;
+        @$document->loadHTML($page->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertSame('return', $xpath->query('//select[@name="po_type"]/option[@selected]')->item(0)->getAttribute('value'));
+        foreach (['pdf','excel'] as $format) {
+            $href = $xpath->query('//a[contains(@href,"/purchase/'.$format.'")]')->item(0)->getAttribute('href');
+            parse_str(parse_url($href, PHP_URL_QUERY), $query);
+            $this->assertEquals($filters, $query);
+        }
+        $this->get(route('report.purchase', $this->period + ['po_type'=>'regular']))->assertOk()
+            ->assertViewHas('orderCount', 3)->assertViewHas('totalValue', 2000.0)
+            ->assertViewHas('orders', fn ($rows) => $rows->every(fn ($order) => $order->root_purchase_order_id === null));
+        $this->get(route('report.purchase', $this->period + ['po_type'=>'return', 'supplier_id'=>$this->b->id]))
+            ->assertOk()->assertViewHas('orderCount', 0)->assertViewHas('totalValue', 0.0);
+    }
+
+    public function test_pdf_and_excel_apply_po_type_and_identify_it_in_exports(): void
+    {
+        $pdf = \Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+        $pdf->shouldReceive('setPaper')->once()->with('a4', 'portrait')->andReturnSelf();
+        $pdf->shouldReceive('stream')->once()->andReturn(response('return-pdf'));
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('loadView')->once()->with('report.pdf.purchase', \Mockery::on(function ($data) {
+            $this->assertSame(['PO-A-RETURN'], $data['orders']->pluck('po_number')->all());
+            $html = view('report.pdf.purchase', $data)->render();
+            $this->assertStringContainsString('Jenis PO: PO Retur', $html);
+            $this->assertStringNotContainsString('PO-A-PENDING', $html);
+            return true;
+        }))->andReturn($pdf);
+        $this->get(route('report.purchase.pdf', $this->period + ['po_type'=>'return', 'page'=>2]))->assertOk();
+        \Maatwebsite\Excel\Facades\Excel::shouldReceive('download')->once()->withArgs(function ($export, $filename) {
+            $data = $export->array();
+            $this->assertSame(['Supplier: PT ABC | Jenis PO: PO Pembelian'], $data[2]);
+            $rows = array_slice($data, 4);
+            $this->assertSame(['PO-A-COMPLETED','PO-A-PENDING'], array_column($rows, 0));
+            $this->assertEquals(800, array_sum(array_column($rows, 6)));
+            return true;
+        })->andReturn(response('regular-excel'));
+        $this->get(route('report.purchase.excel', $this->period + ['po_type'=>'regular', 'supplier_id'=>$this->a->id, 'page'=>2]))->assertOk();
+    }
+
+    public function test_all_outputs_reject_invalid_po_types(): void
+    {
+        foreach (['report.purchase','report.purchase.pdf','report.purchase.excel'] as $route) {
+            foreach (['unknown', ['return']] as $value) {
+                $this->getJson(route($route, $this->period + ['po_type'=>$value]))
+                    ->assertUnprocessable()->assertJsonValidationErrors('po_type');
+            }
+        }
+    }
 }

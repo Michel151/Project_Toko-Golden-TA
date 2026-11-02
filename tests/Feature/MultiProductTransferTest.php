@@ -80,6 +80,56 @@ class MultiProductTransferTest extends TestCase
         $this->assertStringContainsString('TRF/2026/10/000001', $pdf);
     }
 
+    public function test_transfer_detail_preserves_actual_expiry_allocations_after_batches_change(): void
+    {
+        $data = $this->transferData();
+        $product = Product::findOrFail($data['items'][0]['product_id']);
+        $product->update(['is_expirable'=>true]);
+        $dates = [today()->addMonths(2)->toDateString(), today()->addMonths(4)->toDateString()];
+        foreach ([2, 18] as $index=>$quantity) {
+            \App\Models\StockBatch::create(['product_id'=>$product->id, 'location_id'=>$data['from_location_id'],
+                'received_date'=>today(), 'expired_date'=>$dates[$index],
+                'quantity_initial'=>$quantity, 'quantity_remaining'=>$quantity]);
+        }
+        $this->post(route('inventory.transfers.store'), $data)->assertSessionHasNoErrors()->assertRedirect();
+        $transfer = StockTransfer::latest('id')->firstOrFail();
+        $item = $transfer->items()->where('product_id', $product->id)->firstOrFail();
+        $this->assertSame($dates, array_column($item->expiry_details, 'expired_date'));
+        $this->assertSame(['2.0000', '1.0000'], array_column($item->expiry_details, 'quantity'));
+        $this->assertSame([], $transfer->items()->where('product_id', $data['items'][1]['product_id'])->first()->expiry_details);
+        $this->assertDatabaseHas('stocks', ['product_id'=>$product->id, 'location_id'=>$data['from_location_id'], 'quantity'=>17]);
+        $this->assertDatabaseHas('stocks', ['product_id'=>$product->id, 'location_id'=>$data['to_location_id'], 'quantity'=>3]);
+        // Historical detail must not use today's remaining batches or expiry dates.
+        \App\Models\StockBatch::where('product_id', $product->id)->update(['expired_date'=>today()->addYear(), 'quantity_remaining'=>0]);
+        $this->get(route('inventory.transfers.show', $transfer))->assertOk()
+            ->assertSee('Kedaluwarsa '.\Carbon\Carbon::parse($dates[0])->format('d/m/Y'))
+            ->assertSee('Kedaluwarsa '.\Carbon\Carbon::parse($dates[1])->format('d/m/Y'));
+        $item->update(['expiry_details'=>null]);
+        $this->get(route('inventory.transfers.show', $transfer))->assertOk()->assertSee('Rincian kedaluwarsa belum tercatat.');
+    }
+
+    public function test_transfer_records_unknown_dates_and_rolls_back_expiry_details_on_failure(): void
+    {
+        $data = $this->transferData();
+        $product = Product::findOrFail($data['items'][0]['product_id']);
+        $product->update(['is_expirable'=>true]);
+        \App\Models\StockBatch::create(['product_id'=>$product->id, 'location_id'=>$data['from_location_id'],
+            'received_date'=>today(), 'expired_date'=>null, 'quantity_initial'=>20, 'quantity_remaining'=>20]);
+        $data['items'][1]['quantity'] = 30;
+        $this->post(route('inventory.transfers.store'), $data)->assertSessionHasErrors('items.1.quantity');
+        $this->assertDatabaseCount('stock_transfers', 0);
+        $this->assertDatabaseCount('stock_transfer_items', 0);
+        $this->assertDatabaseCount('stock_movements', 0);
+        $this->assertDatabaseHas('stock_batches', ['product_id'=>$product->id, 'location_id'=>$data['from_location_id'], 'quantity_remaining'=>20]);
+        $data['items'][1]['quantity'] = 3;
+        $this->post(route('inventory.transfers.store'), $data)->assertSessionHasNoErrors();
+        $transfer = StockTransfer::latest('id')->firstOrFail();
+        $details = $transfer->items()->where('product_id', $product->id)->first()->expiry_details;
+        $this->assertNull($details[0]['expired_date']);
+        $this->assertSame('3.0000', $details[0]['quantity']);
+        $this->get(route('inventory.transfers.show', $transfer))->assertOk()->assertSee('Kedaluwarsa -');
+    }
+
     public function test_transfer_picker_has_location_stock_and_sellable_batch_data_without_writes(): void
     {
         $this->travelTo(\Carbon\Carbon::parse('2026-10-29 10:00:00','Asia/Jakarta'));

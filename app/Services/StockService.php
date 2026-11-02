@@ -198,9 +198,9 @@ class StockService
      * Pindah stok antar lokasi.
      * quantity dalam satuan yang tersimpan di stocks (ecer atau beli).
      */
-    public function transferStock(Product $product, Location $from, Location $to, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): void
+    public function transferStock(Product $product, Location $from, Location $to, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): array
     {
-        DB::transaction(function () use ($product, $from, $to, $quantity, $reference, $movementDate, $referenceNumber) {
+        return DB::transaction(function () use ($product, $from, $to, $quantity, $reference, $movementDate, $referenceNumber) {
             $this->costs->lock();
             $this->costs->prepare($product);
             $stockFrom = Stock::where('product_id', $product->id)
@@ -214,9 +214,8 @@ class StockService
 
             $fromBalanceBefore = (float) $stockFrom->quantity;
 
-            if ($product->is_expirable) {
-                $this->transferBatches($product, $from, $to, $quantity, $movementDate);
-            }
+            $expiryDetails = $product->is_expirable
+                ? $this->transferBatches($product, $from, $to, $quantity, $movementDate) : [];
 
             $stockFrom->quantity = $stockFrom->quantity - $quantity;
             $stockFrom->save();
@@ -225,6 +224,7 @@ class StockService
 
             $this->recordMovement($product, $from, 'transfer_out', -$quantity, $fromBalanceBefore, $reference, $movementDate, $referenceNumber, "Transfer ke {$to->name}");
             $this->recordMovement($product, $to, 'transfer_in', $quantity, $toBalanceBefore, $reference, $movementDate, $referenceNumber, "Transfer dari {$from->name}");
+            return $expiryDetails;
         });
     }
 
@@ -389,9 +389,10 @@ class StockService
         return $deductions;
     }
 
-    private function transferBatches(Product $product, Location $from, Location $to, float $quantity, $movementDate): void
+    private function transferBatches(Product $product, Location $from, Location $to, float $quantity, $movementDate): array
     {
         $remaining = $quantity;
+        $details = [];
 
         $batches = StockBatch::where('product_id', $product->id)
             ->where('location_id', $from->id)
@@ -424,12 +425,19 @@ class StockService
                 'quantity_remaining' => $used,
             ]);
 
+            $details[] = [
+                'stock_batch_id' => $batch->id,
+                'expired_date' => $batch->expired_date?->toDateString(),
+                'quantity' => number_format($used, 4, '.', ''),
+            ];
+
             $remaining -= $used;
         }
 
         if ($remaining > 0.00001) {
             throw new \Exception("Stok layak transfer tidak mencukupi di {$from->name} untuk produk {$product->name}. Periksa barang kedaluwarsa atau batch stok.");
         }
+        return $details;
     }
 
     /**

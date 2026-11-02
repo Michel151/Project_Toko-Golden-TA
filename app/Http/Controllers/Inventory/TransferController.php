@@ -159,13 +159,14 @@ class TransferController extends Controller
                 $product = $products[$item['product_id']];
                 $unit = $product->productUnits->firstWhere('id', (int) $item['product_unit_id']);
                 $quantity = (float) $item['quantity'] * (float) $unit->conversion_to_base;
-                $transfer->items()->create([
+                $transferItem = $transfer->items()->create([
                     'product_id' => $product->id,
                     'product_unit_id' => $unit->id,
                     'quantity' => $quantity,
                 ]);
                 try {
-                    $this->stockService->transferStock($product, $from, $to, $quantity, $transfer, $transfer->transfer_date, $transfer->transfer_number);
+                    $expiryDetails = $this->stockService->transferStock($product, $from, $to, $quantity, $transfer, $transfer->transfer_date, $transfer->transfer_number);
+                    $transferItem->update(['expiry_details' => $expiryDetails]);
                 } catch (\Exception $exception) {
                     if ($exception instanceof \Illuminate\Database\QueryException) {
                         throw $exception;

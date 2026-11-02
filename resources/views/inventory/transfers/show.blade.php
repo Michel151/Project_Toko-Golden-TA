@@ -20,9 +20,20 @@
 <div class="card table-card">
     <div class="table-responsive app-table-scroll" tabindex="0" role="region" aria-label="Daftar barang transfer">
         <table class="table table-hover align-middle mb-0" style="min-width:600px">
-            <thead><tr><th>Barang</th><th>Satuan Transfer</th><th class="text-end">Jumlah</th></tr></thead>
-            <tbody>@forelse($items as $item)<tr><td class="fw-semibold">{{ $item->product->name }}</td><td>{{ $item->productUnit?->unit?->name ?? $item->product->buyUnit->name }}</td><td class="text-end">{{ $item->product->displayStock((float)$item->quantity) }}</td></tr>
-            @empty<tr><td colspan="3" class="text-center text-muted py-4">{{ $search!=='' ? 'Tidak ada barang yang sesuai pencarian.' : 'Belum ada barang dalam transfer ini.' }}</td></tr>@endforelse</tbody>
+            <thead><tr><th>Barang</th><th>Satuan Transfer</th><th class="text-end">Jumlah</th><th>Kedaluwarsa</th></tr></thead>
+            <tbody>@forelse($items as $item)<tr><td class="fw-semibold">{{ $item->product->name }}</td><td>{{ $item->productUnit?->unit?->name ?? $item->product->buyUnit->name }}</td><td class="text-end">{{ $item->product->displayStock((float)$item->quantity) }}</td>
+                <td>
+                    @forelse($item->expiry_details ?? [] as $detail)
+                        <div class="small text-muted mb-1">
+                            <span class="badge bg-light text-secondary">Kedaluwarsa {{ $detail['expired_date'] ? \Carbon\Carbon::parse($detail['expired_date'])->format('d/m/Y') : '-' }}</span>
+                            <span>{{ $item->product->displayStock((float)$detail['quantity']) }}</span>
+                        </div>
+                    @empty
+                        <span class="small text-muted">{{ $item->expiry_details === null && $item->product->is_expirable ? 'Rincian kedaluwarsa belum tercatat.' : '-' }}</span>
+                    @endforelse
+                </td>
+            </tr>
+            @empty<tr><td colspan="4" class="text-center text-muted py-4">{{ $search!=='' ? 'Tidak ada barang yang sesuai pencarian.' : 'Belum ada barang dalam transfer ini.' }}</td></tr>@endforelse</tbody>
         </table>
     </div>
     <div class="card-footer bg-white">{{ $items->links() }}</div>

@@ -12,6 +12,10 @@
             <option value="">Semua Supplier</option>
             @foreach($suppliers as $supplier)<option value="{{ $supplier->id }}" @selected((string) request('supplier_id') === (string) $supplier->id)>{{ $supplier->name }}</option>@endforeach
         </select></div>
+        <div><label for="purchaseReportType">Jenis PO</label><select id="purchaseReportType" name="po_type" class="form-select form-select-sm">
+            <option value="">Semua Jenis PO</option>
+            @foreach($poTypes as $value=>$label)<option value="{{ $value }}" @selected(request('po_type') === $value)>{{ $label }}</option>@endforeach
+        </select></div>
         <div><label for="purchasePageSize">Per Halaman</label><select id="purchasePageSize" name="per_page" class="form-select form-select-sm">@foreach([25,50,100] as $size)<option value="{{ $size }}" @selected((int)request('per_page',25)===$size)>{{ $size }}</option>@endforeach</select></div>
         <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
     <a href="{{ route('report.purchase') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
