@@ -39,7 +39,7 @@ class PurchaseOrderController extends Controller
         $pendingCount = $summaryOrders->where('status', 'pending')->count();
         $partialCount = $summaryOrders->where('status', 'partial')->count();
         $completedCount = $summaryOrders->where('status', 'completed')->count();
-        $orders    = $query->latest('order_date')->latest('created_at')->latest('id')->paginate(15)->withQueryString()
+        $orders    = $query->latest('order_date')->latest('created_at')->latest('id')->paginate(25)->withQueryString()
             ->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
         $suppliers = Supplier::orderBy('name')->get();
 

@@ -33,7 +33,6 @@
     <div class="app-filter-field"><label for="opnameResultFilter">Hasil Opname</label><select id="opnameResultFilter" name="filter" aria-label="Filter hasil opname" class="form-select form-select-sm">
         @foreach(['all'=>'Semua hasil','changed'=>'Ada selisih','short'=>'Stok kurang','over'=>'Stok lebih','matched'=>'Sesuai'] as $key=>$label)<option value="{{ $key }}" @selected($filter===$key)>{{ $label }}</option>@endforeach
     </select></div>
-    <div class="app-filter-field"><label for="opnameResultSize">Per Halaman</label><select id="opnameResultSize" name="per_page" aria-label="Jumlah barang per halaman" class="form-select form-select-sm">@foreach([25,50,100] as $size)<option value="{{ $size }}" @selected($perPage===$size)>{{ $size }}</option>@endforeach</select></div>
     <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-funnel me-1"></i>Terapkan</button>
     @if($search!=='' || $filter!=='all')<a class="btn btn-sm btn-outline-secondary" href="{{ route('inventory.opnames.show',$opname) }}"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>@endif
 </form>

@@ -52,7 +52,7 @@ class SaleController extends Controller
         }
 
         $totalAmount = (clone $query)->paid()->sum('total_amount');
-        $sales = $query->latest()->latest('id')->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
+        $sales = $query->latest()->latest('id')->paginate(25)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
 
         return view('sale.index', compact('sales', 'totalAmount', 'from', 'to', 'cashiers'));
     }

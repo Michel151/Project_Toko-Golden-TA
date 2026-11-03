@@ -28,7 +28,7 @@ class SaleCashierFilterTest extends TestCase
         $owner = $this->user('Owner', 'owner');
         $first = $this->user('KasirA', 'kasir');
         $second = $this->user('KasirB', 'kasir');
-        for ($i = 0; $i < 22; $i++) $this->sale($first, 1000);
+        for ($i = 0; $i < 27; $i++) $this->sale($first, 1000);
         $this->sale($first, 400, 'transfer');
         $this->sale($first, 999, status: 'pending');
         $this->sale($second, 2000);
@@ -37,16 +37,16 @@ class SaleCashierFilterTest extends TestCase
         $filters = ['cashier_id' => $first->id, 'payment_method' => 'tunai', 'status' => 'paid', 'from' => '2026-10-31', 'to' => '2026-10-31'];
         $page = $this->get(route('sale.sales.index', $filters))->assertOk()
             ->assertSee('id="saleCashier"', false)->assertSee('Semua Kasir')
-            ->assertViewHas('totalAmount', 22000)
+            ->assertViewHas('totalAmount', 27000)
             ->assertViewHas('cashiers', fn ($users) => $users->pluck('id')->contains($owner->id))
-            ->assertViewHas('sales', fn ($sales) => $sales->total() === 22 && $sales->count() === 20
+            ->assertViewHas('sales', fn ($sales) => $sales->total() === 27 && $sales->count() === 25
                 && $sales->every(fn ($sale) => $sale->created_by === $first->id));
         parse_str(parse_url($page->viewData('sales')->url(2), PHP_URL_QUERY), $query);
         foreach ($filters as $key => $value) $this->assertEquals($value, $query[$key]);
         $this->get(route('sale.sales.index', $filters + ['page' => 2]))->assertOk()
-            ->assertViewHas('sales', fn ($sales) => $sales->count() === 2)->assertViewHas('totalAmount', 22000);
+            ->assertViewHas('sales', fn ($sales) => $sales->count() === 2)->assertViewHas('totalAmount', 27000);
         $this->get(route('sale.sales.index', ['from' => '2026-10-31', 'to' => '2026-10-31']))->assertOk()
-            ->assertViewHas('sales', fn ($sales) => $sales->total() === 26)->assertViewHas('totalAmount', 27400);
+            ->assertViewHas('sales', fn ($sales) => $sales->total() === 31)->assertViewHas('totalAmount', 32400);
         $this->get(route('sale.sales.index', ['cashier_id' => $owner->id, 'from' => '2026-10-31', 'to' => '2026-10-31']))->assertOk()
             ->assertViewHas('sales', fn ($sales) => $sales->total() === 1)->assertViewHas('totalAmount', 3000);
     }

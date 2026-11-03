@@ -36,7 +36,7 @@ class PurchaseReceiptController extends Controller
         $receiptCount = $summaryReceipts->count();
         $allocationCount = $summaryReceipts->sum(fn ($receipt) => $receipt->items->count());
         $supplierCount = $summaryReceipts->pluck('purchaseOrder.supplier_id')->unique()->count();
-        $receipts = $query->latest('receipt_date')->latest('created_at')->latest('id')->paginate(15)->withQueryString()
+        $receipts = $query->latest('receipt_date')->latest('created_at')->latest('id')->paginate(25)->withQueryString()
             ->appends(['from'=>$from ?? '', 'to'=>$to ?? ''])->fragment('receipt-history');
 
         return view('purchase.receipts.index', compact(

@@ -26,7 +26,7 @@ class OpnameController extends Controller
         $opnames = StockOpname::with(['location', 'createdBy'])
             ->when($from, fn ($query)=>$query->whereDate('opname_date', '>=', $from))
             ->when($to, fn ($query)=>$query->whereDate('opname_date', '<=', $to))
-            ->latest()->latest('id')->paginate(15)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
+            ->latest()->latest('id')->paginate(25)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
         return view('inventory.opnames.index', compact('opnames', 'from', 'to'));
     }
 
@@ -144,11 +144,9 @@ class OpnameController extends Controller
         $filters = $request->validate([
             'q' => 'nullable|string|max:150',
             'filter' => 'nullable|in:all,changed,short,over,matched',
-            'per_page' => 'nullable|integer|in:25,50,100',
         ]);
         $search = trim($filters['q'] ?? '');
         $filter = $filters['filter'] ?? 'all';
-        $perPage = (int) ($filters['per_page'] ?? 25);
         $opname->load(['location', 'createdBy']);
         $changed = fn ($query) => $query->where('difference', '!=', 0)
             ->orWhereHas('expiryCounts', fn ($dates) => $dates->whereColumn('physical_quantity', '!=', 'system_quantity'));
@@ -163,8 +161,8 @@ class OpnameController extends Controller
         if ($filter === 'matched') $query->where('difference', 0)
             ->whereDoesntHave('expiryCounts', fn ($dates) => $dates->whereColumn('physical_quantity', '!=', 'system_quantity'));
         $items = $query->orderBy(Product::select('name')->whereColumn('products.id', 'stock_opname_items.product_id'))
-            ->orderBy('id')->paginate($perPage)->withQueryString();
-        return view('inventory.opnames.show', compact('opname', 'items', 'summary', 'search', 'filter', 'perPage'));
+            ->orderBy('id')->paginate(25)->withQueryString();
+        return view('inventory.opnames.show', compact('opname', 'items', 'summary', 'search', 'filter'));
     }
 
     // Selesaikan opname — update stok sesuai fisik

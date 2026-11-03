@@ -72,7 +72,7 @@ class StockCardController extends Controller
         });
 
         $movements = $paginate
-            ? $query->paginate(30)->withQueryString()
+            ? $query->paginate(25)->withQueryString()
             : $cardRows;
         if ($paginate) {
             $rowsById = $cardRows->keyBy('id');

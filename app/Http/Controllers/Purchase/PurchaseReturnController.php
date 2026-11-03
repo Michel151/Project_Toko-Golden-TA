@@ -25,7 +25,7 @@ class PurchaseReturnController extends Controller
         if (in_array($request->status, ['draft', 'approved', 'rejected'], true)) {
             $query->where('status', $request->status);
         }
-        $returns = $query->latest('id')->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
+        $returns = $query->latest('id')->paginate(25)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
 
         return view('purchase.returns.index', compact('returns', 'from', 'to'));
     }

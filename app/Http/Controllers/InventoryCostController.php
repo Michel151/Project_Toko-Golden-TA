@@ -26,7 +26,7 @@ class InventoryCostController extends Controller
     public function show(Product $product)
     {
         $product->load('costBalance', 'baseProductUnit.unit', 'buyUnit');
-        $entries = DB::table('inventory_cost_entries')->where('product_id', $product->id)->orderByDesc('id')->paginate(50);
+        $entries = DB::table('inventory_cost_entries')->where('product_id', $product->id)->orderByDesc('id')->paginate(25)->withQueryString();
         $receiptTypes = array_unique([PurchaseReceipt::class, (new PurchaseReceipt)->getMorphClass()]);
         $saleTypes = array_unique([Sale::class, (new Sale)->getMorphClass()]);
         $receiptDocuments = PurchaseReceipt::query()

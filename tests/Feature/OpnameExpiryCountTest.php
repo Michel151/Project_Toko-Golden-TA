@@ -127,7 +127,7 @@ class OpnameExpiryCountTest extends TestCase
             ->assertViewHas('summary',['total'=>77,'changed'=>0,'matched'=>77]);
         $this->capture('show-large',$page);
         $this->get(route('inventory.opnames.show',[$opname,'page'=>2,'per_page'=>50]))->assertOk()
-            ->assertViewHas('items',fn($items)=>$items->count()===27 && $items->currentPage()===2);
+            ->assertViewHas('items',fn($items)=>$items->count()===25 && $items->perPage()===25 && $items->currentPage()===2);
         $this->assertEquals(20,$this->stock());
     }
 
@@ -155,7 +155,7 @@ class OpnameExpiryCountTest extends TestCase
             $this->get(route('inventory.opnames.show',[$opname,'filter'=>$filter]))->assertOk()
                 ->assertViewHas('items',fn($items)=>$items->total()===1 && $items->first()->product_id===$id);
         }
-        $this->get(route('inventory.opnames.show',[$opname,'per_page'=>1000]))->assertSessionHasErrors('per_page');
+        $this->get(route('inventory.opnames.show',[$opname,'per_page'=>1000]))->assertOk()->assertViewHas('items',fn($items)=>$items->perPage()===25)->assertDontSee('opnameResultSize');
     }
 
     public function test_expiry_distribution_can_be_corrected_even_when_the_total_stays_the_same(): void

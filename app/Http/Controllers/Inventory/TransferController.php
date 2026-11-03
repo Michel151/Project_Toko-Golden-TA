@@ -47,7 +47,7 @@ class TransferController extends Controller
             });
         }
 
-        $transfers = $query->latest()->latest('id')->paginate(20)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
+        $transfers = $query->latest()->latest('id')->paginate(25)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
         $products  = Product::orderBy('name')->get();
         $locations = Location::orderBy('name')->get();
 
@@ -199,12 +199,12 @@ class TransferController extends Controller
 
     public function show(Request $request, StockTransfer $transfer)
     {
-        $filters = $request->validate(['q'=>'nullable|string|max:150', 'per_page'=>'nullable|integer|in:25,50,100']);
+        $filters = $request->validate(['q'=>'nullable|string|max:150']);
         $search = trim($filters['q'] ?? '');
         $transfer->load(['fromLocation', 'toLocation', 'createdBy'])->loadCount('items');
         $items = $transfer->items()->with(['product.buyUnit', 'product.retailUnit', 'product.productUnits.unit', 'productUnit.unit'])
             ->when($search !== '', fn ($query) => $query->whereHas('product', fn ($products) => $products->where('name', 'like', '%'.$search.'%')))
-            ->orderBy('id')->paginate((int) ($filters['per_page'] ?? 25))->withQueryString();
+            ->orderBy('id')->paginate(25)->withQueryString();
         return view('inventory.transfers.show', compact('transfer', 'items', 'search'));
     }
 
