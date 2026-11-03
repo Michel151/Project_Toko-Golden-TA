@@ -11,7 +11,7 @@ class SupplierController extends Controller
 {
     public function index()
     {
-        $suppliers = Supplier::withCount('purchaseOrders')->latest()->latest('id')->paginate(15);
+        $suppliers = Supplier::withCount('purchaseOrders')->latest()->latest('id')->paginate(25)->withQueryString();
         return view('master.suppliers.index', compact('suppliers'));
     }
 

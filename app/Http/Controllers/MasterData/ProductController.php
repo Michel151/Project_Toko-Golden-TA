@@ -34,7 +34,7 @@ class ProductController extends Controller
             $query->where('is_active', $request->status === 'active');
         }
 
-        $products   = $query->orderBy('name')->orderBy('id')->paginate(20)->withQueryString();
+        $products   = $query->orderBy('name')->orderBy('id')->paginate(25)->withQueryString();
         $categories = Category::orderBy('name')->get();
 
         return view('master.products.index', compact('products', 'categories'));
