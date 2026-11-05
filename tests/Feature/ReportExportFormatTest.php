@@ -99,6 +99,25 @@ class ReportExportFormatTest extends TestCase
         $this->assertSame(6,$sheet->getHighestDataRow());
     }
 
+    public function test_report_workbooks_center_titles_periods_and_export_times_with_visible_gridlines(): void
+    {
+        $this->actingAs(User::create(['name'=>'Owner','email'=>'all-headers@test.com','password'=>'password','role'=>'owner']));
+        foreach (['sale','purchase','stock','transfer','profit-loss'] as $report) {
+            $response = $this->get(route('report.'.$report.'.excel', ['from'=>'2026-10-01','to'=>'2026-10-31']))->assertOk();
+            $book = IOFactory::load($response->baseResponse->getFile()->getPathname());
+            foreach ($book->getAllSheets() as $sheet) {
+                foreach (['A1','A2','A3'] as $cell) {
+                    $this->assertSame(Alignment::HORIZONTAL_CENTER, $sheet->getStyle($cell)->getAlignment()->getHorizontal(), $report.' '.$cell);
+                }
+                $this->assertTrue($sheet->getShowGridlines(), $report);
+                $this->assertNotEmpty($sheet->getCell('A1')->getValue());
+                $this->assertStringContainsString($report === 'stock' ? 'Posisi stok per' : 'Periode:', $sheet->getCell('A2')->getValue());
+                $this->assertStringContainsString('Diekspor pada', $sheet->getCell('A3')->getValue());
+            }
+            $book->disconnectWorksheets();
+        }
+    }
+
     public function test_all_report_exports_remain_accessible_and_filter_metadata_is_preserved(): void
     {
         $this->actingAs(User::create(['name'=>'Owner','email'=>'report-format@example.com','password'=>'password','role'=>'owner']));

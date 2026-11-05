@@ -1,4 +1,5 @@
 @extends('report.pdf.layout')
+@section('report-header-centered', '1')
 @section('report-title', 'Laporan Laba Rugi')
 @section('report-period', $periodLabel.' | '.\Carbon\Carbon::parse($from)->format('d/m/Y').' s.d. '.\Carbon\Carbon::parse($to)->format('d/m/Y'))
 @section('report-body')

@@ -1,4 +1,5 @@
 @extends('report.pdf.layout')
+@section('report-header-centered', '1')
 @section('report-title'){{ $reportTitle ?? 'Laporan Stok' }}
 @endsection
 @section('report-period')Posisi stok per {{ now('Asia/Jakarta')->format('d/m/Y H:i') }} WIB

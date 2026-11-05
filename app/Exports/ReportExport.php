@@ -102,7 +102,7 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
                     'font' => ['size' => 9, 'color' => ['rgb' => '555555']],
                 ]);
                 if ($this->reportPeriod !== null) {
-                    $sheet->getStyle("A2:{$lastColumn}2")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("A2:{$lastColumn}3")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setIndent(0);
                 }
                 $sheet->getStyle("A3:{$lastColumn}3")->getFont()->setSize(9)->getColor()->setRGB('555555');
                 $sheet->getStyle("A4:{$lastColumn}4")->applyFromArray([

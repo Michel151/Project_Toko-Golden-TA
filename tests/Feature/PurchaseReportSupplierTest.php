@@ -90,7 +90,7 @@ class PurchaseReportSupplierTest extends TestCase
         \Maatwebsite\Excel\Facades\Excel::assertDownloaded('Laporan-Pembelian-2026-10-01-sd-2026-10-23.xlsx', function ($export) {
             $data = $export->array();
             $rows = array_slice($data, 4);
-            return $data[2] === ['Supplier: PT ABC'] && count($rows) === 3
+            return str_contains($data[2][0], 'Supplier: PT ABC') && count($rows) === 3
                 && array_unique(array_column($rows, 2)) === ['PT ABC'] && array_sum(array_column($rows, 6)) === 800.0;
         });
     }
@@ -162,7 +162,7 @@ class PurchaseReportSupplierTest extends TestCase
         $this->get(route('report.purchase.pdf', $this->period + ['po_type'=>'return', 'page'=>2]))->assertOk();
         \Maatwebsite\Excel\Facades\Excel::shouldReceive('download')->once()->withArgs(function ($export, $filename) {
             $data = $export->array();
-            $this->assertSame(['Supplier: PT ABC | Jenis PO: PO Pembelian'], $data[2]);
+            $this->assertStringContainsString('Supplier: PT ABC | Jenis PO: PO Pembelian', $data[2][0]);
             $rows = array_slice($data, 4);
             $this->assertSame(['PO-A-COMPLETED','PO-A-PENDING'], array_column($rows, 0));
             $this->assertEquals(800, array_sum(array_column($rows, 6)));

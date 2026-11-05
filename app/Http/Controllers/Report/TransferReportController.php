@@ -84,7 +84,7 @@ class TransferReportController extends Controller
         ]))->all();
 
         return Excel::download(
-            new ReportExport("Laporan Transfer {$from} s.d. {$to}", ['No. Transfer', 'Tanggal', 'Barang', 'Dari', 'Ke', 'Jumlah', 'Satuan Stok', 'Petugas', 'Catatan'], $rows, [], [6], 'Transfer'),
+            new ReportExport('Laporan Transfer Stok', ['No. Transfer', 'Tanggal', 'Barang', 'Dari', 'Ke', 'Jumlah', 'Satuan Stok', 'Petugas', 'Catatan'], $rows, [], [6], 'Transfer', showGridlines: true, reportPeriod: "Periode: {$from} s.d. {$to}"),
             "Laporan-Transfer-{$from}-sd-{$to}.xlsx"
         );
     }

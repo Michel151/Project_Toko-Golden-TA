@@ -13,7 +13,7 @@ class ProfitLossWorkbookExport implements WithMultipleSheets
         $data = $this->data;
         $period = 'Periode: '.\Carbon\CarbonImmutable::parse($data['from'])->format('d/m/Y')
             .' s.d. '.\Carbon\CarbonImmutable::parse($data['to'])->format('d/m/Y');
-        $information = [$period, 'Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.'];
+        $information = ['Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.'];
         if ($data['incompleteCount'] > 0) {
             $information[] = 'Catatan: HPP pada '.$data['incompleteCount'].' transaksi penjualan belum lengkap; laba belum dapat ditentukan secara lengkap.';
         }
@@ -22,10 +22,10 @@ class ProfitLossWorkbookExport implements WithMultipleSheets
                 .'; laba bersih belum dapat ditentukan.';
         }
         return [
-            new ProfitLossExport('Laporan Laba Rugi - '.$data['periodLabel'], $data['lines'], $information),
-            new ProfitLossExport('Rekonsiliasi Persediaan - '.$data['periodLabel'], $data['reconciliation']['lines'], [
-                $period, 'Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.', 'Status: '.$data['reconciliation']['statusLabel'], ...$data['reconciliation']['notes'],
-            ], 'Rekonsiliasi Persediaan', 'Belum tersedia'),
+            new ProfitLossExport('Laporan Laba Rugi', $data['lines'], $information, reportPeriod: $data['periodLabel'].' | '.$period),
+            new ProfitLossExport('Rekonsiliasi Persediaan', $data['reconciliation']['lines'], [
+                'Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.', 'Status: '.$data['reconciliation']['statusLabel'], ...$data['reconciliation']['notes'],
+            ], 'Rekonsiliasi Persediaan', 'Belum tersedia', reportPeriod: $data['periodLabel'].' | '.$period),
         ];
     }
 }

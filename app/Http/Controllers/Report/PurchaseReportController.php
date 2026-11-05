@@ -83,7 +83,7 @@ class PurchaseReportController extends Controller
         ])->all();
 
         return Excel::download(
-            new ReportExport("Laporan Pembelian {$from} s.d. {$to}", ['No. PO', 'Tanggal', 'Supplier', 'Status', 'Jumlah Item', 'Dibuat Oleh', 'Nilai PO'], $rows, [7], [], 'Pembelian', $metadata),
+            new ReportExport('Laporan Pembelian', ['No. PO', 'Tanggal', 'Supplier', 'Status', 'Jumlah Item', 'Dibuat Oleh', 'Nilai PO'], $rows, [7], [], 'Pembelian', $metadata, showGridlines: true, reportPeriod: "Periode: {$from} s.d. {$to}"),
             "Laporan-Pembelian-{$from}-sd-{$to}.xlsx"
         );
     }

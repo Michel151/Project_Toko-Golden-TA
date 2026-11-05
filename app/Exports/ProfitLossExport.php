@@ -9,10 +9,10 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class ProfitLossExport extends ReportExport implements WithStrictNullComparison
 {
-    public function __construct(string $title, private array $lines, array $metadata, string $sheetTitle = 'Laba Rugi', string $missing = 'Belum lengkap')
+    public function __construct(string $title, private array $lines, array $metadata, string $sheetTitle = 'Laba Rugi', string $missing = 'Belum lengkap', ?string $reportPeriod = null)
     {
         $rows = array_map(fn ($line) => [$line[0], ($line[3] ?? 'detail') === 'section' ? null : ($line[1] ?? $missing)], $lines);
-        parent::__construct($title, ['Uraian', 'Nilai (Rp)'], $rows, [], [2], $sheetTitle, $metadata);
+        parent::__construct($title, ['Uraian', 'Nilai (Rp)'], $rows, [], [2], $sheetTitle, $metadata, showGridlines: $reportPeriod !== null, reportPeriod: $reportPeriod);
     }
 
     public function registerEvents(): array
@@ -23,7 +23,7 @@ class ProfitLossExport extends ReportExport implements WithStrictNullComparison
             $sheet = $event->sheet->getDelegate();
             $sheet->getColumnDimension('A')->setWidth(66);
             $sheet->getColumnDimension('B')->setWidth(25);
-            $sheet->getRowDimension(3)->setRowHeight(max(45, ceil(mb_strlen(implode(' | ', $this->metadata)) / 85) * 13 + 12));
+            $sheet->getRowDimension(3)->setRowHeight(max(45, ceil(mb_strlen((string) $sheet->getCell('A3')->getValue()) / 85) * 13 + 12));
             $sheet->getAutoFilter()->setRange('');
             $last = count($this->rows) + 4;
             $sheet->getStyle('B5:B'.$last)->getNumberFormat()->setFormatCode('#,##0;(#,##0);0');

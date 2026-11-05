@@ -33,11 +33,12 @@
 </head>
 <body>
     <div class="footer"><span class="page">Halaman <span class="page-number"></span></span>Toko Golden | Dicetak {{ now('Asia/Jakarta')->format('d/m/Y H:i:s') }} WIB</div>
-    <div class="report-header">
+    <div class="report-header @hasSection('report-header-centered') center @endif">
         <h1>Toko Golden</h1>
         <h2>@yield('report-title')</h2>
         <div class="meta">@yield('report-period')</div>
         @foreach($reportMetadata ?? [] as $line)<div class="meta">{{ $line }}</div>@endforeach
+        @hasSection('report-header-centered')<div class="meta">Diekspor pada {{ now('Asia/Jakarta')->format('d/m/Y H:i') }} WIB</div>@endif
     </div>
     @yield('report-body')
 </body>

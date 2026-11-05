@@ -118,7 +118,7 @@ class StockReportController extends Controller
 
         $valueColumn = count($headings) - 1;
         return Excel::download(
-            new ReportExport($this->reportTitle($request), $headings, $rows, [$valueColumn], [], 'Stok', $this->exportMetadata($request)),
+            new ReportExport($this->reportTitle($request), $headings, $rows, [$valueColumn], [], 'Stok', $this->exportMetadata($request), showGridlines: true, reportPeriod: 'Posisi stok per '.now('Asia/Jakarta')->format('d/m/Y H:i').' WIB'),
             $this->fileName($request, 'xlsx')
         );
     }
