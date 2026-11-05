@@ -184,14 +184,9 @@ function updateUnitOptions(row, selectedUnitId = '') {
 }
 
 function showPriceSource(row, text) {
-    let label = row.querySelector('[data-price-origin]');
-    if (!label) {
-        label = document.createElement('div');
-        label.dataset.priceOrigin = '';
-        label.className = 'small text-muted mt-1';
-        row.querySelector('[name$="[buy_price]"]').closest('td').appendChild(label);
-    }
-    label.textContent = text;
+    const input = row.querySelector('[name$="[buy_price]"]');
+    input.title = text;
+    input.setAttribute('aria-description', text);
 }
 
 function createItemRow(index) {
