@@ -31,8 +31,8 @@
         <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
     <a href="{{ route('report.sale') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
     <div class="btn-group btn-group-sm">
-        <a href="{{ route('report.sale.pdf', request()->all()) }}" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-pdf me-1"></i>PDF</a>
-        <a href="{{ route('report.sale.excel', request()->all()) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+        <a data-sale-export href="{{ route('report.sale.pdf', request()->all()) }}" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-pdf me-1"></i>PDF</a>
+        <a data-sale-export href="{{ route('report.sale.excel', request()->all()) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
     </div>
 </div>
 
@@ -185,10 +185,19 @@
 @push('scripts')
 <script>
 (() => {
+    const updateExportTab = tab => {
+        document.querySelectorAll('[data-sale-export]').forEach(link => {
+            const url = new URL(link.href, location.href);
+            url.searchParams.set('tab', tab);
+            link.href = url.href;
+        });
+    };
+    updateExportTab(document.getElementById('saleReportActiveTab').value);
     document.querySelectorAll('#saleReportTabs [data-report-tab]').forEach(button => {
         button.addEventListener('shown.bs.tab', () => {
             const tab = button.dataset.reportTab;
             document.getElementById('saleReportActiveTab').value = tab;
+            updateExportTab(tab);
             const url = new URL(location.href);
             url.searchParams.set('tab', tab);
             history.replaceState(null, '', url);

@@ -55,12 +55,29 @@ class ReportExportFormatTest extends TestCase
     public function test_excel_can_show_regular_cell_gridlines_without_changing_data(): void
     {
         $sheet = $this->sheet(new ReportExport('Laporan Penjualan', ['Invoice', 'Total'],
-            [['INV-001', 12000]], [2], sheetTitle: 'Penjualan', showGridlines: true));
+            [['INV-001', 12000]], [2], sheetTitle: 'Penjualan', showGridlines: true, reportPeriod: 'Periode: 2026-10-01 s.d. 2026-10-31'));
+        $this->assertSame('Laporan Penjualan', $sheet->getCell('A1')->getValue());
+        $this->assertSame('Periode: 2026-10-01 s.d. 2026-10-31', $sheet->getCell('A2')->getValue());
+        $this->assertSame(Alignment::HORIZONTAL_CENTER, $sheet->getStyle('A1')->getAlignment()->getHorizontal());
+        $this->assertSame(Alignment::HORIZONTAL_CENTER, $sheet->getStyle('A2')->getAlignment()->getHorizontal());
+        $this->assertStringContainsString('Diekspor pada', $sheet->getCell('A3')->getValue());
         $this->assertTrue($sheet->getShowGridlines());
         $this->assertMatchesRegularExpression('/showGridLines="(?:1|true)"/', $this->sheetXml);
         $this->assertSame('INV-001', $sheet->getCell('A5')->getValue());
         $this->assertEquals(12000, $sheet->getCell('B5')->getValue());
         $this->assertSame(Fill::FILL_NONE, $sheet->getStyle('B5')->getFill()->getFillType());
+    }
+
+    public function test_margin_excel_preserves_unknown_costs_and_does_not_total_incomplete_financial_values(): void
+    {
+        $sheet = $this->sheet(new ReportExport('Laporan Margin per Produk', ['Barang','Omzet','HPP','Laba Kotor','Margin (%)'],
+            [['Produk',1000,'Belum lengkap','Belum lengkap','Belum lengkap'], ['Nol omzet',0,0,0,'—']], [2,3,4], [5],
+            showGridlines: true, reportPeriod: 'Periode: 2026-11-01 s.d. 2026-11-05', includeTotal: false));
+        $this->assertSame('Belum lengkap', $sheet->getCell('C5')->getValue());
+        $this->assertSame('Belum lengkap', $sheet->getCell('E5')->getValue());
+        $this->assertSame('—', $sheet->getCell('E6')->getValue());
+        $this->assertSame(6, $sheet->getHighestRow());
+        $this->assertSame('A4:E6', $sheet->getAutoFilter()->getRange());
     }
 
     public function test_empty_report_has_valid_ranges_and_zero_total(): void

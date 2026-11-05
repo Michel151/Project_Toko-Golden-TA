@@ -26,15 +26,18 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
         protected array $decimalColumns = [],
         protected string $sheetTitle = 'Laporan',
         protected array $metadata = [],
-        protected bool $showGridlines = false
+        protected bool $showGridlines = false,
+        protected ?string $reportPeriod = null,
+        protected bool $includeTotal = true
     ) {}
 
     public function array(): array
     {
+        $exportedAt = 'Toko Golden | Diekspor pada ' . now('Asia/Jakarta')->translatedFormat('d F Y H:i') . ' WIB';
         return [
             [$this->reportTitle],
-            ['Toko Golden | Diekspor pada ' . now('Asia/Jakarta')->translatedFormat('d F Y H:i') . ' WIB'],
-            [implode(' | ', $this->metadata)],
+            [$this->reportPeriod ?? $exportedAt],
+            [implode(' | ', $this->reportPeriod !== null ? [$exportedAt, ...$this->metadata] : $this->metadata)],
             $this->headings,
             ...$this->rows,
         ];
@@ -63,7 +66,7 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
                 $dataLastRow = count($this->rows) + 4;
                 $hasTotal = $this->rows && ($this->rows[array_key_last($this->rows)][0] ?? null) === 'TOTAL';
                 $lastRow = max(5, $dataLastRow);
-                if (! $hasTotal && $this->currencyColumns) {
+                if ($this->includeTotal && ! $hasTotal && $this->currencyColumns) {
                     $lastRow++;
                     $sheet->setCellValue("A{$lastRow}", 'TOTAL');
                     foreach ($this->currencyColumns as $columnIndex) {
@@ -88,16 +91,19 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
                 ]);
                 $sheet->getRowDimension(1)->setRowHeight(36);
                 $sheet->getRowDimension(2)->setRowHeight(20);
-                $sheet->getRowDimension(3)->setRowHeight($this->metadata ? 26 : 10);
+                $sheet->getRowDimension(3)->setRowHeight($this->reportPeriod !== null ? ($this->metadata ? 40 : 26) : ($this->metadata ? 26 : 10));
                 $sheet->getRowDimension(4)->setRowHeight(32);
 
                 $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
                     'font' => ['bold' => true, 'size' => 14, 'color' => ['rgb' => '111111']],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+                    'alignment' => ['horizontal' => $this->reportPeriod !== null ? Alignment::HORIZONTAL_CENTER : Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
                 ]);
                 $sheet->getStyle("A2:{$lastColumn}2")->applyFromArray([
                     'font' => ['size' => 9, 'color' => ['rgb' => '555555']],
                 ]);
+                if ($this->reportPeriod !== null) {
+                    $sheet->getStyle("A2:{$lastColumn}2")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                }
                 $sheet->getStyle("A3:{$lastColumn}3")->getFont()->setSize(9)->getColor()->setRGB('555555');
                 $sheet->getStyle("A4:{$lastColumn}4")->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => '111111']],

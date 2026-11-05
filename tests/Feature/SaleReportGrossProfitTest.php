@@ -111,7 +111,7 @@ class SaleReportGrossProfitTest extends TestCase
             file_put_contents($dir.'/category-all.html',$all->getContent());
         }
         \Maatwebsite\Excel\Facades\Excel::fake();
-        $this->get(route('report.sale.excel',$filters+['page'=>9]))->assertOk();
+        $this->get(route('report.sale.excel',array_replace($filters, ['page'=>9, 'tab'=>'transactions'])))->assertOk();
         \Maatwebsite\Excel\Facades\Excel::assertDownloaded('Laporan-Penjualan-2026-10-20-sd-2026-10-25.xlsx',function($export) {
             $rows=$export->array();
             return str_contains($rows[2][0],'Minuman')&&$rows[3][5]==='Total Kategori'
@@ -125,7 +125,7 @@ class SaleReportGrossProfitTest extends TestCase
             return $data['sales']->count()===2&&$data['category']->name==='Minuman'
                 &&str_contains($html,'Rp 15.000')&&!str_contains($html,'Rp 13.000')&&str_contains($html,'Total Kategori');
         }))->andReturn($pdf);
-        $this->get(route('report.sale.pdf',$filters+['page'=>9]))->assertOk()->assertSee('category-pdf');
+        $this->get(route('report.sale.pdf',array_replace($filters, ['page'=>9, 'tab'=>'transactions'])))->assertOk()->assertSee('category-pdf');
         $this->assertDatabaseCount('stock_movements',0);
     }
 
