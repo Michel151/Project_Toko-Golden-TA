@@ -32,20 +32,20 @@ class StockCardController extends Controller
         $rows = $data['movements']->map(function ($movement) use ($product) {
             $quantity = (float) $movement->quantity;
             return [$movement->movement_date->format('d/m/Y'), $movement->reference_number ?? '-',
-                $movement->type_label.($movement->notes ? ' - '.$movement->notes : ''), $movement->location->name,
+                $movement->type_label.($movement->notes ? ' - '.$movement->notes : ''), $movement->location->name, $movement->createdBy->name ?? 'Sistem',
                 $quantity > 0 ? $product->displayStock($quantity) : '-',
                 $quantity < 0 ? $product->displayStock(abs($quantity)) : '-',
-                $product->displayStock((float) $movement->card_balance), $movement->createdBy->name ?? 'Sistem'];
+                $product->displayStock((float) $movement->card_balance)];
         })->all();
         if (! $rows) $rows[] = ['Tidak ada mutasi sesuai filter.', null, null, null, null, null, null, null];
-        $rows[] = ['TOTAL', null, 'Saldo Akhir', null, $product->displayStock($data['totalIn']),
-            $product->displayStock($data['totalOut']), $product->displayStock($data['closingBalance']), null];
+        $rows[] = ['TOTAL', null, 'Saldo Akhir', null, null, $product->displayStock($data['totalIn']),
+            $product->displayStock($data['totalOut']), $product->displayStock($data['closingBalance'])];
         $location = $data['locationId'] ? $data['locations']->firstWhere('id', $data['locationId'])?->name : 'Semua Lokasi';
         $metadata = ['Barang: '.$product->name, 'Kategori: '.($product->category?->name ?? '-'), 'Lokasi: '.$location,
             'Saldo Awal: '.$product->displayStock($data['openingBalance']), 'Barang Masuk: '.$product->displayStock($data['totalIn']),
             'Barang Keluar: '.$product->displayStock($data['totalOut']), 'Saldo Akhir: '.$product->displayStock($data['closingBalance'])];
         return Excel::download(new ReportExport('Kartu Stok Barang',
-            ['Tanggal','Referensi','Keterangan','Lokasi','Masuk','Keluar','Saldo','Petugas'], $rows, [], [5,6,7], 'Kartu Stok', $metadata,
+            ['Tanggal','Referensi','Keterangan','Lokasi','Petugas','Masuk','Keluar','Saldo'], $rows, [], [6,7,8], 'Kartu Stok', $metadata,
             showGridlines: true, reportPeriod: 'Periode: '.$data['from'].' s.d. '.$data['to'], includeTotal: false),
             'Kartu-Stok-'.str($product->name)->slug().'-'.$data['from'].'-sd-'.$data['to'].'.xlsx');
     }

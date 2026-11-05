@@ -74,7 +74,7 @@
         <span class="badge bg-{{ $isLow ? 'danger' : 'success' }} align-self-center">Total: {{ $product->displayStock($totalStock) }}</span>
     </div>
     <div class="table-responsive"><table class="table table-hover align-middle mb-0">
-        <thead><tr><th>Lokasi</th><th class="text-end">Fisik / Layak Jual</th><th class="text-end">Minimum</th><th style="width:25%">Tingkat Stok</th><th class="text-center">Status</th></tr></thead>
+        <thead><tr><th>Lokasi</th><th>Petugas</th><th class="text-end">Fisik / Layak Jual</th><th class="text-end">Minimum</th><th style="width:25%">Tingkat Stok</th><th class="text-center">Status</th></tr></thead>
         <tbody>
         @forelse($product->productLocations as $productLocation)
             @php
@@ -123,7 +123,7 @@
         <span class="badge bg-warning text-dark align-self-center">30 hari = hampir kedaluwarsa</span>
     </div>
     <div class="table-responsive"><table class="table table-hover align-middle mb-0">
-        <thead><tr><th>Lokasi</th><th>Riwayat Masuk</th><th>No. PO</th><th>Kedaluwarsa</th><th class="text-end">Masuk ke Lokasi</th><th class="text-end">Sisa Fisik / Layak Jual</th><th class="text-center">Status</th></tr></thead>
+        <thead><tr><th>Lokasi</th><th>Petugas</th><th>Riwayat Masuk</th><th>No. PO</th><th>Kedaluwarsa</th><th class="text-end">Masuk ke Lokasi</th><th class="text-end">Sisa Fisik / Layak Jual</th><th class="text-center">Status</th></tr></thead>
         <tbody>
         @forelse($expiryBatchGroups as $group)
             @php
@@ -179,16 +179,16 @@
 <div class="card table-card">
     <div class="card-header bg-white border-0 py-3"><h6 class="fw-bold mb-1">Mutasi Persediaan</h6><small class="text-muted">{{ $movements->total() }} transaksi dalam periode terpilih</small></div>
     <div class="table-responsive"><table class="table table-hover stock-card-table app-mobile-records mb-0" data-mobile-records>
-        <thead><tr><th>Tanggal</th><th>Referensi</th><th>Keterangan</th><th>Lokasi</th><th class="text-end">Masuk</th><th class="text-end">Keluar</th><th class="text-end">Saldo</th><th>Petugas</th></tr></thead>
+        <thead><tr><th>Tanggal</th><th>Referensi</th><th>Keterangan</th><th>Lokasi</th><th>Petugas</th><th class="text-end">Masuk</th><th class="text-end">Keluar</th><th class="text-end">Saldo</th></tr></thead>
         <tbody>
         @forelse($movements as $movement)
             @php $quantity = (float) $movement->quantity; @endphp
-            <tr><td class="text-nowrap">{{ $movement->movement_date->format('d/m/Y') }}<div class="small text-muted">{{ $movement->created_at->format('H:i') }}</div></td><td class="font-monospace small">{{ $movement->reference_number ?? '-' }}</td><td><div class="fw-semibold">{{ $movement->type_label }}</div>@if($movement->notes)<small class="text-muted">{{ $movement->notes }}</small>@endif</td><td>{{ $movement->location->name }}</td><td class="text-end fw-semibold text-success">{{ $quantity > 0 ? $product->displayStock($quantity) : '-' }}</td><td class="text-end fw-semibold text-danger">{{ $quantity < 0 ? $product->displayStock(abs($quantity)) : '-' }}</td><td class="text-end fw-bold">{{ $product->displayStock((float) $movement->card_balance) }}</td><td class="small text-muted">{{ $movement->createdBy->name ?? 'Sistem' }}</td></tr>
+            <tr><td class="text-nowrap">{{ $movement->movement_date->format('d/m/Y') }}<div class="small text-muted">{{ $movement->created_at->format('H:i') }}</div></td><td class="font-monospace small">{{ $movement->reference_number ?? '-' }}</td><td><div class="fw-semibold">{{ $movement->type_label }}</div>@if($movement->notes)<small class="text-muted">{{ $movement->notes }}</small>@endif</td><td>{{ $movement->location->name }}</td><td class="small text-muted">{{ $movement->createdBy->name ?? 'Sistem' }}</td><td class="text-end fw-semibold text-success">{{ $quantity > 0 ? $product->displayStock($quantity) : '-' }}</td><td class="text-end fw-semibold text-danger">{{ $quantity < 0 ? $product->displayStock(abs($quantity)) : '-' }}</td><td class="text-end fw-bold">{{ $product->displayStock((float) $movement->card_balance) }}</td></tr>
         @empty
             <tr><td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada mutasi pada periode ini</td></tr>
         @endforelse
         </tbody>
-        <tfoot class="table-light fw-bold"><tr><td colspan="4">TOTAL / SALDO AKHIR</td><td class="text-end text-success">{{ $product->displayStock($totalIn) }}</td><td class="text-end text-danger">{{ $product->displayStock($totalOut) }}</td><td class="text-end">{{ $product->displayStock($closingBalance) }}</td><td></td></tr></tfoot>
+        <tfoot class="table-light fw-bold"><tr><td colspan="5">TOTAL / SALDO AKHIR</td><td class="text-end text-success">{{ $product->displayStock($totalIn) }}</td><td class="text-end text-danger">{{ $product->displayStock($totalOut) }}</td><td class="text-end">{{ $product->displayStock($closingBalance) }}</td></tr></tfoot>
     </table></div>
     @if($movements->hasPages())<div class="card-footer bg-white">{{ $movements->links() }}</div>@endif
 </div>
