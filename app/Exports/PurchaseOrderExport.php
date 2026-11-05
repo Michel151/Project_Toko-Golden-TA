@@ -32,15 +32,16 @@ class PurchaseOrderExport extends ReportExport
             $metadata[]='PO Asal: '.($order->rootOrder?->po_number ?? '-');
             $metadata[]='PO RETUR - TANPA TAGIHAN TAMBAHAN';
         }
-        parent::__construct(($order->root_purchase_order_id ? 'PO RETUR ' : 'PURCHASE ORDER ').$order->po_number,
+        parent::__construct($order->root_purchase_order_id ? 'PO RETUR' : 'PURCHASE ORDER',
             ['No.','Nama Barang','Satuan','Jumlah','Harga Satuan','Subtotal'],
-            $rows,[5,6],[4],$order->root_purchase_order_id ? 'PO Retur' : 'Purchase Order',$metadata);
+            $rows,[5,6],[4],$order->root_purchase_order_id ? 'PO Retur' : 'Purchase Order',$metadata,
+            showGridlines: true, reportPeriod: 'Tanggal PO: '.($order->order_date?->format('d/m/Y') ?? '-'));
     }
 
     public function array(): array
     {
         $rows=parent::array();
-        $rows[2]=[implode("\n",$this->metadata)];
+        $rows[2]=[implode("\n",['Toko Golden | Diekspor pada '.now('Asia/Jakarta')->translatedFormat('d F Y H:i').' WIB', ...$this->metadata])];
         return $rows;
     }
 
@@ -50,7 +51,7 @@ class PurchaseOrderExport extends ReportExport
         return [AfterSheet::class=>function (AfterSheet $event) use ($format) {
             $format($event);
             $sheet=$event->sheet->getDelegate();
-            $lines=array_sum(array_map(fn ($line)=>max(1,(int) ceil(mb_strlen($line)/100)),$this->metadata));
+            $lines=1+array_sum(array_map(fn ($line)=>max(1,(int) ceil(mb_strlen($line)/100)),$this->metadata));
             $sheet->getRowDimension(3)->setRowHeight($lines*14+12);
             $sheet->getStyle('D5:D'.$sheet->getHighestDataRow())->getNumberFormat()->setFormatCode('#,##0.####');
             $sheet->getColumnDimension('A')->setWidth(9);

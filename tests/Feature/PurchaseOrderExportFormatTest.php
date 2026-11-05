@@ -56,6 +56,13 @@ class PurchaseOrderExportFormatTest extends TestCase
         $this->assertStringNotContainsString('Menunggu',$html);
         $this->assertSame([['No.','Nama Barang','Satuan','Jumlah','Harga Satuan','Subtotal']],$workbook->getActiveSheet()->rangeToArray('A4:F4'));
         $this->assertSame('F',$workbook->getActiveSheet()->getHighestDataColumn());
+        $this->assertTrue($workbook->getActiveSheet()->getShowGridlines());
+        foreach (['A1','A2','A3'] as $cell) {
+            $this->assertSame('center',$workbook->getActiveSheet()->getStyle($cell)->getAlignment()->getHorizontal());
+        }
+        $this->assertSame('Tanggal PO: 17/10/2026',$workbook->getActiveSheet()->getCell('A2')->getValue());
+        $this->assertStringContainsString('Diekspor pada',$workbook->getActiveSheet()->getCell('A3')->getValue());
+        $this->assertMatchesRegularExpression('/class="report-header\s+center\s*"/',$html);
         return [$workbook->getActiveSheet(),$html];
     }
 
@@ -63,7 +70,7 @@ class PurchaseOrderExportFormatTest extends TestCase
     {
         $order=$this->order();
         [$sheet,$html]=$this->exports($order,'po');
-        $this->assertSame('PURCHASE ORDER PO/2026/10/000001',$sheet->getCell('A1')->getValue());
+        $this->assertSame('PURCHASE ORDER',$sheet->getCell('A1')->getValue());
         foreach (['PO/2026/10/000001','17/10/2026','CV. Supplier Uji','Jl. Merdeka','081234567890','Owner Golden'] as $text) {
             $this->assertStringContainsString($text,$sheet->getCell('A3')->getValue());
             $this->assertStringContainsString($text,$html);
@@ -100,7 +107,7 @@ class PurchaseOrderExportFormatTest extends TestCase
         $source=$root->items()->first();
         $order->items()->create(['product_id'=>$source->product_id,'product_unit_id'=>$source->product_unit_id,'quantity_ordered'=>1,'buy_price'=>12000]);
         [$sheet,$html]=$this->exports($order,'po-retur');
-        $this->assertSame('PO RETUR PO/R/2026/10/000001',$sheet->getCell('A1')->getValue());
+        $this->assertSame('PO RETUR',$sheet->getCell('A1')->getValue());
         foreach (['PO Asal: PO/2026/10/000001','PO RETUR - TANPA TAGIHAN TAMBAHAN'] as $text) {
             $this->assertStringContainsString($text,$sheet->getCell('A3')->getValue());
             $this->assertStringContainsString($text,$html);
