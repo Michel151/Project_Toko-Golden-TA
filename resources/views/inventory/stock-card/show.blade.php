@@ -74,7 +74,7 @@
         <span class="badge bg-{{ $isLow ? 'danger' : 'success' }} align-self-center">Total: {{ $product->displayStock($totalStock) }}</span>
     </div>
     <div class="table-responsive"><table class="table table-hover align-middle mb-0">
-        <thead><tr><th>Lokasi</th><th>Petugas</th><th class="text-end">Fisik / Layak Jual</th><th class="text-end">Minimum</th><th style="width:25%">Tingkat Stok</th><th class="text-center">Status</th></tr></thead>
+        <thead><tr><th>Lokasi</th><th class="text-end">Fisik / Layak Jual</th><th class="text-end">Minimum</th><th style="width:25%">Tingkat Stok</th><th class="text-center">Status</th></tr></thead>
         <tbody>
         @forelse($product->productLocations as $productLocation)
             @php
@@ -123,7 +123,7 @@
         <span class="badge bg-warning text-dark align-self-center">30 hari = hampir kedaluwarsa</span>
     </div>
     <div class="table-responsive"><table class="table table-hover align-middle mb-0">
-        <thead><tr><th>Lokasi</th><th>Petugas</th><th>Riwayat Masuk</th><th>No. PO</th><th>Kedaluwarsa</th><th class="text-end">Masuk ke Lokasi</th><th class="text-end">Sisa Fisik / Layak Jual</th><th class="text-center">Status</th></tr></thead>
+        <thead><tr><th>Lokasi</th><th>Riwayat Masuk</th><th>No. PO</th><th>Kedaluwarsa</th><th class="text-end">Masuk ke Lokasi</th><th class="text-end">Sisa Fisik / Layak Jual</th><th class="text-center">Status</th></tr></thead>
         <tbody>
         @forelse($expiryBatchGroups as $group)
             @php

@@ -116,7 +116,8 @@ class ExpiryMonitoringTest extends TestCase
         $product=$this->product('Batch Kartu');
         $this->batch($product,'OLD','2026-10-10',8);
         $this->get(route('inventory.stock-card.show',['product'=>$product,'tab'=>'expiry']))
-            ->assertOk()->assertSee('Stok Fisik')->assertSee('Layak Jual')->assertSee('Lewat 6 hari')->assertSee('Jual: 0 Botol');
+            ->assertOk()->assertSee('<th>Lokasi</th><th>Riwayat Masuk</th>', false)->assertDontSee('<th>Petugas</th>', false)
+            ->assertSee('Stok Fisik')->assertSee('Layak Jual')->assertSee('Lewat 6 hari')->assertSee('Jual: 0 Botol');
         $this->get(route('inventory.transfers.create'))->assertForbidden();
         $this->get(route('inventory.stock.index',['view'=>'priorities']))->assertOk()->assertDontSee('Transfer Barang');
     }
@@ -142,7 +143,7 @@ class ExpiryMonitoringTest extends TestCase
         $this->actingAs($warehouse)->get(route('inventory.stock.index',['view'=>'priorities']))
             ->assertOk()->assertSee('LOT-A')->assertSee('LOT-B');
         $this->get(route('inventory.stock-card.show',['product'=>$product,'tab'=>'stock']))
-            ->assertOk()->assertSee('Jual: 0 Botol')->assertSee('Rendah');
+            ->assertOk()->assertDontSee('<th>Petugas</th>', false)->assertSee('Jual: 0 Botol')->assertSee('Rendah');
         $owner=User::create(['name'=>'Owner','email'=>'owner-expiry@example.com','password'=>'password','role'=>'owner']);
         $this->actingAs($owner)->get(route('master.products.show',['product'=>$product,'tab'=>'expiry']))
             ->assertOk()->assertSee('Stok Fisik')->assertSee('Lewat 1 hari')->assertSee('Jual: 0 Botol')
