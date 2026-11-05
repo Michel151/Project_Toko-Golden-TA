@@ -67,9 +67,18 @@ class ExpiryMonitoringTest extends TestCase
         $this->assertSame(1, $response->viewData('lowStockCount'));
         $this->assertSame(['physical'=>32.0,'sellable'=>2.0,'expired'=>30.0],$low->fresh()->stockAvailability());
         $this->assertSame(12.0, $untracked->stockAvailability()['sellable']);
-        $this->get(route('inventory.stock.index',['status'=>'out']))->assertOk()->assertSee('Hanya Kedaluwarsa')->assertDontSee('Layak Rendah');
-        $this->get(route('inventory.stock.index',['status'=>'low']))->assertOk()->assertSee('Layak Rendah')->assertDontSee('Hanya Kedaluwarsa');
-        $this->get(route('inventory.stock.index',['status'=>'safe']))->assertOk()->assertSee('Batch Aman')->assertDontSee('Layak Rendah');
+        $expectedProductsByStatus = [
+            'out' => [$expired->id],
+            'low' => [$low->id],
+            'safe' => [$safe->id, $untracked->id],
+        ];
+
+        foreach ($expectedProductsByStatus as $status => $expectedProductIds) {
+            $response = $this->get(route('inventory.stock.index', ['status' => $status]))->assertOk();
+            $products = $response->viewData('products');
+
+            $this->assertEqualsCanonicalizing($expectedProductIds, $products->pluck('id')->all(), "Filter status: {$status}");
+        }
     }
 
     public function test_priority_is_ordered_scoped_and_excludes_empty_and_safe_batches(): void
