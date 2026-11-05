@@ -58,7 +58,7 @@ class AccessPermissions
             return 'sale.sales.create';
         }
         if (str_starts_with($name, 'inventory.stock-card.')) {
-            return in_array($name, ['inventory.stock-card.show', 'inventory.stock-card.pdf'], true) ? 'inventory.stock.view' : null;
+            return in_array($name, ['inventory.stock-card.show', 'inventory.stock-card.pdf', 'inventory.stock-card.excel'], true) ? 'inventory.stock.view' : null;
         }
         if (in_array($name, ['sale.product.data', 'sale.stock.data'], true)) {
             return 'sale.sales.create';

@@ -32,6 +32,7 @@
         @if(auth()->user()->canAccessRoute('inventory.transfers.create')) <a href="{{ route('inventory.transfers.create', ['product_id' => $product->id]) }}" class="btn btn-sm btn-warning fw-semibold"><i class="bi bi-arrow-left-right me-1"></i>Transfer Barang</a> @endif
         @if(auth()->user()->canAccessRoute('inventory.transfers.index')) <a href="{{ route('inventory.transfers.index', ['product_id' => $product->id]) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-clock-history me-1"></i>Riwayat Transfer</a> @endif
         <a href="{{ route('inventory.stock-card.pdf',['product'=>$product]+request()->only(['from','to','location_id'])) }}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-pdf me-1"></i>Cetak PDF</a>
+        @if(auth()->user()->canAccessRoute('inventory.stock-card.excel'))<a href="{{ route('inventory.stock-card.excel',['product'=>$product]+request()->only(['from','to','location_id'])) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Excel</a>@endif
     </div>
 </div>
 

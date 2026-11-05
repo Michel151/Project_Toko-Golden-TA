@@ -160,6 +160,7 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
         Route::get('stock', [StockController::class, 'index'])->name('stock.index');
         Route::get('stock-card/{product}', [StockCardController::class, 'show'])->name('stock-card.show');
         Route::get('stock-card/{product}/pdf', [StockCardController::class, 'pdf'])->name('stock-card.pdf');
+        Route::get('stock-card/{product}/excel', [StockCardController::class, 'excel'])->name('stock-card.excel');
     });
 
     Route::prefix('inventory')->name('inventory.')->group(function () {
