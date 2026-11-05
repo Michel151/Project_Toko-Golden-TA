@@ -614,7 +614,7 @@ function renderSource(div, idx, product, saleType) {
                 <span class="small fw-semibold" style="min-width:80px">${loc.name}</span>
                 <div class="input-group input-group-sm" style="width:160px">
                     <input type="number" name="items[${idx}][sources][${si}][quantity]"
-                           class="form-control manual-qty" value="0" min="0" step="0.01" placeholder="0" disabled>
+                           class="form-control manual-qty" value="0" min="0" step="1" placeholder="0" disabled>
                     <span class="input-group-text">${escapeHtml(selectedProductUnit(div, product)?.unit_name || product.buy_unit_name)}</span>
                 </div>
                 <input type="hidden" class="manual-location-id" name="items[${idx}][sources][${si}][location_id]" value="${loc.id}" disabled>
@@ -635,7 +635,7 @@ function renderSource(div, idx, product, saleType) {
                     <div class="input-group input-group-sm">
                         <input type="number" name="items[${idx}][sources][0][quantity]"
                                class="form-control source-qty-input"
-                               value="${div.querySelector('.qty-input').value || 0}" min="0" step="0.01" readonly>
+                               value="${div.querySelector('.qty-input').value || 0}" min="0" step="1" readonly>
                         <span class="input-group-text">${escapeHtml(selectedProductUnit(div, product)?.unit_name || product.buy_unit_name)}</span>
                     </div>
                 </div>

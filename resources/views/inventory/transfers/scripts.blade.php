@@ -23,7 +23,8 @@ function itemProblem(item) {
     const unit = product.product_units.find(u => u.id == item.product_unit_id);
     if (!unit) return 'Pilih satuan yang sesuai dengan barang.';
     const quantity = Number(item.quantity);
-    if (!Number.isFinite(quantity) || quantity < 0.01) return 'Jumlah minimal 0,01.';
+    if (!Number.isFinite(quantity) || quantity < 1) return 'Jumlah minimal 1.';
+    if (!Number.isInteger(quantity)) return 'Jumlah harus berupa bilangan bulat.';
     if (!acceptedSource) return 'Pilih lokasi asal.';
     const available = stockAt(product);
     if (available <= 0) return 'Stok layak transfer kosong di lokasi asal.';
@@ -307,7 +308,7 @@ function updateQuantityLimit() {
     const availableQty = stock ? (product.is_expirable ? stock.sellable_quantity : stock.quantity) : 0;
     const maxQty = availableQty / conversion;
     qtyInput.max = maxQty;
-    qtyInput.step = '0.01';
+    qtyInput.step = '1';
 }
 
 function renderCatalogCategories() {
@@ -470,7 +471,7 @@ function renderTransferItems() {
         return `<tr data-index="${index}">
             <td class="fw-semibold">${escapeHtml(product.name)}<input type="hidden" name="items[${index}][product_id]" value="${escapeHtml(product.id)}"><div class="small text-danger fw-normal" data-item-problem></div></td>
             <td class="small">${acceptedSource ? escapeHtml(formatStok(available, product)) : '-'}</td>
-            <td><input aria-label="Jumlah ${escapeHtml(product.name)}" type="number" class="form-control item-quantity" name="items[${index}][quantity]" value="${escapeHtml(item.quantity)}" min="0.01" step="0.01" ${max} required></td>
+            <td><input aria-label="Jumlah ${escapeHtml(product.name)}" type="number" class="form-control item-quantity" name="items[${index}][quantity]" value="${escapeHtml(item.quantity)}" min="1" step="1" ${max} required></td>
             <td><select aria-label="Satuan ${escapeHtml(product.name)}" class="form-select item-unit" name="items[${index}][product_unit_id]" required>${!unit ? '<option value="">Pilih satuan</option>' : ''}${product.product_units.map(u => `<option value="${escapeHtml(u.id)}" ${u.id == item.product_unit_id ? 'selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}</select></td>
             <td>${remove}</td>
         </tr>`;

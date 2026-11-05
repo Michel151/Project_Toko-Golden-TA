@@ -98,7 +98,7 @@
                                                 @endforeach
                                             </select>
                                         </td>
-                                        <td><input type="number" name="items[{{ $i }}][quantity_ordered]" class="form-control form-control-sm" value="{{ $item['quantity_ordered'] ?? 1 }}" min="0.01" step="0.01" required></td>
+                                        <td><input type="number" name="items[{{ $i }}][quantity_ordered]" class="form-control form-control-sm" value="{{ $item['quantity_ordered'] ?? 1 }}" min="1" step="1" required></td>
                                         <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[{{ $i }}][buy_price]" class="form-control js-decimal-currency" value="{{ $item['buy_price'] ?? 0 }}" inputmode="decimal" required></div></td>
                                         <td><button type="button" class="btn btn-sm btn-outline-danger py-0 remove-item"><i class="bi bi-trash"></i></button></td>
                                     </tr>
@@ -205,7 +205,7 @@ function createItemRow(index) {
             </select>
         </td>
         <td><select name="items[${index}][product_unit_id]" class="form-select form-select-sm product-unit-select" required><option value="">Pilih satuan</option></select></td>
-        <td><input type="number" name="items[${index}][quantity_ordered]" class="form-control form-control-sm" min="0.01" step="0.01" value="1" required></td>
+        <td><input type="number" name="items[${index}][quantity_ordered]" class="form-control form-control-sm" min="1" step="1" value="1" required></td>
         <td><div class="input-group input-group-sm"><span class="input-group-text">Rp</span><input type="text" name="items[${index}][buy_price]" class="form-control js-decimal-currency" inputmode="decimal" value="0" required></div></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger py-0 remove-item"><i class="bi bi-trash"></i></button></td>
     `;

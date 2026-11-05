@@ -80,7 +80,7 @@
                     <div class="col-md-3">
                         <label for="qtyInput" class="form-label fw-semibold">Jumlah / Satuan</label>
                         <div class="input-group">
-                            <input type="number" id="qtyInput" class="form-control" value="1" min="0.01" step="0.01">
+                            <input type="number" id="qtyInput" class="form-control" value="1" min="1" step="1">
                             <select id="unitSelect" class="form-select" aria-label="Satuan barang baru"><option value="stored">unit</option></select>
                         </div>
                     </div>
