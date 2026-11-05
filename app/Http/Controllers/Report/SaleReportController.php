@@ -202,7 +202,7 @@ class SaleReportController extends Controller
         if ($cashier) $metadata[] = 'Kasir: '.$cashier->name;
 
         return Excel::download(
-            new ReportExport("Laporan Penjualan {$from} s.d. {$to}", ['No. Invoice', 'Tanggal', 'Pelanggan', 'Pembayaran', 'Kasir', $category ? 'Total Kategori' : 'Total'], $rows, [6], [], 'Penjualan', $metadata),
+            new ReportExport("Laporan Penjualan {$from} s.d. {$to}", ['No. Invoice', 'Tanggal', 'Pelanggan', 'Pembayaran', 'Kasir', $category ? 'Total Kategori' : 'Total'], $rows, [6], [], 'Penjualan', $metadata, showGridlines: true),
             "Laporan-Penjualan-{$from}-sd-{$to}.xlsx"
         );
     }

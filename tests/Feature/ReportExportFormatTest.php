@@ -52,6 +52,17 @@ class ReportExportFormatTest extends TestCase
         }
     }
 
+    public function test_excel_can_show_regular_cell_gridlines_without_changing_data(): void
+    {
+        $sheet = $this->sheet(new ReportExport('Laporan Penjualan', ['Invoice', 'Total'],
+            [['INV-001', 12000]], [2], sheetTitle: 'Penjualan', showGridlines: true));
+        $this->assertTrue($sheet->getShowGridlines());
+        $this->assertMatchesRegularExpression('/showGridLines="(?:1|true)"/', $this->sheetXml);
+        $this->assertSame('INV-001', $sheet->getCell('A5')->getValue());
+        $this->assertEquals(12000, $sheet->getCell('B5')->getValue());
+        $this->assertSame(Fill::FILL_NONE, $sheet->getStyle('B5')->getFill()->getFillType());
+    }
+
     public function test_empty_report_has_valid_ranges_and_zero_total(): void
     {
         $sheet=$this->sheet(new ReportExport('Kosong',['Barang','Nilai'],[],[2]));

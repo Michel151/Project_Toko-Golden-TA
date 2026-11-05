@@ -25,7 +25,8 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
         protected array $currencyColumns = [],
         protected array $decimalColumns = [],
         protected string $sheetTitle = 'Laporan',
-        protected array $metadata = []
+        protected array $metadata = [],
+        protected bool $showGridlines = false
     ) {}
 
     public function array(): array
@@ -78,7 +79,7 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
                 $sheet->mergeCells("A3:{$lastColumn}3");
                 $sheet->freezePane('A5');
                 $sheet->setAutoFilter("A4:{$lastColumn}".max(4, $filterLastRow));
-                $sheet->setShowGridlines(false);
+                $sheet->setShowGridlines($this->showGridlines);
                 $sheet->setPrintGridlines(false);
                 $sheet->getStyle("A1:{$lastColumn}{$lastRow}")->applyFromArray([
                     'font' => ['name'=>'Arial', 'size'=>10, 'color'=>['rgb'=>'111111']],
