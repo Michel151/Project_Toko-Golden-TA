@@ -1,8 +1,12 @@
 @extends('report.pdf.layout')
+@section('report-header-centered', '1')
+@php
+    $reportMetadata = ['Barang: '.$product->name.' | Kategori: '.($product->category->name ?? '-'),
+        'Lokasi: '.($locationId ? ($locations->firstWhere('id',$locationId)?->name ?? '-') : 'Semua Lokasi')];
+@endphp
 @section('report-title', 'Kartu Stok Barang')
 @section('report-period')
-{{ $product->name }} | {{ $product->category->name ?? '-' }}<br>
-Periode {{ date('d/m/Y',strtotime($from)) }} s.d. {{ date('d/m/Y',strtotime($to)) }} | Lokasi: {{ $locationId ? ($locations->firstWhere('id',$locationId)?->name ?? '-') : 'Semua Lokasi' }}
+Periode {{ date('d/m/Y',strtotime($from)) }} s.d. {{ date('d/m/Y',strtotime($to)) }}
 @endsection
 @section('report-body')
 <table class="summary"><tr>

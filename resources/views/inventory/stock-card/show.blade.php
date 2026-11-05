@@ -14,6 +14,7 @@
     .stock-card-tabs .nav-link.active{background:var(--app-accent-2);color:#fff}
     .stock-card-tabs .nav-link i{margin-right:.4rem}
     .location-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:#eef3ff;color:#0d6efd}
+    .stock-card-export{display:inline-flex;align-items:center;justify-content:center;width:84px;min-height:36px;white-space:nowrap}
 </style>
 @endpush
 
@@ -31,8 +32,8 @@
     <div class="d-flex flex-wrap gap-2 justify-content-end">
         @if(auth()->user()->canAccessRoute('inventory.transfers.create')) <a href="{{ route('inventory.transfers.create', ['product_id' => $product->id]) }}" class="btn btn-sm btn-warning fw-semibold"><i class="bi bi-arrow-left-right me-1"></i>Transfer Barang</a> @endif
         @if(auth()->user()->canAccessRoute('inventory.transfers.index')) <a href="{{ route('inventory.transfers.index', ['product_id' => $product->id]) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-clock-history me-1"></i>Riwayat Transfer</a> @endif
-        <a href="{{ route('inventory.stock-card.pdf',['product'=>$product]+request()->only(['from','to','location_id'])) }}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-pdf me-1"></i>Cetak PDF</a>
-        @if(auth()->user()->canAccessRoute('inventory.stock-card.excel'))<a href="{{ route('inventory.stock-card.excel',['product'=>$product]+request()->only(['from','to','location_id'])) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Excel</a>@endif
+        <a href="{{ route('inventory.stock-card.pdf',['product'=>$product]+request()->only(['from','to','location_id'])) }}" target="_blank" class="btn btn-sm btn-outline-danger stock-card-export"><i class="bi bi-file-pdf me-1" aria-hidden="true"></i>PDF</a>
+        @if(auth()->user()->canAccessRoute('inventory.stock-card.excel'))<a href="{{ route('inventory.stock-card.excel',['product'=>$product]+request()->only(['from','to','location_id'])) }}" class="btn btn-sm btn-outline-success stock-card-export"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>EXCEL</a>@endif
     </div>
 </div>
 
