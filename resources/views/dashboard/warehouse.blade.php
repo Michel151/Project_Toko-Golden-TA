@@ -54,7 +54,7 @@
     <div class="col-xl-8 warehouse-panel-stack">
         <section class="warehouse-section" id="notifications" aria-labelledby="priorityHeading">
             <h6 id="priorityHeading" class="mb-2">Prioritas Penanganan</h6>
-            @include('notifications.summary', ['summaryLimit'=>10, 'showDisplayedCount'=>true])
+            @include('notifications.summary', ['showAllNotifications'=>true, 'showDisplayedCount'=>true])
         </section>
         <div class="row g-3 warehouse-work-queue">
             @if(auth()->user()->hasPermission('purchase.receipts.view'))<div class="col-lg-6"><section class="warehouse-section h-100" aria-labelledby="receiptHeading">
