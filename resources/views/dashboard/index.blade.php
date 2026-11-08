@@ -76,7 +76,7 @@
     </section></div>
     <div class="col-xl-4"><section class="owner-section owner-attention h-100" id="notifications" aria-labelledby="actionHeading">
         <div class="owner-heading"><h6 id="actionHeading">Perlu Tindakan</h6><i class="bi bi-list-check text-muted"></i></div>
-        @include('notifications.summary')
+        @include('notifications.summary', ['showAllNotifications' => true])
         <div class="owner-operations">
         <div class="small text-muted mb-1">Operasional lainnya</div>
         <a class="owner-action" href="{{ route('sale.sales.index',['status'=>'pending']) }}"><i class="bi bi-hourglass-split text-warning"></i><span>Nota belum dibayar<small class="d-block text-muted">{{ $pendingSalesCount }} nota</small></span><i class="bi bi-arrow-up-right"></i></a>

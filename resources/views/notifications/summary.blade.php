@@ -1,7 +1,9 @@
 @if(auth()->user()->hasPermission('inventory.stock.view'))
 @php
     $summaryNotifications = app(\App\Services\NotificationService::class)->forRequest();
-    $visibleNotifications = array_slice($summaryNotifications, 0, $summaryLimit ?? 5);
+    $visibleNotifications = ($showAllNotifications ?? false)
+        ? $summaryNotifications
+        : array_slice($summaryNotifications, 0, $summaryLimit ?? 5);
 @endphp
 <div class="dashboard-notification-summary">
 <div class="dashboard-notification-heading d-flex flex-wrap justify-content-between gap-2 mb-2">
