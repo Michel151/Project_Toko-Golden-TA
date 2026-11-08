@@ -98,7 +98,7 @@ class StockCardController extends Controller
         });
 
         $movements = $paginate
-            ? $query->paginate(25)->withQueryString()
+            ? $query->reorder()->orderByDesc('movement_date')->orderByDesc('id')->paginate(25)->withQueryString()
             : $cardRows;
         if ($paginate) {
             $rowsById = $cardRows->keyBy('id');

@@ -39,6 +39,14 @@ class StockCardExcelTest extends TestCase
         $this->assertEquals(201,$page->viewData('openingBalance'));
         $this->assertEquals(500,$page->viewData('closingBalance'));
         $this->assertCount(1,$page->viewData('movements'));
+        $this->assertSame('REF-0', $page->viewData('movements')->first()->reference_number);
+        $this->assertEquals(213, $page->viewData('movements')->first()->card_balance);
+        $firstPage = $this->get(route('inventory.stock-card.show', array_replace($filters, ['page' => 1])))->assertOk();
+        $movements = $firstPage->viewData('movements');
+        $this->assertSame('REF-25', $movements->first()->reference_number);
+        $this->assertEquals(500, $movements->first()->card_balance);
+        $this->assertSame('REF-1', $movements->last()->reference_number);
+        $this->assertEquals(225, $movements->last()->card_balance);
         $response = $this->get(route('inventory.stock-card.excel',$filters))->assertOk();
         $book = IOFactory::load($response->baseResponse->getFile()->getPathname());
         $sheet = $book->getActiveSheet();
