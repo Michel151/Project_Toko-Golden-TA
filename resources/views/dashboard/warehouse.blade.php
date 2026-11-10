@@ -19,6 +19,7 @@
 .warehouse-dashboard #notifications .dashboard-notification-list{max-height:440px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:.5rem}
 .warehouse-dashboard #notifications .dashboard-notification-item strong{overflow-wrap:anywhere}
 .warehouse-movement-list{max-height:320px;overflow:auto;overscroll-behavior:contain;padding-right:.25rem}
+.warehouse-movement-list .warehouse-line{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.65fr);align-items:start;overflow-wrap:anywhere}
 @media(min-width:1200px){
     .warehouse-dashboard{min-height:calc(100dvh - var(--warehouse-topbar-height,56px) - 2.7rem);display:flex;flex-direction:column}
     .warehouse-content-row{flex:1;display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:1rem;margin:0}
