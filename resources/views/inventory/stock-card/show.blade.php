@@ -32,8 +32,8 @@
     <div class="d-flex flex-wrap gap-2 justify-content-end">
         @if(auth()->user()->canAccessRoute('inventory.transfers.create')) <a href="{{ route('inventory.transfers.create', ['product_id' => $product->id]) }}" class="btn btn-sm btn-warning fw-semibold"><i class="bi bi-arrow-left-right me-1"></i>Transfer Barang</a> @endif
         @if(auth()->user()->canAccessRoute('inventory.transfers.index')) <a href="{{ route('inventory.transfers.index', ['product_id' => $product->id]) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-clock-history me-1"></i>Riwayat Transfer</a> @endif
-        <a href="{{ route('inventory.stock-card.pdf',['product'=>$product]+request()->only(['from','to','location_id'])) }}" target="_blank" class="btn btn-sm btn-outline-danger stock-card-export"><i class="bi bi-file-pdf me-1" aria-hidden="true"></i>PDF</a>
-        @if(auth()->user()->canAccessRoute('inventory.stock-card.excel'))<a href="{{ route('inventory.stock-card.excel',['product'=>$product]+request()->only(['from','to','location_id'])) }}" class="btn btn-sm btn-outline-success stock-card-export"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>EXCEL</a>@endif
+        <a href="{{ route('inventory.stock-card.pdf',['product'=>$product]+request()->only(['from','to','location_id','movement_type','direction'])) }}" target="_blank" class="btn btn-sm btn-outline-danger stock-card-export"><i class="bi bi-file-pdf me-1" aria-hidden="true"></i>PDF</a>
+        @if(auth()->user()->canAccessRoute('inventory.stock-card.excel'))<a href="{{ route('inventory.stock-card.excel',['product'=>$product]+request()->only(['from','to','location_id','movement_type','direction'])) }}" class="btn btn-sm btn-outline-success stock-card-export"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>EXCEL</a>@endif
     </div>
 </div>
 
@@ -64,7 +64,7 @@
     @if($product->is_expirable)
     <li class="nav-item"><a class="nav-link {{ $activeTab === 'expiry' ? 'active' : '' }}" href="{{ route('inventory.stock-card.show',['product'=>$product,'tab'=>'expiry']) }}"><i class="bi bi-calendar2-week"></i>Kedaluwarsa <span class="badge bg-light text-secondary ms-1">{{ $activeBatchCount }}</span></a></li>
     @endif
-    <li class="nav-item"><a class="nav-link {{ $activeTab === 'history' ? 'active' : '' }}" href="{{ route('inventory.stock-card.show',['product'=>$product]+request()->only(['from','to','location_id'])) }}"><i class="bi bi-clock-history"></i>Riwayat Mutasi <span class="badge bg-light text-secondary ms-1">{{ $movements->total() }}</span></a></li>
+    <li class="nav-item"><a class="nav-link {{ $activeTab === 'history' ? 'active' : '' }}" href="{{ route('inventory.stock-card.show',['product'=>$product]+request()->only(['from','to','location_id','movement_type','direction'])) }}"><i class="bi bi-clock-history"></i>Riwayat Mutasi <span class="badge bg-light text-secondary ms-1">{{ $movements->total() }}</span></a></li>
 </ul>
 
 @if($activeTab === 'stock')
@@ -170,20 +170,24 @@
 <div class="mb-3">
     <form class="app-unified-filter app-filter-bar">
         <div class="app-filter-field"><label for="stockCardLocation">Lokasi</label><select id="stockCardLocation" name="location_id" class="form-select form-select-sm"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected($locationId===$location->id)>{{ $location->name }}</option>@endforeach</select></div>
-        <div class="app-filter-field"><label for="stockCardFrom">Dari Tanggal</label><input id="stockCardFrom" type="date" name="from" value="{{ $from }}" class="form-control form-control-sm"></div>
-        <div class="app-filter-field"><label for="stockCardTo">Sampai Tanggal</label><input id="stockCardTo" type="date" name="to" value="{{ $to }}" class="form-control form-control-sm"></div>
+        <div class="app-filter-field"><label for="stockCardType">Jenis Transaksi</label><select id="stockCardType" name="movement_type" class="form-select form-select-sm"><option value="">Semua Jenis</option>@foreach($movementTypes as $type => $label)<option value="{{ $type }}" @selected(request('movement_type') === $type)>{{ $label }}</option>@endforeach</select></div>
+        <div class="app-filter-field"><label for="stockCardDirection">Arah</label><select id="stockCardDirection" name="direction" class="form-select form-select-sm"><option value="">Masuk & Keluar</option><option value="in" @selected(request('direction') === 'in')>Masuk</option><option value="out" @selected(request('direction') === 'out')>Keluar</option></select></div>
+        <div class="app-filter-field"><label for="stockCardFrom">Dari</label><input id="stockCardFrom" type="date" name="from" value="{{ $from }}" class="form-control form-control-sm"></div>
+        <div class="app-filter-field"><label for="stockCardTo">Sampai</label><input id="stockCardTo" type="date" name="to" value="{{ $to }}" class="form-control form-control-sm"></div>
         <div class="app-filter-actions"><button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
         <a href="{{ route('inventory.stock-card.show',$product) }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></div>
     </form>
 </div>
 <div class="card table-card">
-    <div class="card-header bg-white border-0 py-3"><h6 class="fw-bold mb-1">Mutasi Persediaan</h6><small class="text-muted">{{ $movements->total() }} transaksi dalam periode terpilih</small></div>
+    <div class="card-header bg-white border-0 py-3"><h6 class="fw-bold mb-1">Mutasi Persediaan</h6><small class="text-muted">{{ $movements->total() }} transaksi sesuai filter dalam periode terpilih</small>
+        @if(request()->filled('movement_type') || request()->filled('direction'))<div class="small text-muted mt-1">Ringkasan dan saldo mencakup seluruh transaksi pada lokasi dan periode terpilih.</div>@endif
+    </div>
     <div class="table-responsive"><table class="table table-hover stock-card-table app-mobile-records mb-0" data-mobile-records>
         <thead><tr><th>Tanggal</th><th>Referensi</th><th>Keterangan</th><th>Lokasi</th><th>Petugas</th><th class="text-end">Masuk</th><th class="text-end">Keluar</th><th class="text-end">Saldo</th></tr></thead>
         <tbody>
         @forelse($movements as $movement)
             @php $quantity = (float) $movement->quantity; @endphp
-            <tr><td class="text-nowrap">{{ $movement->movement_date->format('d/m/Y') }}<div class="small text-muted">{{ $movement->created_at->format('H:i') }}</div></td><td class="font-monospace small">{{ $movement->reference_number ?? '-' }}</td><td><div class="fw-semibold">{{ $movement->type_label }}</div>@if($movement->notes)<small class="text-muted">{{ $movement->notes }}</small>@endif</td><td>{{ $movement->location->name }}</td><td class="small text-muted">{{ $movement->createdBy->name ?? 'Sistem' }}</td><td class="text-end fw-semibold text-success">{{ $quantity > 0 ? $product->displayStock($quantity) : '-' }}</td><td class="text-end fw-semibold text-danger">{{ $quantity < 0 ? $product->displayStock(abs($quantity)) : '-' }}</td><td class="text-end fw-bold">{{ $product->displayStock((float) $movement->card_balance) }}</td></tr>
+            <tr><td class="text-nowrap">{{ $movement->movement_date->format('d/m/Y') }}<div class="small text-muted">{{ $movement->created_at->format('H:i') }}</div></td><td class="font-monospace small">{{ $movement->reference_number ?? '-' }}</td><td><span class="badge bg-{{ $quantity > 0 ? 'success' : 'danger' }} bg-opacity-10 text-{{ $quantity > 0 ? 'success' : 'danger' }}">{{ $movement->type_label }}</span>@if($movement->notes)<div class="small text-muted mt-1">{{ $movement->notes }}</div>@endif</td><td><i class="bi bi-geo-alt text-muted me-1"></i>{{ $movement->location->name }}</td><td class="small text-muted">{{ $movement->createdBy->name ?? 'Sistem' }}</td><td class="text-end fw-semibold text-success">{{ $quantity > 0 ? $product->displayStock($quantity) : '-' }}</td><td class="text-end fw-semibold text-danger">{{ $quantity < 0 ? $product->displayStock(abs($quantity)) : '-' }}</td><td class="text-end fw-bold">{{ $product->displayStock((float) $movement->card_balance) }}</td></tr>
         @empty
             <tr><td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada mutasi pada periode ini</td></tr>
         @endforelse

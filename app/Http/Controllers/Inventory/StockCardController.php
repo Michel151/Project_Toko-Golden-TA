@@ -44,6 +44,11 @@ class StockCardController extends Controller
         $metadata = ['Barang: '.$product->name, 'Kategori: '.($product->category?->name ?? '-'), 'Lokasi: '.$location,
             'Saldo Awal: '.$product->displayStock($data['openingBalance']), 'Barang Masuk: '.$product->displayStock($data['totalIn']),
             'Barang Keluar: '.$product->displayStock($data['totalOut']), 'Saldo Akhir: '.$product->displayStock($data['closingBalance'])];
+        if ($request->filled('movement_type') || $request->filled('direction')) {
+            $metadata[] = 'Filter transaksi: '.($data['movementTypes'][$request->movement_type] ?? 'Semua Jenis');
+            $metadata[] = 'Arah: '.match ($request->direction) { 'in' => 'Masuk', 'out' => 'Keluar', default => 'Masuk & Keluar' };
+            $metadata[] = 'Ringkasan dan saldo mencakup seluruh transaksi pada lokasi dan periode terpilih.';
+        }
         return Excel::download(new ReportExport('Kartu Stok Barang',
             ['Tanggal','Referensi','Keterangan','Lokasi','Petugas','Masuk','Keluar','Saldo'], $rows, [], [6,7,8], 'Kartu Stok', $metadata,
             showGridlines: true, reportPeriod: 'Periode: '.$data['from'].' s.d. '.$data['to'], includeTotal: false),
@@ -56,6 +61,8 @@ class StockCardController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'location_id' => 'nullable|exists:locations,id',
+            'movement_type' => 'nullable|in:purchase,sale,transfer_in,transfer_out,opname_adjustment',
+            'direction' => 'nullable|in:in,out',
         ]);
         $product->load([
             'buyUnit',
@@ -97,19 +104,26 @@ class StockCardController extends Controller
             return $movement;
         });
 
+        $query->when($request->filled('movement_type'), fn ($q) => $q->where('movement_type', $request->movement_type))
+            ->when($request->direction === 'in', fn ($q) => $q->where('quantity', '>', 0))
+            ->when($request->direction === 'out', fn ($q) => $q->where('quantity', '<', 0));
+
         $movements = $paginate
             ? $query->reorder()->orderByDesc('movement_date')->orderByDesc('id')->paginate(25)->withQueryString()
-            : $cardRows;
-        if ($paginate) {
-            $rowsById = $cardRows->keyBy('id');
-            $movements->getCollection()->each(function ($movement) use ($rowsById) {
-                $movement->card_balance = $rowsById[$movement->id]->card_balance;
-            });
-        }
+            : $query->get();
+        $rowsById = $cardRows->keyBy('id');
+        $visibleRows = $paginate ? $movements->getCollection() : $movements;
+        $visibleRows->each(function ($movement) use ($rowsById) {
+            $movement->card_balance = $rowsById[$movement->id]->card_balance;
+        });
 
         return compact(
             'product', 'movements', 'from', 'to', 'locationId', 'openingBalance',
             'closingBalance', 'totalIn', 'totalOut'
-        ) + ['locations' => Location::orderBy('name')->get()];
+        ) + [
+            'locations' => Location::orderBy('name')->get(),
+            'movementTypes' => ['purchase' => 'Penerimaan', 'sale' => 'Penjualan', 'transfer_in' => 'Transfer Masuk',
+                'transfer_out' => 'Transfer Keluar', 'opname_adjustment' => 'Stock Opname'],
+        ];
     }
 }

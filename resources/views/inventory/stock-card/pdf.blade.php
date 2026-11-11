@@ -3,6 +3,10 @@
 @php
     $reportMetadata = ['Barang: '.$product->name.' | Kategori: '.($product->category->name ?? '-'),
         'Lokasi: '.($locationId ? ($locations->firstWhere('id',$locationId)?->name ?? '-') : 'Semua Lokasi')];
+    if (request()->filled('movement_type') || request()->filled('direction')) {
+        $reportMetadata[] = 'Filter transaksi: '.($movementTypes[request('movement_type')] ?? 'Semua Jenis').' | Arah: '.match (request('direction')) { 'in' => 'Masuk', 'out' => 'Keluar', default => 'Masuk & Keluar' };
+        $reportMetadata[] = 'Ringkasan dan saldo mencakup seluruh transaksi pada lokasi dan periode terpilih.';
+    }
 @endphp
 @section('report-title', 'Kartu Stok Barang')
 @section('report-period')
