@@ -92,7 +92,8 @@ class ProductController extends Controller
 
     public function show(Request $request, Product $product)
     {
-        $product->load(['category', 'buyUnit', 'retailUnit', 'stocks.location', 'stockBatches.location', 'productLocations.location', 'productUnits.unit']);
+        $product->load(['category', 'buyUnit', 'retailUnit', 'stocks.location', 'stockBatches.location', 'productLocations.location', 'productUnits.unit',
+            'suppliers' => fn ($query) => $query->orderBy('name')->orderBy('suppliers.id')]);
 
         $movementQuery = $product->stockMovements()
             ->with(['location', 'createdBy'])

@@ -11,6 +11,8 @@
     .product-tabs .nav-link{border:0;border-radius:9px;color:#697386;font-weight:600;padding:.65rem 1rem}.product-tabs .nav-link.active{background:var(--app-accent-2);color:#fff}.product-tabs .nav-link i{margin-right:.4rem}
     .detail-card{border:0;border-radius:13px;box-shadow:0 3px 14px rgba(25,35,55,.06)}
     .detail-row{display:flex;justify-content:space-between;gap:1rem;padding:.72rem 0;border-bottom:1px solid #edf0f4}.detail-row:last-child{border-bottom:0}.detail-label{color:#7b8498}.detail-value{font-weight:600;text-align:right}
+    .product-suppliers{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.4rem;min-width:0}
+    .product-suppliers .badge{white-space:normal;overflow-wrap:anywhere;text-align:left;max-width:100%;line-height:1.4}
     .price-box{border-radius:12px;padding:1rem;background:#f8f9fb;border:1px solid #e9ecf2}.location-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:#eef3ff;color:#0d6efd}
     .history-filter{background:#f8f9fb;border-top:1px solid #edf0f4;border-bottom:1px solid #edf0f4}.history-table th{white-space:nowrap}.history-table td{vertical-align:middle;padding:.7rem}
     .code-preview{min-height:260px;border:1px dashed #d8dee9;border-radius:14px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem}
@@ -58,6 +60,13 @@
     <div class="col-lg-7"><div class="card detail-card h-100"><div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0"><i class="bi bi-card-list text-primary me-2"></i>Informasi Dasar</h6></div><div class="card-body">
         <div class="detail-row"><span class="detail-label">Nama Barang</span><span class="detail-value">{{ $product->name }}</span></div>
         <div class="detail-row"><span class="detail-label">Kategori</span><span class="detail-value">{{ $product->category->name ?? '-' }}</span></div>
+        <div class="detail-row"><span class="detail-label">Supplier</span><div class="detail-value product-suppliers">
+            @forelse($product->suppliers as $supplier)
+                <span class="badge bg-light text-body border">{{ $supplier->name }}</span>
+            @empty
+                <span class="text-muted">Belum ada supplier</span>
+            @endforelse
+        </div></div>
         <div class="detail-row"><span class="detail-label">Status Barang</span><span class="detail-value"><span class="badge bg-{{ $product->is_active ? 'success' : 'secondary' }}">{{ $product->is_active ? 'Aktif' : 'Nonaktif' }}</span></span></div>
         <div class="detail-row"><span class="detail-label">Kedaluwarsa</span><span class="detail-value">{{ $product->is_expirable ? 'Dicatat per batch' : 'Tidak digunakan' }}</span></div>
         <div class="detail-row"><span class="detail-label">Satuan Produk</span><span class="detail-value">{{ $product->productUnits->pluck('unit.name')->filter()->implode(' / ') ?: $product->buyUnit->name }}</span></div>
