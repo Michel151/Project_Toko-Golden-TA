@@ -110,7 +110,7 @@ class ProductController extends Controller
         $totalMovementIn = (float) (clone $movementQuery)->where('quantity', '>', 0)->sum('quantity');
         $totalMovementOut = abs((float) (clone $movementQuery)->where('quantity', '<', 0)->sum('quantity'));
         $movementCount = (clone $movementQuery)->count();
-        $movements = $movementQuery->latest('movement_date')->latest('id')->paginate(15)->withQueryString();
+        $movements = $movementQuery->latest('movement_date')->latest('id')->paginate(25)->withQueryString();
         $movementLocations = $product->productLocations->pluck('location')->filter()->sortBy('name');
 
         return view('master.products.show', compact(
