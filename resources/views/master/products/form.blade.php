@@ -2,6 +2,18 @@
 @section('title', isset($product) ? 'Ubah Barang' : 'Tambah Barang')
 @section('page-title', isset($product) ? 'Ubah Barang' : 'Tambah Barang')
 
+@push('styles')
+<style>{!! file_get_contents(public_path('vendor/tom-select-2.4.3/tom-select.bootstrap5.min.css')) !!}</style>
+<style>
+.card.product-information-card{overflow:visible}
+.product-supplier-select .ts-control{min-height:38px;border-color:var(--app-border);border-radius:6px}
+.product-supplier-select .ts-dropdown{z-index:1040}
+.product-supplier-select .ts-control .item{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.product-supplier-select .ts-dropdown .option{overflow-wrap:anywhere}
+.product-supplier-select.focus .ts-control{border-color:#198754;box-shadow:0 0 0 .2rem rgba(25,135,84,.15)}
+</style>
+@endpush
+
 @section('content')
 @include('master._header', ['icon'=>'box-seam', 'title'=>isset($product) ? 'Ubah Barang' : 'Tambah Barang', 'description'=>'Lengkapi identitas, barcode, satuan, harga, dan batas minimum stok.'])
 <form method="POST" action="{{ isset($product)
@@ -14,7 +26,7 @@
 
         {{-- Informasi Dasar --}}
         <div class="col-md-8">
-            <div class="card table-card">
+            <div class="card table-card product-information-card">
                 <div class="card-header bg-white border-0 pt-3">
                     <h6 class="fw-bold mb-0"><i class="bi bi-info-circle me-2"></i>Informasi Dasar</h6>
                 </div>
@@ -51,6 +63,22 @@
                                 @endforeach
                             </select>
                             @error('category_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-12">
+                            @php $selectedSupplierIds = collect(old('supplier_ids', isset($product) ? $product->suppliers->modelKeys() : []))->map(fn ($id) => (string) $id)->all(); @endphp
+                            <label for="productSuppliers" class="form-label fw-semibold">Supplier</label>
+                            {{-- Submit an empty value when all suppliers are removed. --}}
+                            <input type="hidden" name="supplier_ids" value="">
+                            <select id="productSuppliers" name="supplier_ids[]" multiple
+                                    class="form-select @if($errors->has('supplier_ids') || $errors->has('supplier_ids.*')) is-invalid @endif"
+                                    aria-describedby="productSuppliersHelp">
+                                @foreach($suppliers as $supplier)
+                                    <option value="{{ $supplier->id }}" @selected(in_array((string) $supplier->id, $selectedSupplierIds, true))>{{ $supplier->name }}</option>
+                                @endforeach
+                            </select>
+                            <div id="productSuppliersHelp" class="form-text">Opsional. Cari dan pilih satu atau beberapa supplier.</div>
+                            @error('supplier_ids')<div class="text-danger small">{{ $message }}</div>@enderror
+                            @error('supplier_ids.*')<div class="text-danger small">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-12">
                             @php
@@ -391,6 +419,20 @@
 </form>
 
 @push('scripts')
+<script>{!! file_get_contents(public_path('vendor/tom-select-2.4.3/tom-select.complete.min.js')) !!}</script>
+<script>
+new TomSelect('#productSuppliers', {
+    plugins: {remove_button: {title: 'Hapus supplier'}},
+    create: false,
+    placeholder: 'Cari dan pilih supplier...',
+    hideSelected: true,
+    closeAfterSelect: false,
+    wrapperClass: 'ts-wrapper product-supplier-select',
+    render: {
+        no_results: () => '<div class="no-results">Supplier tidak ditemukan.</div>',
+    },
+});
+</script>
 <script>
 const unitOptionsHtml = `@foreach($units as $unit)<option value="{{ $unit->id }}">{{ $unit->name }}</option>@endforeach`;
 let productUnitIndex = {{ count($existingProductUnits) }};

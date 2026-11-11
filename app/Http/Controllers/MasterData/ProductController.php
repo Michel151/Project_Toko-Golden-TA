@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductLocation;
 use App\Models\ProductUnit;
 use App\Models\Stock;
+use App\Models\Supplier;
 use App\Models\Unit;
 use App\Support\DeletionConstraint;
 use Illuminate\Database\QueryException;
@@ -45,7 +46,8 @@ class ProductController extends Controller
         $categories = Category::orderBy('name')->get();
         $units      = Unit::orderBy('name')->get();
         $locations  = Location::orderBy('name')->get();
-        return view('master.products.form', compact('categories', 'units', 'locations'));
+        $suppliers  = Supplier::orderBy('name')->get(['id', 'name']);
+        return view('master.products.form', compact('categories', 'units', 'locations', 'suppliers'));
     }
 
     public function store(Request $request)
@@ -82,6 +84,7 @@ class ProductController extends Controller
             }
 
             $this->syncProductLocations($product, $request);
+            $this->syncProductSuppliers($product, $request);
         });
 
         return redirect()->route('master.products.index')->with('success', 'Barang berhasil ditambahkan.');
@@ -120,10 +123,11 @@ class ProductController extends Controller
         $categories      = Category::orderBy('name')->get();
         $units           = Unit::orderBy('name')->get();
         $locations       = Location::orderBy('name')->get();
-        $product->load('productUnits.unit');
+        $suppliers       = Supplier::orderBy('name')->get(['id', 'name']);
+        $product->load(['productUnits.unit', 'suppliers']);
         $productLocations = $product->productLocations->keyBy('location_id');
         $expirySettingLocked = $product->isExpirySettingLocked();
-        return view('master.products.form', compact('product', 'categories', 'units', 'locations', 'productLocations', 'expirySettingLocked'));
+        return view('master.products.form', compact('product', 'categories', 'units', 'locations', 'suppliers', 'productLocations', 'expirySettingLocked'));
     }
 
     public function printLabel(Product $product)
@@ -172,6 +176,7 @@ class ProductController extends Controller
             $this->syncProductUnits($product, $request);
 
             $this->syncProductLocations($product, $request);
+            $this->syncProductSuppliers($product, $request);
         });
 
         return redirect()->route('master.products.index')->with('success', 'Barang berhasil diperbarui.');
@@ -214,6 +219,8 @@ class ProductController extends Controller
             'is_expirable'         => 'nullable|boolean',
             'is_active'            => 'nullable|boolean',
             'category_id'         => 'required|exists:categories,id',
+            'supplier_ids'        => 'nullable|array',
+            'supplier_ids.*'      => 'required|integer|distinct|exists:suppliers,id',
             'product_units'       => 'required|array|min:1',
             'product_units.*.unit_id' => 'required|exists:units,id|distinct',
             'product_units.*.contains_quantity' => 'required|numeric|min:0.0001',
@@ -233,6 +240,19 @@ class ProductController extends Controller
             'location_units'      => 'nullable|array',
             'location_units.*'    => 'nullable|integer|min:0',
         ];
+    }
+
+    private function syncProductSuppliers(Product $product, Request $request): void
+    {
+        // Preserve supplier links for existing callers that do not submit this field.
+        if (! $request->has('supplier_ids')) return;
+
+        $existingIds = $product->suppliers()->pluck('suppliers.id')->all();
+        $suppliers = collect($request->input('supplier_ids') ?? [])
+            ->mapWithKeys(fn ($id) => [(int) $id => in_array((int) $id, $existingIds, true)
+                ? [] : ['buy_price' => $product->buy_price]])->all();
+
+        $product->suppliers()->sync($suppliers);
     }
 
     private function syncProductLocations(Product $product, Request $request): void
