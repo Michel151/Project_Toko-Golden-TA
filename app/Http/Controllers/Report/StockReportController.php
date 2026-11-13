@@ -58,13 +58,14 @@ class StockReportController extends Controller
 
     public function pdf(Request $request)
     {
+        $locations = Location::orderBy('name')->get();
         $query = Product::with(['costBalance', 'buyUnit', 'retailUnit', 'category', 'stocks.location', 'stockBatches', 'productUnits.unit']);
         $this->applyFilters($query, $request);
         $products = $query->orderBy('name')->get();
         $reportTitle = $this->reportTitle($request);
         $expiryFilterLabel = $this->expiryFilterLabel($request);
         $reportMetadata = $this->exportMetadata($request);
-        $pdf = Pdf::loadView('report.pdf.stock', compact('products', 'reportTitle', 'expiryFilterLabel', 'reportMetadata'))
+        $pdf = Pdf::loadView('report.pdf.stock', compact('products', 'locations', 'reportTitle', 'expiryFilterLabel', 'reportMetadata'))
                   ->setPaper('a4', 'landscape');
         return $pdf->stream($this->fileName($request, 'pdf'));
     }
@@ -90,16 +91,7 @@ class StockReportController extends Controller
                     ->sum(fn ($batch) => (float) $batch->quantity_remaining)
                 : 0;
             $value = $product->inventoryValue();
-            $locationStocks = $locations->map(function ($location) use ($product) {
-                if (! $product->is_expirable) {
-                    return (float) ($product->stocks->firstWhere('location_id', $location->id)?->quantity ?? 0);
-                }
-
-                return (float) $product->stockBatches
-                    ->where('location_id', $location->id)
-                    ->filter(fn ($batch) => (float) $batch->quantity_remaining > 0 && (! $batch->expired_date || $batch->expired_date->gte(today())))
-                    ->sum(fn ($batch) => (float) $batch->quantity_remaining);
-            });
+            $locationStocks = $locations->map(fn ($location) => $product->stockAvailability($location->id)['sellable']);
 
             return [
                 $product->name,

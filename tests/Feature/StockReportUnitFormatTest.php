@@ -78,7 +78,7 @@ class StockReportUnitFormatTest extends TestCase
             ->assertSee('1 Dus')
             ->assertSee('4 Dus 5 Botol');
 
-        $html = view('report.pdf.stock', ['products' => $response->viewData('products')])->render();
+        $html = view('report.pdf.stock', $response->original->getData())->render();
         $this->assertMatchesRegularExpression('/<th\b[^>]*>Satuan Dasar<\/th>/', $html);
         $this->assertStringContainsString('<td>Botol</td>', $html);
         $this->assertStringContainsString('<td class="right low">4 Dus 5 Botol</td>', $html);
@@ -115,7 +115,7 @@ class StockReportUnitFormatTest extends TestCase
 
         $response = $this->get(route('report.stock'))->assertOk()
             ->assertSee('5 Dus 5,5 Botol')->assertSee('1 Dus 0,5 Botol');
-        $html = view('report.pdf.stock', ['products' => $response->viewData('products')])->render();
+        $html = view('report.pdf.stock', $response->original->getData())->render();
         $this->assertStringContainsString('5 Dus 5,5 Botol', $html);
         $this->assertStringContainsString('1 Dus 0,5 Botol', $html);
 
@@ -127,5 +127,36 @@ class StockReportUnitFormatTest extends TestCase
             $this->assertSame('1 Dus 0,5 Botol', $row[5]);
             return true;
         });
+    }
+
+    public function test_pdf_keeps_all_location_columns_when_filtering_by_one_location(): void
+    {
+        $product = Product::firstOrFail();
+        $gudang = Location::firstOrFail();
+        $toko = Location::create(['name' => 'Toko']);
+        Location::create(['name' => 'Lokasi Kosong']);
+        Stock::create(['product_id' => $product->id, 'location_id' => $toko->id, 'quantity' => 48]);
+        StockBatch::create([
+            'product_id' => $product->id, 'location_id' => $toko->id,
+            'received_date' => '2026-10-01', 'expired_date' => '2027-01-01',
+            'quantity_initial' => 48, 'quantity_remaining' => 48,
+        ]);
+
+        $pdf = \Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+        $pdf->shouldReceive('setPaper')->with('a4', 'landscape')->andReturnSelf();
+        $pdf->shouldReceive('stream')->andReturn(response('stock-report'));
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('loadView')->once()->with('report.pdf.stock', \Mockery::on(function ($data) {
+            $html = view('report.pdf.stock', $data)->render();
+            $document = new \DOMDocument();
+            @$document->loadHTML($html);
+            $xpath = new \DOMXPath($document);
+            $columns = fn ($query) => array_map(fn ($node) => trim($node->textContent), iterator_to_array($xpath->query($query)));
+            $this->assertSame(['Gudang', 'Lokasi Kosong', 'Toko', 'Total Fisik', 'Layak Jual'],
+                array_slice($columns('//table//thead//th'), 3, 5));
+            $this->assertSame(['1 Dus', '0 Botol', '2 Dus', '7 Dus 5 Botol', '3 Dus'],
+                array_slice($columns('//table//tbody/tr[1]/td'), 3, 5));
+            return true;
+        }))->andReturn($pdf);
+        $this->get(route('report.stock.pdf', ['location_id' => $gudang->id]))->assertOk();
     }
 }
