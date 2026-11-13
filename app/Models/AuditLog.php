@@ -13,6 +13,19 @@ class AuditLog extends Model
 
     protected $casts = ['old_values' => 'array', 'new_values' => 'array'];
 
+    public function getActionLabelAttribute(): string
+    {
+        return match ($this->action) {
+            'created' => 'Membuat',
+            'updated' => 'Mengubah',
+            'deleted' => 'Menghapus',
+            'login' => 'Login',
+            'logout' => 'Logout',
+            'login_failed' => 'Login Gagal',
+            default => $this->action,
+        };
+    }
+
     public function user() { return $this->belongsTo(User::class); }
     public function auditable() { return $this->morphTo(); }
 }

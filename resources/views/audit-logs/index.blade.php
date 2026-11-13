@@ -49,7 +49,16 @@
 </div>
 
 <div class="card table-card">
-    <div class="card-header bg-white border-0 py-3"><h6 class="fw-bold mb-1">Riwayat Aktivitas</h6><small class="text-muted">{{ $auditLogs->total() }} aktivitas ditemukan</small></div>
+    <div class="card-header bg-white border-0 py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div><h6 class="fw-bold mb-1">Riwayat Aktivitas</h6><small class="text-muted">{{ $auditLogs->total() }} aktivitas ditemukan</small></div>
+        @php
+            $exportFilters = request()->only(['search', 'user_id', 'module', 'action', 'from', 'to']);
+        @endphp
+        <div class="btn-group" role="group" aria-label="Ekspor audit log">
+            <a class="btn btn-sm btn-outline-danger" href="{{ route('audit-logs.pdf', $exportFilters) }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>PDF</a>
+            <a class="btn btn-sm btn-outline-success" href="{{ route('audit-logs.excel', $exportFilters) }}"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Excel</a>
+        </div>
+    </div>
     <div class="table-responsive">
         <table class="table table-hover audit-table mb-0">
             <thead><tr><th>Waktu</th><th>Pengguna</th><th>Modul</th><th>Aksi</th><th>Aktivitas</th><th>Alamat IP</th><th class="text-center">Detail</th></tr></thead>
@@ -57,13 +66,12 @@
             @forelse($auditLogs as $log)
                 @php
                     $colors = ['created' => 'success', 'updated' => 'warning', 'deleted' => 'danger', 'login' => 'primary', 'logout' => 'secondary', 'login_failed' => 'danger'];
-                    $labels = ['created' => 'Membuat', 'updated' => 'Mengubah', 'deleted' => 'Menghapus', 'login' => 'Login', 'logout' => 'Logout', 'login_failed' => 'Login Gagal'];
                 @endphp
                 <tr>
                     <td class="text-nowrap"><div>{{ $log->created_at->format('d/m/Y') }}</div><small class="text-muted">{{ $log->created_at->format('H:i:s') }}</small></td>
                     <td><div class="fw-semibold">{{ $log->user->name ?? 'Tamu/Sistem' }}</div><small class="text-muted">{{ $log->user->role ?? '-' }}</small></td>
                     <td><span class="badge bg-light text-secondary">{{ $log->module }}</span></td>
-                    <td><span class="badge bg-{{ $colors[$log->action] ?? 'secondary' }}">{{ $labels[$log->action] ?? $log->action }}</span></td>
+                    <td><span class="badge bg-{{ $colors[$log->action] ?? 'secondary' }}">{{ $log->action_label }}</span></td>
                     <td>{{ $log->description }}</td>
                     <td class="font-monospace small text-muted">{{ $log->ip_address ?? '-' }}</td>
                     <td class="text-center">

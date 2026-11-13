@@ -28,7 +28,32 @@ class AuditLogDisplayTest extends TestCase
         $this->assertSame('true',$button->getAttribute('aria-expanded'));
         $cashier=User::create(['name'=>'Kasir','email'=>'audit-menu-cashier@example.com','password'=>'password','role'=>'kasir']);
         $this->actingAs($cashier)->get(route('audit-logs.index'))->assertForbidden();
+        $this->get(route('audit-logs.pdf'))->assertForbidden();
+        $this->get(route('audit-logs.excel'))->assertForbidden();
         $this->get(route('inventory.stock.index'))->assertOk()->assertDontSee('href="'.route('audit-logs.index').'"',false);
+    }
+
+    public function test_excel_exports_all_filtered_activity_in_display_order(): void
+    {
+        $owner = User::create(['name'=>'Owner','email'=>'audit-export@example.com','password'=>'password','role'=>'owner']);
+        for ($index = 1; $index <= 31; $index++) {
+            AuditLog::create(['user_id'=>$owner->id,'action'=>'updated','module'=>'Barang','description'=>'Ubah barang '.$index]);
+        }
+        AuditLog::create(['user_id'=>$owner->id,'action'=>'created','module'=>'Barang','description'=>'Barang tambahan']);
+        $filters = ['module'=>'Barang','action'=>'updated','page'=>2];
+        $this->actingAs($owner)->get(route('audit-logs.index', $filters))->assertOk()
+            ->assertSee(e(route('audit-logs.pdf', ['module'=>'Barang','action'=>'updated'])), false)
+            ->assertSee(e(route('audit-logs.excel', ['module'=>'Barang','action'=>'updated'])), false);
+        \Maatwebsite\Excel\Facades\Excel::fake();
+        $this->get(route('audit-logs.excel', $filters))->assertOk();
+        \Maatwebsite\Excel\Facades\Excel::assertDownloaded('Audit-Log-'.now('Asia/Jakarta')->toDateString().'.xlsx', function ($export) {
+            $rows = array_slice($export->array(), 4);
+            $this->assertCount(31, $rows);
+            $this->assertSame('Ubah barang 31', $rows[0][5]);
+            $this->assertSame('Mengubah', $rows[0][4]);
+            $this->assertSame('Ubah barang 1', $rows[30][5]);
+            return true;
+        });
     }
 
     public function test_audit_detail_displays_readable_labels_and_relation_names(): void

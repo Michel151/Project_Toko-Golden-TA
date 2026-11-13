@@ -66,6 +66,10 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
         ->middleware('role:owner')->name('permissions.update');
     Route::get('/audit-logs', [AuditLogController::class, 'index'])
          ->middleware('role:owner')->name('audit-logs.index');
+    Route::get('/audit-logs/pdf', [AuditLogController::class, 'pdf'])
+         ->middleware('role:owner')->name('audit-logs.pdf');
+    Route::get('/audit-logs/excel', [AuditLogController::class, 'excel'])
+         ->middleware('role:owner')->name('audit-logs.excel');
 
     Route::prefix('database-backups')->name('database-backups.')
         ->middleware('role:owner')->group(function () {
