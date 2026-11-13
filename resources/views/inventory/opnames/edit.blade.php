@@ -10,6 +10,9 @@
 .expiry-list td{vertical-align:middle}.opname-difference{min-width:115px}.expiry-date{max-width:170px}
 .opname-search{max-width:320px}.expiry-toggle{display:inline-flex;align-items:center;gap:6px;padding:2px 0;border:0;background:none;color:var(--bs-success);font-size:12px}.expiry-toggle[aria-expanded="true"] .bi-chevron-right{transform:rotate(90deg)}
 .opname-count-table [hidden]{display:none!important}.opname-actions{position:sticky;bottom:0;background:var(--bs-body-bg,#fff);padding:10px 0;z-index:2}
+.opname-expiry-filter{border-left:4px solid currentColor!important}
+.opname-expiry-filter[aria-pressed="true"]{background:#f1f5f2;box-shadow:inset 0 0 0 1px currentColor!important}
+.opname-expiry-today{color:#a64b0c}
 </style>
 @endpush
 @section('content')
@@ -17,10 +20,25 @@
     <x-back-link :fallback="route('inventory.opnames.index')" />
 </div>
 <div class="mb-3"><h5 class="fw-bold mb-1">{{ $opname->opname_number }}</h5><div class="small text-muted">{{ $opname->location->name }} | {{ $opname->opname_date->format('d/m/Y') }}</div></div>
-<form method="POST" action="{{ route('inventory.opnames.update', $opname) }}" data-complete-url="{{ route('inventory.opnames.complete',$opname) }}" id="opnameForm">
+<form method="POST" action="{{ route('inventory.opnames.update', $opname) }}" data-complete-url="{{ route('inventory.opnames.complete',$opname) }}" id="opnameForm"
+      data-opname-date="{{ $opname->opname_date->toDateString() }}" data-expiry-limit="{{ $opname->opname_date->copy()->addDays(30)->toDateString() }}">
     <div class="small text-muted mb-3">Petugas Opname: <strong class="text-body text-break">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: 'Belum dicatat' }}</strong></div>
     <div class="small text-muted mb-3">Keterangan per barang boleh dikosongkan saat menyimpan draf. Wajib diisi saat menyelesaikan opname jika jumlah stok atau rincian kedaluwarsa berubah.</div>
     @csrf @method('PUT')
+    <div class="row g-2 mb-2" aria-label="Ringkasan kedaluwarsa">
+        @foreach(['expired' => ['Sudah Kedaluwarsa', 'text-danger'], 'today' => ['Kedaluwarsa Hari Ini', 'opname-expiry-today'], 'soon' => ['Mendekati Kedaluwarsa', 'text-warning-emphasis']] as $status => [$label, $color])
+            <div class="col-12 col-sm-4">
+                <button type="button" class="card opname-expiry-filter w-100 h-100 text-start p-3 {{ $color }}" data-expiry-filter="{{ $status }}" aria-pressed="false">
+                    <span class="fw-semibold">{{ $label }}</span>
+                    <strong class="fs-5" data-expiry-product-count>0 produk</strong>
+                </button>
+            </div>
+        @endforeach
+    </div>
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <small class="text-muted">Ringkasan mengikuti tanggal opname dan jumlah fisik seluruh barang. Klik kartu untuk menyaring.</small>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearOpnameExpiryFilter" hidden>Semua kondisi</button>
+    </div>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <span class="small text-muted" id="opnameItemCount">{{ $opname->items->count() }} barang</span>
         <input type="search" class="form-control form-control-sm opname-search" id="opnameSearch" placeholder="Cari barang..." aria-label="Cari barang opname">
@@ -37,7 +55,7 @@
                     $value=old("items.{$item->id}.physical_quantity",$item->physical_quantity);
                 @endphp
                 <tr data-opname-item="{{ $item->id }}" data-system="{{ $item->system_quantity }}" data-unit="{{ $baseName }}" data-display-units="{{ json_encode($displayUnits) }}">
-                    <td><strong class="opname-product-name">{{ $product->name }}</strong>@if($item->tracks_expiry)<div><button type="button" class="expiry-toggle" aria-expanded="false" aria-controls="expiry-{{ $item->id }}"><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="expiry-count">{{ $item->expiryCounts->count() }} kedaluwarsa</span></button></div>@endif</td>
+                    <td><strong class="opname-product-name">{{ $product->name }}</strong>@if($item->tracks_expiry)<div><button type="button" class="expiry-toggle" aria-expanded="false" aria-controls="expiry-{{ $item->id }}"><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="expiry-count">{{ $item->expiryCounts->count() }} rincian tanggal</span></button></div><div class="d-flex flex-wrap gap-1" data-expiry-badges></div>@endif</td>
                     <td class="text-end">{{ \App\Support\OpnameQuantity::format((float)$item->system_quantity,$displayUnits) }}</td>
                     <td>
                         @if($item->tracks_expiry)
@@ -98,7 +116,7 @@
             </tbody>
         </table>
     </div>
-    <div id="opnameEmpty" class="text-center text-muted py-3" hidden>Barang tidak ditemukan.</div>
+    <div id="opnameEmpty" class="text-center text-muted py-3" hidden>Tidak ada barang yang sesuai filter.</div>
     <div class="d-flex flex-wrap gap-2 mt-2 opname-actions">
         <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Simpan Draf</button>
         <button type="button" class="btn btn-success" id="btnSelesaikan"><i class="bi bi-check-circle me-1"></i>Selesaikan Opname</button>

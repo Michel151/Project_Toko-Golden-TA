@@ -2,15 +2,12 @@
     <td>
         @if(!empty($row['id']))
         <input type="hidden" name="items[{{ $item->id }}][expiries][{{ $index }}][id]" value="{{ $row['id'] }}">
-        <input type="hidden" name="items[{{ $item->id }}][expiries][{{ $index }}][expired_date]" value="{{ $row['expired_date'] ?? '' }}">
+        <input type="hidden" data-expiry-date name="items[{{ $item->id }}][expiries][{{ $index }}][expired_date]" value="{{ $row['expired_date'] ?? '' }}">
         <span class="fw-semibold">{{ !empty($row['expired_date']) ? (\Carbon\Carbon::hasFormat($row['expired_date'],'Y-m-d') ? \Carbon\Carbon::parse($row['expired_date'])->format('d/m/Y') : $row['expired_date']) : 'Tanggal belum dicatat' }}</span>
-        @if(empty($row['expired_date']))<div class="small text-warning-emphasis">Tanpa tanggal</div>
-        @elseif($row['expired_date']<today()->toDateString())<div class="small text-danger">Sudah kedaluwarsa</div>
-        @elseif($row['expired_date']<=today()->addDays(30)->toDateString())<div class="small text-warning-emphasis">Hampir kedaluwarsa</div>
-        @else<div class="small text-success">Aman</div>@endif
         @else
-        <input aria-label="Tanggal kedaluwarsa baru" type="date" class="form-control form-control-sm expiry-date" name="items[{{ $item->id }}][expiries][{{ $index }}][expired_date]" value="{{ $row['expired_date'] ?? '' }}" required>
+        <input aria-label="Tanggal kedaluwarsa baru" type="date" class="form-control form-control-sm expiry-date" data-expiry-date name="items[{{ $item->id }}][expiries][{{ $index }}][expired_date]" value="{{ $row['expired_date'] ?? '' }}" required>
         @endif
+        <div class="small" data-expiry-status></div>
     </td>
     <td class="text-end">{{ \App\Support\OpnameQuantity::format((float)($row['system_quantity'] ?? 0),$displayUnits) }}</td>
     <td>@include('inventory.opnames.quantity-input',['field'=>"items[{$item->id}][expiries][{$index}][physical_quantity]",'value'=>$row['physical_quantity'] ?? 0])</td>

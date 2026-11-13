@@ -38,6 +38,17 @@
     const detailById = new Map(Array.from(form.querySelectorAll('[data-expiry-item]'), detail => [detail.dataset.expiryItem, detail]));
     const itemCache = new WeakMap();
     const expiryCache = new WeakMap();
+    const expiryFilters = [...form.querySelectorAll('[data-expiry-filter]')];
+    const clearExpiryFilter = document.getElementById('clearOpnameExpiryFilter');
+    const expiryQuantities = new Map();
+    let expiryFilter = '';
+    const expiryStates = {
+        expired: { label: 'Sudah kedaluwarsa', color: 'text-danger', background: 'bg-danger-subtle' },
+        today: { label: 'Kedaluwarsa hari ini', color: 'opname-expiry-today', background: 'bg-warning-subtle' },
+        soon: { label: 'Mendekati kedaluwarsa', color: 'text-warning-emphasis', background: 'bg-warning-subtle' },
+        safe: { label: 'Aman', color: 'text-success' },
+        undated: { label: 'Tanpa tanggal', color: 'text-warning-emphasis' },
+    };
     const round = value => Math.round((value + Number.EPSILON) * 10000) / 10000;
     const formatQuantity = (value, units, difference = false) => {
         let remaining = Math.round(Math.abs(value) * 10000);
@@ -59,13 +70,42 @@
         cell.classList.toggle('text-danger', value < 0);
         cell.classList.toggle('text-success', value > 0);
     };
+    function expiryStatus(date) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'undated';
+        if (date < form.dataset.opnameDate) return 'expired';
+        if (date === form.dataset.opnameDate) return 'today';
+        return date <= form.dataset.expiryLimit ? 'soon' : 'safe';
+    }
+    function updateExpiryIndicators(main, rows, units) {
+        const quantities = { expired: 0, today: 0, soon: 0 };
+        for (const row of rows) {
+            const status = expiryStatus(row.querySelector('[data-expiry-date]').value);
+            const state = expiryStates[status];
+            const indicator = row.querySelector('[data-expiry-status]');
+            indicator.className = 'small ' + state.color;
+            indicator.textContent = state.label;
+            const quantity = Number(expiryCache.get(row).physical.value);
+            if (quantity > 0 && Object.hasOwn(quantities, status)) quantities[status] += quantity;
+        }
+        expiryQuantities.set(main, quantities);
+        const badges = main.querySelector('[data-expiry-badges]');
+        badges.replaceChildren();
+        for (const [status, quantity] of Object.entries(quantities)) {
+            if (quantity <= 0) continue;
+            const { label, color, background } = expiryStates[status];
+            const badge = document.createElement('span');
+            badge.className = `badge ${color} ${background}`;
+            badge.textContent = label + ' · ' + formatQuantity(round(quantity), units);
+            badges.append(badge);
+        }
+    }
     function clearNotesError(notes, changed) {
         if (!changed || notes.value.trim()) {
             notes.classList.remove('is-invalid');
             notes.removeAttribute('aria-invalid');
         }
     }
-    function updateItem(id) {
+    function updateItem(id, refresh = true) {
         const main = mainById.get(id);
         if (!main) return;
         let cached = itemCache.get(main);
@@ -104,7 +144,8 @@
             });
             cached.physical.value = round(total);
             cached.total.textContent = formatQuantity(round(total), units);
-            cached.count.textContent = rows.length + ' kedaluwarsa';
+            cached.count.textContent = rows.length + ' rincian tanggal';
+            updateExpiryIndicators(main, rows, units);
         }
         const difference = round(Number(cached.physical.value) - Number(main.dataset.system));
         paintDifference(cached.difference, difference, units);
@@ -118,6 +159,7 @@
             valuation.hidden = difference <= 0;
             cached.valuationInputs.forEach(input => { input.disabled = difference <= 0; });
         }
+        if (refresh) refreshFilters();
     }
     function bindQuantity(widget, id) {
         const value = widget.querySelector('.physical-value');
@@ -149,6 +191,9 @@
                 detail.hidden = !expanded;
             });
             detail.querySelectorAll('.opname-quantity').forEach(widget => bindQuantity(widget, id));
+            detail.addEventListener('input', event => {
+                if (event.target.matches('.expiry-date')) updateItem(id);
+            });
             detail.querySelector('.add-expiry').addEventListener('click', () => {
                 const index = Number(detail.dataset.nextIndex);
                 detail.dataset.nextIndex = index + 1;
@@ -167,17 +212,22 @@
                 updateItem(id);
             });
         }
-        updateItem(id);
+        updateItem(id, false);
     });
     const search = document.getElementById('opnameSearch');
     const productNames = new Map(mainRows.map(main => [main, main.querySelector('.opname-product-name').textContent.toLocaleLowerCase('id-ID')]));
     const itemCount = document.getElementById('opnameItemCount');
     const empty = document.getElementById('opnameEmpty');
-    search.addEventListener('input', () => {
+    function refreshFilters() {
         const query = search.value.trim().toLocaleLowerCase('id-ID');
+        const counts = { expired: 0, today: 0, soon: 0 };
         let visible = 0;
         mainRows.forEach(main => {
-            const matches = productNames.get(main).includes(query);
+            const quantities = expiryQuantities.get(main);
+            for (const status of Object.keys(counts)) {
+                if (quantities?.[status] > 0) counts[status]++;
+            }
+            const matches = productNames.get(main).includes(query) && (!expiryFilter || quantities?.[expiryFilter] > 0);
             main.hidden = !matches;
             const detail = detailById.get(main.dataset.opnameItem);
             if (detail) detail.hidden = !matches || main.querySelector('.expiry-toggle').getAttribute('aria-expanded') !== 'true';
@@ -185,13 +235,31 @@
         });
         itemCount.textContent = visible + ' / ' + mainRows.length + ' barang';
         empty.hidden = visible !== 0;
+        expiryFilters.forEach(button => {
+            const status = button.dataset.expiryFilter;
+            button.setAttribute('aria-pressed', String(expiryFilter === status));
+            button.querySelector('[data-expiry-product-count]').textContent = counts[status] + ' produk';
+        });
+        clearExpiryFilter.hidden = !expiryFilter;
+    }
+    search.addEventListener('input', refreshFilters);
+    expiryFilters.forEach(button => button.addEventListener('click', () => {
+        const status = button.dataset.expiryFilter;
+        expiryFilter = expiryFilter === status ? '' : status;
+        refreshFilters();
+    }));
+    clearExpiryFilter.addEventListener('click', () => {
+        expiryFilter = '';
+        refreshFilters();
     });
+    refreshFilters();
     // Reveal invalid fields before the browser tries to focus a collapsed row.
     form.addEventListener('invalid', event => {
         const detail = event.target.closest('[data-expiry-item]');
         const main = detail ? mainById.get(detail.dataset.expiryItem) : event.target.closest('[data-opname-item]');
         if (!main) return;
         search.value = '';
+        expiryFilter = '';
         search.dispatchEvent(new Event('input'));
         if (detail) {
             main.querySelector('.expiry-toggle').setAttribute('aria-expanded', 'true');
@@ -212,6 +280,7 @@
         });
         if (missingNotes) {
             search.value = '';
+            expiryFilter = '';
             search.dispatchEvent(new Event('input'));
             missingNotes.focus();
             missingNotes.scrollIntoView({ behavior: 'smooth', block: 'center' });

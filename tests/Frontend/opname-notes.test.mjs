@@ -41,7 +41,7 @@ function fixture(expiry = false) {
         mainRows: [main], mainById: new Map([['1', main]]), detailById: new Map([['1', detail]]),
         itemCache: new WeakMap(), expiryCache: new WeakMap(),
         round: value => Math.round(value * 10000) / 10000,
-        formatQuantity: () => '', paintDifference() {},
+        formatQuantity: () => '', paintDifference() {}, updateExpiryIndicators() {}, refreshFilters() {}, expiryFilter: '',
         document: { getElementById: () => button },
         appDialog: { async confirm() { confirmations++; return true; } },
     });
