@@ -130,6 +130,16 @@ class OpnameExpiryCountTest extends TestCase
         $this->capture('show-large',$page);
         $this->get(route('inventory.opnames.show',[$opname,'page'=>2,'per_page'=>50]))->assertOk()
             ->assertViewHas('items',fn($items)=>$items->count()===25 && $items->perPage()===25 && $items->currentPage()===2);
+        \Maatwebsite\Excel\Facades\Excel::fake();
+        $filters = ['opname'=>$opname,'q'=>'Barang Uji','filter'=>'matched','page'=>2];
+        $this->get(route('inventory.opnames.excel', $filters))->assertOk();
+        \Maatwebsite\Excel\Facades\Excel::assertDownloaded('Stock-Opname-'.str_replace('/', '-', $opname->opname_number).'.xlsx', function ($export) {
+            $rows = array_slice($export->array(), 4);
+            $this->assertCount(75, $rows);
+            $this->assertSame('Barang Uji 001', $rows[0][0]);
+            $this->assertSame('Barang Uji 075', $rows[74][0]);
+            return true;
+        });
         $this->assertEquals(20,$this->stock());
     }
 
@@ -140,6 +150,8 @@ class OpnameExpiryCountTest extends TestCase
         $this->get(route('inventory.opnames.show',[$opname,'filter'=>'changed']))->assertOk()
             ->assertViewHas('items',fn($items)=>$items->total()===1)
             ->assertViewHas('summary',['total'=>2,'changed'=>1,'matched'=>1])->assertSee('Rincian berubah');
+        $this->get(route('inventory.opnames.pdf', ['opname'=>$opname,'filter'=>'changed','page'=>2]))
+            ->assertOk()->assertHeader('Content-Type', 'application/pdf');
         $this->get(route('inventory.opnames.show',[$opname,'filter'=>'matched']))->assertOk()
             ->assertViewHas('items',fn($items)=>$items->total()===1 && $items->first()->product_id===$this->ordinary->id);
         $this->get(route('inventory.opnames.show',[$opname,'q'=>'Susu']))->assertOk()

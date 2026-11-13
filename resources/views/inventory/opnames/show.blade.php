@@ -13,8 +13,14 @@
 </style>
 @endpush
 @section('content')
-<div class="d-flex justify-content-start mb-3">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <x-back-link :fallback="route('inventory.opnames.index')" />
+    <div class="btn-group" role="group" aria-label="Ekspor hasil stock opname">
+        <a class="btn btn-sm btn-outline-danger" target="_blank" rel="noopener"
+           href="{{ route('inventory.opnames.pdf', ['opname' => $opname] + request()->only(['q', 'filter'])) }}"><i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>PDF</a>
+        <a class="btn btn-sm btn-outline-success"
+           href="{{ route('inventory.opnames.excel', ['opname' => $opname] + request()->only(['q', 'filter'])) }}"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Excel</a>
+    </div>
 </div>
 <div class="opname-document">
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">

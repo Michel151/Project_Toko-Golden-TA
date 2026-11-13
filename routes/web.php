@@ -169,6 +169,10 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
         Route::resource('transfers', TransferController::class)->middleware('permission:inventory.transfers');
         Route::get('opnames/movements', [StockMovementController::class, 'index'])
              ->middleware('permission:inventory.opnames')->name('opnames.movements');
+        Route::get('opnames/{opname}/pdf', [OpnameController::class, 'pdf'])
+             ->middleware('permission:inventory.opnames')->name('opnames.pdf');
+        Route::get('opnames/{opname}/excel', [OpnameController::class, 'excel'])
+             ->middleware('permission:inventory.opnames')->name('opnames.excel');
         Route::resource('opnames',   OpnameController::class)->middleware('permission:inventory.opnames');
         Route::post('opnames/{opname}/complete', [OpnameController::class, 'complete'])
              ->middleware('permission:inventory.opnames')->name('opnames.complete');

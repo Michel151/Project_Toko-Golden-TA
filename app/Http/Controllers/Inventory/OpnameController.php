@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Inventory;
 
+use App\Exports\ReportExport;
 use App\Http\Controllers\Controller;
 use App\Models\Location;
 use App\Models\Product;
@@ -12,9 +13,12 @@ use App\Models\StockOpnameItem;
 use App\Models\User;
 use App\Services\StockService;
 use App\Services\OpnameExpiryService;
+use App\Support\OpnameQuantity;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 class OpnameController extends Controller
 {
@@ -141,6 +145,73 @@ class OpnameController extends Controller
 
     public function show(Request $request, StockOpname $opname)
     {
+        return view('inventory.opnames.show', $this->resultData($request, $opname));
+    }
+
+    public function pdf(Request $request, StockOpname $opname)
+    {
+        $data = $this->exportData($request, $opname);
+
+        return Pdf::loadView('inventory.opnames.pdf', $data)->setPaper('a4', 'landscape')
+            ->stream($data['filename'].'.pdf');
+    }
+
+    public function excel(Request $request, StockOpname $opname)
+    {
+        $data = $this->exportData($request, $opname);
+        $export = new ReportExport('Hasil Stock Opname', $data['headings'], $data['rows'],
+            sheetTitle: 'Stock Opname', metadata: $data['reportMetadata'], showGridlines: true,
+            reportPeriod: $data['reportPeriod'], includeTotal: false);
+
+        return Excel::download($export, $data['filename'].'.xlsx');
+    }
+
+    private function exportData(Request $request, StockOpname $opname): array
+    {
+        $data = $this->resultData($request, $opname, paginate: false);
+        $rows = [];
+        foreach ($data['items'] as $item) {
+            $name = $item->product->name;
+            $units = OpnameQuantity::units($item->product);
+            $rows[] = [$name, '', OpnameQuantity::format((float) $item->system_quantity, $units),
+                OpnameQuantity::format((float) $item->physical_quantity, $units),
+                OpnameQuantity::format((float) $item->difference, $units, true), $item->notes ?? ''];
+
+            foreach ($item->expiryCounts as $entry) {
+                $system = (float) $entry->system_quantity;
+                $physical = (float) $entry->physical_quantity;
+                $rows[] = [$name, $entry->expired_date?->format('d/m/Y') ?? 'Tanggal belum dicatat',
+                    OpnameQuantity::format($system, $units), OpnameQuantity::format($physical, $units),
+                    OpnameQuantity::format($physical - $system, $units, true), ''];
+            }
+        }
+
+        $status = $opname->status === 'completed' ? 'Selesai' : 'Draf';
+        $participants = collect($opname->participants ?? [])->pluck('name')->implode(', ');
+        $filterLabel = match ($data['filter']) {
+            'changed' => 'Ada selisih',
+            'short' => 'Stok kurang',
+            'over' => 'Stok lebih',
+            'matched' => 'Sesuai',
+            default => 'Semua hasil',
+        };
+
+        return [
+            'rows' => $rows,
+            'headings' => ['Barang', 'Kedaluwarsa', 'Stok Sistem', 'Stok Fisik', 'Selisih', 'Keterangan'],
+            'filename' => 'Stock-Opname-'.str_replace('/', '-', $opname->opname_number),
+            'reportPeriod' => $opname->opname_number.' | '.$opname->opname_date->format('d/m/Y').' | '.$status,
+            'reportMetadata' => array_values(array_filter([
+                'Lokasi: '.$opname->location->name,
+                'Petugas: '.($participants ?: 'Belum dicatat'),
+                'Hasil: '.$filterLabel,
+                $data['search'] !== '' ? 'Pencarian: '.$data['search'] : null,
+            ])),
+        ];
+    }
+
+    private function resultData(Request $request, StockOpname $opname, bool $paginate = true): array
+    {
         $filters = $request->validate([
             'q' => 'nullable|string|max:150',
             'filter' => 'nullable|in:all,changed,short,over,matched',
@@ -172,9 +243,10 @@ class OpnameController extends Controller
         if ($filter === 'over') $query->where('difference', '>', 0);
         if ($filter === 'matched') $query->where('difference', 0)
             ->whereDoesntHave('expiryCounts', fn ($dates) => $dates->whereColumn('physical_quantity', '!=', 'system_quantity'));
-        $items = $query->orderBy(Product::select('name')->whereColumn('products.id', 'stock_opname_items.product_id'))
-            ->orderBy('id')->paginate(25)->withQueryString();
-        return view('inventory.opnames.show', compact('opname', 'items', 'summary', 'expirySummary', 'search', 'filter'));
+        $query->orderBy(Product::select('name')->whereColumn('products.id', 'stock_opname_items.product_id'))->orderBy('id');
+        $items = $paginate ? $query->paginate(25)->withQueryString() : $query->get();
+
+        return compact('opname', 'items', 'summary', 'expirySummary', 'search', 'filter');
     }
 
     // Selesaikan opname — update stok sesuai fisik
