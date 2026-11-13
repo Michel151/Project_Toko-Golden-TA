@@ -84,7 +84,7 @@
             const indicator = row.querySelector('[data-expiry-status]');
             indicator.className = 'small ' + state.color;
             indicator.textContent = state.label;
-            const quantity = Number(expiryCache.get(row).physical.value);
+            const quantity = Number(expiryCache.get(row).difference.dataset.system);
             if (quantity > 0 && Object.hasOwn(quantities, status)) quantities[status] += quantity;
         }
         expiryQuantities.set(main, quantities);

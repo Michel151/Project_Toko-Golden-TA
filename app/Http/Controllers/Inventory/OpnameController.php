@@ -153,6 +153,18 @@ class OpnameController extends Controller
         $totalItems = $opname->items()->count();
         $changedItems = $opname->items()->where($changed)->count();
         $summary = ['total'=>$totalItems, 'changed'=>$changedItems, 'matched'=>$totalItems-$changedItems];
+        $expirySummary = [];
+        if ($opname->status === 'completed') {
+            $date = $opname->opname_date->toDateString();
+            $limit = $opname->opname_date->copy()->addDays(30)->toDateString();
+            $countProducts = fn ($condition) => $opname->items()->whereHas('expiryCounts', fn ($dates) => $condition($dates->where('physical_quantity', '>', 0)))
+                ->distinct()->count('product_id');
+            $expirySummary = [
+                'expired' => $countProducts(fn ($dates) => $dates->where('expired_date', '<', $date)),
+                'today' => $countProducts(fn ($dates) => $dates->where('expired_date', $date)),
+                'soon' => $countProducts(fn ($dates) => $dates->where('expired_date', '>', $date)->where('expired_date', '<=', $limit)),
+            ];
+        }
         $query = $opname->items()->with(['expiryCounts', 'product.buyUnit', 'product.retailUnit', 'product.productUnits.unit']);
         if ($search !== '') $query->whereHas('product', fn ($products) => $products->where('name', 'like', '%'.$search.'%'));
         if ($filter === 'changed') $query->where($changed);
@@ -162,7 +174,7 @@ class OpnameController extends Controller
             ->whereDoesntHave('expiryCounts', fn ($dates) => $dates->whereColumn('physical_quantity', '!=', 'system_quantity'));
         $items = $query->orderBy(Product::select('name')->whereColumn('products.id', 'stock_opname_items.product_id'))
             ->orderBy('id')->paginate(25)->withQueryString();
-        return view('inventory.opnames.show', compact('opname', 'items', 'summary', 'search', 'filter'));
+        return view('inventory.opnames.show', compact('opname', 'items', 'summary', 'expirySummary', 'search', 'filter'));
     }
 
     // Selesaikan opname — update stok sesuai fisik

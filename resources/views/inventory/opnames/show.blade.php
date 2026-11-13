@@ -28,6 +28,14 @@
     <div class="opname-stat"><strong class="text-success">{{ number_format($summary['matched'],0,',','.') }}</strong><span>Sesuai</span></div>
     <div class="opname-stat"><strong class="text-danger">{{ number_format($summary['changed'],0,',','.') }}</strong><span>Ada selisih</span></div>
 </div>
+@if($expirySummary)
+    <p class="small text-muted mb-2">Kondisi kedaluwarsa berdasarkan hasil fisik pada tanggal opname</p>
+    <div class="opname-summary" aria-label="Ringkasan kedaluwarsa hasil opname">
+        <div class="opname-stat"><strong class="text-danger">{{ $expirySummary['expired'] }} produk</strong><span>Sudah Kedaluwarsa</span></div>
+        <div class="opname-stat"><strong style="color:#a64b0c">{{ $expirySummary['today'] }} produk</strong><span>Kedaluwarsa Hari Ini</span></div>
+        <div class="opname-stat"><strong class="text-warning-emphasis">{{ $expirySummary['soon'] }} produk</strong><span>Mendekati Kedaluwarsa</span></div>
+    </div>
+@endif
 <form method="GET" action="{{ route('inventory.opnames.show',$opname) }}" class="app-unified-filter opname-filters" role="search">
     <div class="app-filter-field"><label for="opnameResultSearch">Nama Barang</label><input id="opnameResultSearch" type="search" name="q" value="{{ $search }}" placeholder="Cari nama barang..." aria-label="Cari nama barang" class="form-control form-control-sm"></div>
     <div class="app-filter-field"><label for="opnameResultFilter">Hasil Opname</label><select id="opnameResultFilter" name="filter" aria-label="Filter hasil opname" class="form-select form-select-sm">

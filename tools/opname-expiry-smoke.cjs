@@ -28,11 +28,14 @@ const path = require('node:path');
                 }
                 return route.abort();
             }
-            const name = route.request().url().includes('test-large') ? 'show-large' : route.request().url().includes('test-multi') ? 'multi-edit' : route.request().url().includes('test-show') ? 'show' : 'edit';
+            const name = new URL(route.request().url()).searchParams.has('test-saved') ? 'saved-draft'
+                : route.request().url().includes('test-large') ? 'show-large' : route.request().url().includes('test-multi') ? 'multi-edit' : route.request().url().includes('test-show') ? 'show' : 'edit';
             const html = fs.readFileSync(path.join(directory, name + '.html'), 'utf8').replaceAll('http://localhost/', 'http://127.0.0.1:8000/');
             return route.fulfill({ status: 200, contentType: 'text/html', body: html });
         });
         const url = 'http://127.0.0.1:8000/inventory/opnames/999/edit';
+        await page.goto(url + '?test-saved=1');
+        assert.equal(await page.locator('[data-expiry-filter="expired"] [data-expiry-product-count]').innerText(), '1 produk');
         await page.goto(url + '?test-multi=1');
         const multiMain = page.locator('[data-opname-item]').first();
         await multiMain.locator('.expiry-toggle').click();
@@ -82,7 +85,13 @@ const path = require('node:path');
         await main.locator('.expiry-toggle').click();
         assert(await detail.isVisible());
         const expired = detail.locator('[data-expiry-row]').filter({ hasText: '16/10/2026' });
+        const expiredFilter = page.locator('[data-expiry-filter="expired"]');
+        await expiredFilter.click();
         await expired.locator('.qty-whole').fill('0');
+        assert.equal(await expiredFilter.locator('[data-expiry-product-count]').innerText(), '1 produk');
+        assert(await main.isVisible());
+        assert(await detail.isVisible());
+        await page.locator('#clearOpnameExpiryFilter').click();
         assert.equal(await main.locator('.item-physical').inputValue(), '10');
         assert.equal(await main.locator('.item-total').innerText(), '1 Dus');
         assert.equal(await main.locator('.item-difference').innerText(), '-1 Dus');

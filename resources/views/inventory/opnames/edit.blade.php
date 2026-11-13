@@ -36,7 +36,7 @@
         @endforeach
     </div>
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <small class="text-muted">Ringkasan mengikuti tanggal opname dan jumlah fisik seluruh barang. Klik kartu untuk menyaring.</small>
+        <small class="text-muted">Ringkasan draf berdasarkan stok sistem saat opname dimulai. Klik kartu untuk menyaring.</small>
         <button type="button" class="btn btn-sm btn-outline-secondary" id="clearOpnameExpiryFilter" hidden>Semua kondisi</button>
     </div>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
@@ -95,10 +95,8 @@
                             'system_quantity'=>$entry->system_quantity,'physical_quantity'=>$entry->physical_quantity,
                         ])->all());
                         foreach($expiryRows as &$expiryRow) {
-                            if(!empty($expiryRow['id'])) {
-                                $saved=$item->expiryCounts->firstWhere('id',$expiryRow['id']);
-                                $expiryRow['system_quantity']=$saved?->system_quantity ?? 0;
-                            }
+                            $saved=$item->expiryCounts->firstWhere('id',$expiryRow['id'] ?? null);
+                            $expiryRow['system_quantity']=$saved?->system_quantity ?? 0;
                         }
                         unset($expiryRow);
                     @endphp

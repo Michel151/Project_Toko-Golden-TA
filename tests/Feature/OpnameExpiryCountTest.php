@@ -87,6 +87,7 @@ class OpnameExpiryCountTest extends TestCase
         $this->assertEquals(20,$this->stock());
         $this->assertEquals(10,$this->at('2026-10-16'));
         $this->assertSame('draft',$opname->fresh()->status);
+        $this->capture('saved-draft', $this->get(route('inventory.opnames.edit', $opname))->assertOk());
         $this->post(route('inventory.opnames.complete',$opname),$this->data($opname))->assertSessionHasNoErrors()->assertRedirect();
         $this->assertEquals(10,$this->stock());
         $this->assertEquals(0,$this->at('2026-10-16'));
@@ -94,7 +95,8 @@ class OpnameExpiryCountTest extends TestCase
         $this->assertEquals(10,app(\App\Services\StockService::class)->sellableStockAt($this->product,$this->location));
         $this->assertSame('completed',$opname->fresh()->status);
         $this->assertDatabaseHas('stock_movements',['movement_type'=>'opname_adjustment','quantity'=>-10]);
-        $this->capture('show',$this->get(route('inventory.opnames.show',$opname))->assertOk()->assertSee('Rincian Kedaluwarsa')->assertSee('16/10/2026'));
+        $this->capture('show',$this->get(route('inventory.opnames.show',$opname))->assertOk()->assertSee('Rincian Kedaluwarsa')->assertSee('16/10/2026')
+            ->assertViewHas('expirySummary', ['expired' => 0, 'today' => 0, 'soon' => 0]));
     }
 
     public function test_count_and_result_pages_use_all_registered_unit_levels(): void
