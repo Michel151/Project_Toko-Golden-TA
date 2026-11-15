@@ -368,6 +368,7 @@ class UiConsistencyTest extends TestCase
         foreach (['master.products.import','master.products.create'] as $route) {
             $this->assertSame(1, $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " product-list-toolbar ")]//a[@href="'.route($route).'"]')->length);
         }
+        $this->assertSame(1, $xpath->query('//form[preceding-sibling::*[1][contains(concat(" ", normalize-space(@class), " "), " product-list-toolbar ")]]//input[@id="productSearch"]')->length);
         $page = $this->get(route('sale.sales.index'))->assertOk();
         $document = new \DOMDocument;
         @$document->loadHTML($page->getContent());

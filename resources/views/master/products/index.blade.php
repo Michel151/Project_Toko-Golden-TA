@@ -1,50 +1,57 @@
 @extends('layouts.app')
 @section('title', 'Barang')
 @section('page-title', 'Master Barang')
-@push('styles')
-<style>
-.product-list-toolbar { justify-content:space-between; }
-.product-list-filters { display:flex;flex-wrap:wrap;align-items:end;gap:12px;flex-grow:1; }
-@media(max-width:767px) {
-    .app-filter-bar.product-list-toolbar { display:flex;align-items:stretch; }
-    .product-list-filters { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%; }
-    .product-list-filters .app-filter-search,.product-list-filters .app-filter-actions { grid-column:1/-1; }
-}
-</style>
-@endpush
-
 @section('content')
 @include('master._header', ['icon'=>'box-seam', 'title'=>'Data Barang', 'description'=>'Kelola identitas, harga, satuan, barcode, dan persediaan barang.'])
-<div class="app-filter-bar product-list-toolbar mb-3">
-    <form class="app-unified-filter product-list-filters" method="GET">
-        <div class="app-filter-field app-filter-search"><label for="productSearch">Cari Barang</label><input id="productSearch" type="search" name="search" class="form-control form-control-sm"
-               placeholder="Nama / barcode..." value="{{ request('search') }}"></div>
-        <div class="app-filter-field"><label for="productCategory">Kategori</label><select id="productCategory" name="category_id" class="form-select form-select-sm">
+@php
+    $canImport = auth()->user()->canAccessRoute('master.products.import');
+    $canCreate = auth()->user()->canAccessRoute('master.products.create');
+@endphp
+@if($canImport || $canCreate)
+<div class="d-flex flex-wrap gap-2 justify-content-end mb-3 product-list-toolbar">
+    @if($canImport)
+        <a href="{{ route('master.products.import') }}" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i> Import Excel
+        </a>
+    @endif
+    @if($canCreate)
+        <a href="{{ route('master.products.create') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i> Tambah Barang
+        </a>
+    @endif
+</div>
+@endif
+
+<form class="app-unified-filter app-filter-bar mb-3" method="GET">
+    <div class="app-unified-field app-unified-search">
+        <label for="productSearch">Cari Barang</label>
+        <input id="productSearch" type="search" name="search" class="form-control form-control-sm"
+               placeholder="Nama / barcode..." value="{{ request('search') }}">
+    </div>
+    <div class="app-unified-field">
+        <label for="productCategory">Kategori</label>
+        <select id="productCategory" name="category_id" class="form-select form-select-sm">
             <option value="">Semua Kategori</option>
             @foreach($categories as $cat)
             <option value="{{ $cat->id }}" {{ request('category_id') == $cat->id ? 'selected' : '' }}>
                 {{ $cat->name }}
             </option>
             @endforeach
-        </select></div>
-        <div class="app-filter-field"><label for="productStatus">Status</label><select id="productStatus" name="status" class="form-select form-select-sm">
+        </select>
+    </div>
+    <div class="app-unified-field">
+        <label for="productStatus">Status</label>
+        <select id="productStatus" name="status" class="form-select form-select-sm">
             <option value="">Semua Status</option>
             <option value="active" @selected(request('status') === 'active')>Aktif</option>
             <option value="inactive" @selected(request('status') === 'inactive')>Nonaktif</option>
-        </select></div>
-        <div class="app-filter-actions"><button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-        <a href="{{ route('master.products.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
-        </div>
-    </form>
-    <div class="d-flex gap-2 flex-wrap">
-    @if(auth()->user()->canAccessRoute('master.products.import')) <a href="{{ route('master.products.import') }}" class="btn btn-outline-success btn-sm">
-        <i class="bi bi-file-earmark-excel me-1"></i> Import Excel
-    </a> @endif
-    @if(auth()->user()->canAccessRoute('master.products.create')) <a href="{{ route('master.products.create') }}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-circle me-1"></i> Tambah Barang
-    </a> @endif
+        </select>
     </div>
-</div>
+    <div class="app-unified-actions">
+        <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
+        <a href="{{ route('master.products.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
+    </div>
+</form>
 
 <div class="card table-card">
     <div class="card-body p-0 table-responsive">
