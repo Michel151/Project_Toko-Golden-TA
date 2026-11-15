@@ -23,7 +23,7 @@
                     <th>Email</th>
                     <th class="text-center">Role</th>
                     <th class="text-center">Status</th>
-                    <th class="text-end pe-3" style="width:1%">Aksi</th>
+                    <th width="180" class="text-center">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -52,41 +52,52 @@
                             {{ $user->isActive() ? 'Aktif' : 'Nonaktif' }}
                         </span>
                     </td>
-                    <td class="app-actions-cell text-end pe-3">
-                        <a href="{{ route('master.users.edit', $user) }}"
-                           class="btn btn-sm btn-outline-warning py-0 px-2">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        @if($user->id !== auth()->id())
-                        @php
-                            $statusLabel = $user->isActive() ? 'Nonaktifkan' : 'Aktifkan Kembali';
-                            $statusPrompt = $user->isActive()
-                                ? 'Nonaktifkan akun '.$user->name.'? Pengguna akan keluar dari sesi aktif dan tidak dapat masuk.'
-                                : 'Izinkan '.$user->name.' masuk kembali sesuai hak akses akunnya?';
-                        @endphp
-                        <form method="POST" action="{{ route('master.users.status', $user) }}" class="d-inline"
-                              data-confirm="{{ $statusPrompt }}" data-confirm-title="{{ $statusLabel }} Akun?" data-confirm-label="{{ $statusLabel }}">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="active" value="{{ $user->isActive() ? '0' : '1' }}">
-                            @if($users->currentPage() > 1)
-                                <input type="hidden" name="page" value="{{ $users->currentPage() }}">
+                    <td class="app-actions-cell text-center">
+                        <div class="d-inline-flex align-items-center gap-1">
+                            <a href="{{ route('master.users.edit', $user) }}"
+                               class="btn btn-sm btn-outline-warning app-icon-action" title="Ubah pengguna" aria-label="Ubah pengguna">
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                            </a>
+                            @if($user->id !== auth()->id())
+                                @php
+                                    $active = $user->isActive();
+                                    $statusLabel = $active ? 'Nonaktifkan' : 'Aktifkan Kembali';
+                                    $statusPrompt = $active
+                                        ? 'Nonaktifkan akun '.$user->name.'? Pengguna akan keluar dari sesi aktif dan tidak dapat masuk.'
+                                        : 'Izinkan '.$user->name.' masuk kembali sesuai hak akses akunnya?';
+                                @endphp
+                                <form method="POST" action="{{ route('master.users.status', $user) }}" class="d-inline-flex"
+                                      data-confirm="{{ $statusPrompt }}" data-confirm-title="{{ $statusLabel }} Akun?" data-confirm-label="{{ $statusLabel }}">
+                                    @csrf @method('PATCH')
+                                    <input type="hidden" name="active" value="{{ $active ? '0' : '1' }}">
+                                    @if($users->currentPage() > 1)
+                                        <input type="hidden" name="page" value="{{ $users->currentPage() }}">
+                                    @endif
+                                    <button type="submit"
+                                            class="btn btn-sm app-icon-action {{ $active ? 'btn-outline-secondary' : 'btn-outline-success' }}"
+                                            title="{{ $statusLabel }}" aria-label="{{ $statusLabel }}">
+                                        <i class="bi {{ $active ? 'bi-person-x' : 'bi-person-check' }}" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('master.users.reset-password', $user) }}" class="d-inline-flex"
+                                      data-confirm="Reset password {{ $user->name }}? Sesi login lama akan dibatalkan. Pengguna wajib mengganti password sementara setelah masuk."
+                                      data-confirm-title="Reset Password?" data-confirm-label="Reset Password">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary app-icon-action"
+                                            title="Reset password {{ $user->name }}" aria-label="Reset password {{ $user->name }}">
+                                        <i class="bi bi-key" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('master.users.destroy', $user) }}" class="d-inline-flex"
+                                      data-confirm="Hapus pengguna ini?">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger app-icon-action"
+                                            title="Hapus pengguna" aria-label="Hapus pengguna">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                </form>
                             @endif
-                            <button type="submit" class="btn btn-sm {{ $user->isActive() ? 'btn-outline-secondary' : 'btn-outline-success' }}">
-                                {{ $statusLabel }}
-                            </button>
-                        </form>
-                        <form method="POST" action="{{ route('master.users.reset-password', $user) }}" class="d-inline" data-confirm="Reset password {{ $user->name }}? Sesi login lama akan dibatalkan. Pengguna wajib mengganti password sementara setelah masuk." data-confirm-title="Reset Password?" data-confirm-label="Reset Password">
-                            @csrf
-                            <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Reset password {{ $user->name }}" aria-label="Reset password {{ $user->name }}"><i class="bi bi-key" aria-hidden="true"></i></button>
-                        </form>
-                        <form method="POST" action="{{ route('master.users.destroy', $user) }}"
-                              class="d-inline" data-confirm="Hapus pengguna ini?">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger py-0 px-2">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
-                        @endif
+                        </div>
                     </td>
                 </tr>
                 @endforeach
