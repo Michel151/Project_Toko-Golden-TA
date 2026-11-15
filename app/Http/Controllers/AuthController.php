@@ -27,7 +27,7 @@
                 return $this->loginCooldown($seconds);
             }
 
-            if (Auth::attempt($credentials, $request->boolean('remember'))) {
+            if (Auth::attempt($credentials + ['deactivated_at' => null], $request->boolean('remember'))) {
                 $throttle->clear($request);
                 $request->session()->regenerate();
                 $request->session()->put('auth.password_version.'.Auth::id(), (int) Auth::user()->password_version);

@@ -32,7 +32,13 @@ class User extends Authenticatable
             'password' => 'hashed',
             'must_change_password' => 'boolean',
             'password_version' => 'integer',
+            'deactivated_at' => 'datetime',
         ];
+    }
+
+    public function isActive(): bool
+    {
+        return $this->deactivated_at === null;
     }
 
     // Helper methods untuk cek role

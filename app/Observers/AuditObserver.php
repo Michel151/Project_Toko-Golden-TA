@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AuditObserver
 {
-    private array $sensitive = ['password', 'remember_token'];
+    private array $sensitive = ['password', 'remember_token', 'password_version'];
 
     public function created(Model $model): void
     {
@@ -26,7 +26,12 @@ class AuditObserver
         foreach (array_keys($changes) as $key) {
             $old[$key] = $model->getOriginal($key);
         }
-        AuditService::record('updated', $this->module($model), 'Mengubah '.$this->label($model), $model, $this->clean($old), $changes);
+        $activity = 'Mengubah';
+        if ($model instanceof \App\Models\User && array_key_exists('deactivated_at', $changes)) {
+            $activity = $model->isActive() ? 'Mengaktifkan kembali' : 'Menonaktifkan';
+        }
+
+        AuditService::record('updated', $this->module($model), $activity.' '.$this->label($model), $model, $this->clean($old), $changes);
     }
 
     public function deleted(Model $model): void

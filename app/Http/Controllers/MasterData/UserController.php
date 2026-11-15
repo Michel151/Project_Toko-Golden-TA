@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -65,20 +66,17 @@ class UserController extends Controller
 
         $request->validate($rules, PasswordPolicy::messages());
 
-        if ($user->isOwner() && $request->role !== 'owner'
-            && ($user->id === auth()->id() || User::where('role', 'owner')->count() <= 1)) {
-            return back()->withErrors(['role' => 'Role akun sendiri dan owner terakhir tidak dapat diturunkan.'])
-                ->withInput($request->except(['password', 'password_confirmation', 'current_password']));
-        }
-
         $data = $request->only('name', 'email', 'role');
         $updated = DB::transaction(function () use ($request, $user, $data) {
-            $locked = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $locked = $this->lockManagedUser($user);
+            if ($locked->id === auth()->id() && $data['role'] !== 'owner') {
+                throw ValidationException::withMessages(['role' => 'Role akun sendiri dan owner terakhir tidak dapat diturunkan.']);
+            }
             $locked->update($data);
             return $request->filled('password')
                 ? app(AccountPasswordService::class)->replace($locked, $request->password, $locked->id !== auth()->id())
                 : $locked;
-        });
+        }, 3);
         if ($request->filled('password') && $updated->id === auth()->id()) {
             auth()->setUser($updated);
             $request->session()->regenerate();
@@ -113,14 +111,40 @@ class UserController extends Controller
         ])->header('Cache-Control', 'no-store, private')->header('Pragma', 'no-cache');
     }
 
+    public function updateStatus(Request $request, User $user)
+    {
+        $request->validate(['active' => 'required|boolean']);
+        $active = $request->boolean('active');
+
+        if (! $active && $user->id === $request->user()->id) {
+            return redirect()->route('master.users.index')->with('error', 'Anda tidak bisa menonaktifkan akun sendiri.');
+        }
+
+        DB::transaction(function () use ($user, $active) {
+            $locked = $this->lockManagedUser($user);
+            if ($locked->isActive() === $active) {
+                return;
+            }
+
+            $locked->forceFill([
+                'deactivated_at' => $active ? null : now(),
+                'remember_token' => Str::random(60),
+                'password_version' => $locked->password_version + 1,
+            ])->save();
+        }, 3);
+
+        return redirect()->route('master.users.index', $request->only('page'))->with('success', $active
+            ? 'Akun berhasil diaktifkan kembali.'
+            : 'Akun berhasil dinonaktifkan.');
+    }
+
     public function destroy(User $user)
     {
         try {
             $result = DB::transaction(function () use ($user) {
                 app(\App\Services\MovingAverageCostService::class)->lock();
-                $locked = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+                $locked = $this->lockManagedUser($user);
                 if ($locked->id === auth()->id()) return 'self';
-                if ($locked->isOwner() && User::where('role', 'owner')->count() <= 1) return 'last_owner';
                 if ($locked->hasTransactionHistory()) return 'history';
                 $locked->delete();
                 return 'deleted';
@@ -133,12 +157,20 @@ class UserController extends Controller
         if ($result === 'self') {
             return back()->with('error', 'Anda tidak bisa menghapus akun sendiri.');
         }
-        if ($result === 'last_owner') {
-            return back()->with('error', 'Owner terakhir tidak dapat dihapus.');
-        }
         if ($result === 'history') {
             return back()->with('error', 'Pengguna tidak dapat dihapus karena masih digunakan dalam riwayat transaksi atau aktivitas sistem. Riwayat pengguna harus tetap tersimpan.');
         }
         return redirect()->route('master.users.index')->with('success', 'Pengguna berhasil dihapus.');
+    }
+
+    private function lockManagedUser(User $user): User
+    {
+        // Lock both accounts so a concurrent change cannot revoke the acting owner's authority mid-operation.
+        $actorId = auth()->id();
+        $users = User::whereKey([$actorId, $user->id])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        $actor = $users->get($actorId);
+        abort_unless($actor?->isOwner() && $actor->isActive(), 403);
+
+        return $users->get($user->id) ?? abort(404);
     }
 }

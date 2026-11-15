@@ -22,7 +22,8 @@
                     <th>Nama</th>
                     <th>Email</th>
                     <th class="text-center">Role</th>
-                    <th width="160" class="text-center">Aksi</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -47,11 +48,33 @@
                         </span>
                     </td>
                     <td class="text-center">
+                        <span class="badge {{ $user->isActive() ? 'bg-success' : 'bg-secondary' }}">
+                            {{ $user->isActive() ? 'Aktif' : 'Nonaktif' }}
+                        </span>
+                    </td>
+                    <td class="text-center text-nowrap">
                         <a href="{{ route('master.users.edit', $user) }}"
                            class="btn btn-sm btn-outline-warning py-0 px-2">
                             <i class="bi bi-pencil"></i>
                         </a>
                         @if($user->id !== auth()->id())
+                        @php
+                            $statusLabel = $user->isActive() ? 'Nonaktifkan' : 'Aktifkan Kembali';
+                            $statusPrompt = $user->isActive()
+                                ? 'Nonaktifkan akun '.$user->name.'? Pengguna akan keluar dari sesi aktif dan tidak dapat masuk.'
+                                : 'Izinkan '.$user->name.' masuk kembali sesuai hak akses akunnya?';
+                        @endphp
+                        <form method="POST" action="{{ route('master.users.status', $user) }}" class="d-inline"
+                              data-confirm="{{ $statusPrompt }}" data-confirm-title="{{ $statusLabel }} Akun?" data-confirm-label="{{ $statusLabel }}">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="active" value="{{ $user->isActive() ? '0' : '1' }}">
+                            @if($users->currentPage() > 1)
+                                <input type="hidden" name="page" value="{{ $users->currentPage() }}">
+                            @endif
+                            <button type="submit" class="btn btn-sm {{ $user->isActive() ? 'btn-outline-secondary' : 'btn-outline-success' }}">
+                                {{ $statusLabel }}
+                            </button>
+                        </form>
                         <form method="POST" action="{{ route('master.users.reset-password', $user) }}" class="d-inline" data-confirm="Reset password {{ $user->name }}? Sesi login lama akan dibatalkan. Pengguna wajib mengganti password sementara setelah masuk." data-confirm-title="Reset Password?" data-confirm-label="Reset Password">
                             @csrf
                             <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Reset password {{ $user->name }}" aria-label="Reset password {{ $user->name }}"><i class="bi bi-key" aria-hidden="true"></i></button>

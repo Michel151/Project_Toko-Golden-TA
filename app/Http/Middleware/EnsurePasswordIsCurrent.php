@@ -18,11 +18,13 @@ class EnsurePasswordIsCurrent
         if ($user && ! $request->session()->has($key) && Auth::viaRemember()) {
             $request->session()->put($key, $authenticatedVersion);
         }
-        if (! $user || (int) $request->session()->get($key, 0) !== (int) $user->password_version) {
-            Auth::logout();
+        if (! $user || ! $user->isActive() || (int) $request->session()->get($key, 0) !== (int) $user->password_version) {
+            Auth::logoutCurrentDevice();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-            $message = 'Password akun sudah berubah. Silakan masuk kembali.';
+            $message = $user && ! $user->isActive()
+                ? 'Akun Anda telah dinonaktifkan.'
+                : 'Sesi masuk sudah tidak berlaku. Silakan masuk kembali.';
             return $request->expectsJson()
                 ? response()->json(['message'=>$message], 401)
                 : redirect()->route('login')->withErrors(['email'=>$message]);
