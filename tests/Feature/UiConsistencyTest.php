@@ -445,6 +445,28 @@ class UiConsistencyTest extends TestCase
         $this->assertDatabaseCount('stock_movements',0);
     }
 
+    public function test_master_supplier_search_filters_the_list_before_pagination(): void
+    {
+        for ($i = 1; $i <= 26; $i++) {
+            Supplier::create(['name' => sprintf('Supplier Maju %02d', $i)]);
+        }
+        $contact = Supplier::create(['name' => 'CV Kontak', 'phone' => '081223456789', 'address' => 'Jalan Cengkeh']);
+
+        $url = route('master.suppliers.index', ['q' => 'maju']);
+        $page = $this->get($url)->assertOk()
+            ->assertViewHas('suppliers', fn ($rows) => $rows->count() === 25 && $rows->total() === 26);
+        $this->get($page->viewData('suppliers')->nextPageUrl())->assertOk()
+            ->assertViewHas('suppliers', fn ($rows) => $rows->pluck('name')->all() === ['Supplier Maju 01'])
+            ->assertSee('Menampilkan 26-26 dari 26 supplier');
+
+        foreach (['23456789', 'cengkeh'] as $keyword) {
+            $this->get(route('master.suppliers.index', ['q' => $keyword]))->assertOk()
+                ->assertViewHas('suppliers', fn ($rows) => $rows->pluck('id')->all() === [$contact->id]);
+        }
+        $this->get(route('master.suppliers.index', ['q' => 'Tidak ditemukan']))->assertOk()
+            ->assertSee('Tidak ada supplier yang sesuai pencarian.');
+    }
+
     public function test_supplier_detail_paginates_each_tab_and_preserves_product_search(): void
     {
         for ($i = 26; $i >= 1; $i--) {

@@ -12,6 +12,19 @@
 </div>
 
 <div class="card table-card">
+    <form method="GET" action="{{ route('master.suppliers.index') }}" class="app-unified-filter app-filter-bar">
+        <div class="app-unified-field app-unified-search">
+            <label for="supplier-search">Cari Supplier</label>
+            <input id="supplier-search" type="search" name="q" value="{{ $search }}"
+                   class="form-control" placeholder="Nama, nomor telepon, atau alamat">
+        </div>
+        <div class="app-unified-actions">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Terapkan</button>
+            <a class="btn btn-outline-secondary" href="{{ route('master.suppliers.index') }}">
+                <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset
+            </a>
+        </div>
+    </form>
     <div class="card-body p-0 table-responsive">
         <table class="table table-hover mb-0">
             <thead>
@@ -53,13 +66,13 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="6" class="text-center text-muted py-4">Belum ada supplier</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-4">{{ $search === '' ? 'Belum ada supplier.' : 'Tidak ada supplier yang sesuai pencarian.' }}</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
-    @if($suppliers->hasPages())
-    <div class="card-footer bg-white">{{ $suppliers->links() }}</div>
+    @if($suppliers->total() > 0)
+        <div class="card-footer bg-white">{{ $suppliers->links(data: ['itemLabel' => 'supplier']) }}</div>
     @endif
 </div>
 @endsection
