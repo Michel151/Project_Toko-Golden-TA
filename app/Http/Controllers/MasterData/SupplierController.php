@@ -41,15 +41,35 @@ class SupplierController extends Controller
         return redirect()->route('master.suppliers.index')->with('success', 'Supplier berhasil ditambahkan.');
     }
 
-    public function show(Supplier $supplier)
+    public function show(Request $request, Supplier $supplier)
     {
-        $supplier->load(['products.buyUnit']);
-        $purchaseOrders = $supplier->purchaseOrders()
-            ->with('items.product')
-            ->latest()
-            ->latest('id')
-            ->paginate(10);
-        return view('master.suppliers.show', compact('supplier', 'purchaseOrders'));
+        $canViewOrders = $request->user()->hasPermission('purchase.orders.view');
+        $activeTab = $canViewOrders && $request->query('tab') === 'orders' ? 'orders' : 'products';
+        $search = $request->query('q');
+        $search = is_string($search) ? trim($search) : '';
+        $searchParams = $search === '' ? [] : ['q' => $search];
+
+        if ($activeTab === 'orders') {
+            $rows = $supplier->purchaseOrders()
+                ->with('items')
+                ->latest('order_date')
+                ->latest('created_at')
+                ->latest('id')
+                ->paginate(25)
+                ->appends(['tab' => 'orders'] + $searchParams);
+        } else {
+            $rows = $supplier->products()
+                ->with('buyUnit')
+                ->when($search !== '', fn ($query) => $query->whereLike('products.name', '%'.$search.'%'))
+                ->orderBy('products.name')
+                ->orderBy('products.id')
+                ->paginate(25)
+                ->appends($searchParams);
+        }
+
+        $productCount = $activeTab === 'products' && $search === '' ? $rows->total() : $supplier->products()->count();
+
+        return view('master.suppliers.show', compact('supplier', 'rows', 'productCount', 'canViewOrders', 'activeTab', 'search', 'searchParams'));
     }
 
     public function edit(Supplier $supplier)

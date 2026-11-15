@@ -445,13 +445,47 @@ class UiConsistencyTest extends TestCase
         $this->assertDatabaseCount('stock_movements',0);
     }
 
+    public function test_supplier_detail_paginates_each_tab_and_preserves_product_search(): void
+    {
+        for ($i = 26; $i >= 1; $i--) {
+            $product = $this->product->replicate();
+            $product->name = sprintf('Biskuit Supplier %02d', $i);
+            $product->save();
+            $this->supplier->products()->attach($product->id, ['buy_price' => 125]);
+            $this->order(sprintf('PO-SUPPLIER-%02d', $i), ['order_date' => $i === 26 ? '2026-10-17' : '2026-10-16']);
+        }
+        $this->supplier->products()->attach($this->product->id, ['buy_price' => 100]);
+        $this->order('PO-TANGGAL-LAMA', ['order_date' => '2026-10-15']);
+
+        $detail = ['supplier' => $this->supplier];
+        $this->get(route('master.suppliers.show', $detail))->assertOk()
+            ->assertViewHas('activeTab', 'products')->assertDontSee('PO-SUPPLIER-26');
+
+        $search = ['q' => 'Biskuit Supplier'];
+        $products = $this->get(route('master.suppliers.show', $detail + $search))->assertOk()
+            ->assertViewHas('productCount', 27)
+            ->assertViewHas('rows', fn ($rows) => $rows->count() === 25 && $rows->total() === 26
+                && $rows->first()->name === 'Biskuit Supplier 01');
+        $this->get($products->viewData('rows')->nextPageUrl())->assertOk()
+            ->assertViewHas('rows', fn ($rows) => $rows->pluck('name')->all() === ['Biskuit Supplier 26'])
+            ->assertSee('Menampilkan 26-26 dari 26 barang');
+
+        $orders = $this->get(route('master.suppliers.show', $detail + ['tab' => 'orders'] + $search))->assertOk()
+            ->assertViewHas('rows', fn ($rows) => $rows->count() === 25 && $rows->total() === 27
+                && $rows->first()->po_number === 'PO-SUPPLIER-26');
+        $this->get($orders->viewData('rows')->nextPageUrl())->assertOk()
+            ->assertViewHas('activeTab', 'orders')->assertViewHas('search', 'Biskuit Supplier')
+            ->assertViewHas('rows', fn ($rows) => $rows->count() === 2 && $rows->last()->po_number === 'PO-TANGGAL-LAMA');
+    }
+
     public function test_pagination_is_indonesian_and_preserves_filters(): void
     {
         for($i=1;$i<=35;$i++) Category::create(['name'=>'Kategori '.str_pad($i,3,'0',STR_PAD_LEFT)]);
         $page=$this->get(route('master.categories.index',['page'=>2]))->assertOk()->assertSee('Menampilkan')->assertSee('Halaman sebelumnya')->assertDontSee('Showing');
         $this->capture('categories.html',$page->getContent());
         $this->order('PO-STATUS',['status'=>'partial']);
-        $this->get(route('master.suppliers.show',$this->supplier))->assertOk()->assertSee('Diterima Sebagian')->assertDontSee('Partial');
+        $this->get(route('master.suppliers.show', ['supplier' => $this->supplier, 'tab' => 'orders']))
+            ->assertOk()->assertSee('Diterima Sebagian')->assertDontSee('Partial');
         $this->get(route('report.purchase'))->assertOk()->assertSee('Diterima Sebagian')->assertDontSee('Pending/Partial');
     }
 

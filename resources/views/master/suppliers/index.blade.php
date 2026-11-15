@@ -36,8 +36,8 @@
                     </td>
                     <td class="text-center">
                         <a href="{{ route('master.suppliers.show', $supplier) }}"
-                           class="btn btn-sm btn-outline-info py-0 px-2" title="Riwayat PO">
-                            <i class="bi bi-clock-history"></i>
+                           class="btn btn-sm btn-outline-info py-0 px-2" title="Detail Supplier" aria-label="Detail Supplier">
+                            <i class="bi bi-eye" aria-hidden="true"></i>
                         </a>
                         @if(auth()->user()->canAccessRoute('master.suppliers.edit')) <a href="{{ route('master.suppliers.edit', $supplier) }}"
                            class="btn btn-sm btn-outline-warning py-0 px-2">

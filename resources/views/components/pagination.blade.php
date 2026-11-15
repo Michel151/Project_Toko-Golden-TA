@@ -1,5 +1,5 @@
 <div class="app-pagination d-flex flex-wrap align-items-center justify-content-between gap-2">
-    @if($showSummary ?? true)<span class="small text-muted">Menampilkan {{ $paginator->firstItem() ?? 0 }}-{{ $paginator->lastItem() ?? 0 }} dari {{ number_format($paginator->total(),0,',','.') }} data</span>@endif
+    @if($showSummary ?? true)<span class="small text-muted">Menampilkan {{ $paginator->firstItem() ?? 0 }}-{{ $paginator->lastItem() ?? 0 }} dari {{ number_format($paginator->total(),0,',','.') }} {{ $itemLabel ?? 'data' }}</span>@endif
     @if($paginator->hasPages())
     <nav aria-label="Navigasi halaman"><ul class="pagination pagination-sm flex-wrap mb-0">
         <li class="page-item {{ $paginator->onFirstPage() ? 'disabled' : '' }}">

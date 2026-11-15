@@ -188,7 +188,8 @@ class RolePermissionTest extends TestCase
     {
         $this->setPermissions('kasir', ['master.suppliers.view']);
         $supplier = Supplier::create(['name' => 'Supplier Tes']);
-        $this->actingAs($this->user('kasir'))->get(route('master.suppliers.show', $supplier))
-            ->assertOk()->assertDontSee('Riwayat Purchase Order');
+        $this->actingAs($this->user('kasir'))
+            ->get(route('master.suppliers.show', ['supplier' => $supplier, 'tab' => 'orders']))
+            ->assertOk()->assertViewHas('activeTab', 'products')->assertDontSee('Riwayat PO')->assertDontSee('Kelola Supplier');
     }
 }

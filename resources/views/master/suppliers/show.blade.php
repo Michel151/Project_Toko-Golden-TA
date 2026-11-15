@@ -1,105 +1,108 @@
 @extends('layouts.app')
-@section('title', 'Riwayat Supplier')
-@section('page-title', 'Riwayat Supplier')
+@section('title', 'Detail Supplier')
+@section('page-title', 'Detail Supplier')
 
 @section('content')
-<div class="inventory-heading"><h5><i class="bi bi-truck me-2"></i>{{ $supplier->name }}</h5></div>
 <div class="mb-3">
     <x-back-link :fallback="route('master.suppliers.index')" />
 </div>
 
-<div class="row g-3">
-    <div class="col-md-4">
-        <div class="card table-card">
-            <div class="card-body">
-                <h6 class="fw-bold mb-3"><i class="bi bi-truck me-2"></i>Info Supplier</h6>
-                <div class="mb-2"><span class="text-muted small">Nama:</span><br>
-                    <strong>{{ $supplier->name }}</strong></div>
-                <div class="mb-2"><span class="text-muted small">Telepon:</span><br>
-                    {{ $supplier->phone ?? '-' }}</div>
-                <div><span class="text-muted small">Alamat:</span><br>
-                    {{ $supplier->address ?? '-' }}</div>
-            </div>
+<div class="inventory-heading d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div class="text-break">
+        <h5><i class="bi bi-truck me-2" aria-hidden="true"></i>{{ $supplier->name }}</h5>
+        <div class="d-flex flex-wrap gap-2 column-gap-3 small mt-2">
+            <span><span class="text-white-50">Telepon:</span> {{ $supplier->phone ?: '—' }}</span>
+            <span><span class="text-white-50">Alamat:</span> {{ $supplier->address ?: '—' }}</span>
         </div>
     </div>
+    @if(auth()->user()->canAccessRoute('master.suppliers.edit'))
+        <a href="{{ route('master.suppliers.edit', $supplier) }}" class="btn btn-warning btn-sm">
+            <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Kelola Supplier
+        </a>
+    @endif
+</div>
 
-    <div class="col-md-8">
-        <div class="card table-card mb-3">
-            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
-                <h6 class="fw-bold mb-0">Barang Supplier</h6>
-                @if(auth()->user()->canAccessRoute('master.suppliers.edit')) <a href="{{ route('master.suppliers.edit', $supplier) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-pencil-square me-1"></i> Kelola
-                </a> @endif
-            </div>
-            <div class="card-body p-0">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Barang</th>
-                            <th>Satuan Beli</th>
-                            <th class="text-end">Harga Beli</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($supplier->products as $product)
-                        <tr>
-                            <td>{{ $product->name }}</td>
-                            <td>{{ $product->buyUnit->name }}</td>
-                            <td class="text-end">Rp {{ number_format($product->pivot->buy_price, 0, ',', '.') }}</td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="3" class="text-center text-muted py-3">Belum ada barang supplier.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
+<nav class="nav nav-pills flex-wrap gap-2 card card-body flex-row p-2 mb-3" aria-label="Bagian Detail Supplier">
+    <a class="nav-link @if($activeTab === 'products') active @endif"
+       href="{{ route('master.suppliers.show', ['supplier' => $supplier] + $searchParams) }}"
+       @if($activeTab === 'products') aria-current="page" @endif>
+        <i class="bi bi-box-seam me-1" aria-hidden="true"></i>Barang Supplier
+        <span class="badge bg-light text-dark ms-1">{{ number_format($productCount, 0, ',', '.') }}</span>
+    </a>
+    @if($canViewOrders)
+        <a class="nav-link @if($activeTab === 'orders') active @endif"
+           href="{{ route('master.suppliers.show', ['supplier' => $supplier, 'tab' => 'orders'] + $searchParams) }}"
+           @if($activeTab === 'orders') aria-current="page" @endif>
+            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Riwayat PO
+        </a>
+    @endif
+</nav>
 
-        @if(auth()->user()->hasPermission('purchase.orders.view'))
-        <div class="card table-card">
-            <div class="card-header bg-white border-0 pt-3">
-                <h6 class="fw-bold mb-0">Riwayat Purchase Order</h6>
+<div class="card table-card">
+    @if($activeTab === 'products')
+        <form method="GET" action="{{ route('master.suppliers.show', $supplier) }}" class="app-unified-filter app-filter-bar">
+            <div class="app-unified-field app-unified-search">
+                <label for="supplier-product-search">Cari Barang Supplier</label>
+                <input id="supplier-product-search" type="search" name="q" value="{{ $search }}"
+                       class="form-control" placeholder="Cari nama barang...">
             </div>
-            <div class="card-body p-0">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>No. PO</th>
-                            <th>Tanggal</th>
-                            <th class="text-center">Status</th>
-                            <th class="text-end">Nilai</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($purchaseOrders as $po)
-                        <tr>
-                            <td>
-                                <a href="{{ route('purchase.orders.show', $po) }}" class="text-decoration-none">
-                                    {{ $po->po_number }}
-                                </a>
-                            </td>
-                            <td>{{ $po->order_date->format('d/m/Y') }}</td>
-                            <td class="text-center">
-                                @php
-                                    $colors = \App\Models\PurchaseOrder::STATUS_COLORS;
-                                @endphp
-                                <span class="badge bg-{{ $colors[$po->status] ?? 'secondary' }}">
-                                    {{ $po->status_label }}
-                                </span>
-                            </td>
-                            <td class="text-end">Rp {{ number_format($po->totalValue(), 0, ',', '.') }}</td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="4" class="text-center text-muted py-3">Belum ada PO</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
+            <div class="app-unified-actions">
+                <button class="btn btn-primary" type="submit"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Terapkan</button>
+                <a class="btn btn-outline-secondary" href="{{ route('master.suppliers.show', $supplier) }}">
+                    <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset
+                </a>
             </div>
-            @if($purchaseOrders->hasPages())
-            <div class="card-footer bg-white">{{ $purchaseOrders->links() }}</div>
-            @endif
+        </form>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" aria-label="Barang Supplier">
+                <thead>
+                    <tr>
+                        <th scope="col">Barang</th>
+                        <th scope="col">Satuan Beli</th>
+                        <th scope="col" class="text-end">Harga Beli</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($rows as $product)
+                        <tr>
+                            <td class="fw-semibold text-break">{{ $product->name }}</td>
+                            <td>{{ $product->buyUnit?->name ?? '—' }}</td>
+                            <td class="text-end text-nowrap">Rp {{ number_format($product->pivot->buy_price, 0, ',', '.') }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="3" class="text-center text-muted py-4">{{ $search === '' ? 'Belum ada barang supplier.' : 'Tidak ada barang yang sesuai pencarian.' }}</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
-        @endif
-    </div>
+    @else
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" aria-label="Riwayat Purchase Order">
+                <thead>
+                    <tr>
+                        <th scope="col">No. PO</th>
+                        <th scope="col">Tanggal</th>
+                        <th scope="col" class="text-center">Status</th>
+                        <th scope="col" class="text-end">Nilai</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($rows as $po)
+                        <tr>
+                            <td><a href="{{ route('purchase.orders.show', $po) }}" class="text-decoration-none">{{ $po->po_number }}</a></td>
+                            <td class="text-nowrap">{{ $po->order_date->format('d/m/Y') }}</td>
+                            <td class="text-center"><span class="badge bg-{{ \App\Models\PurchaseOrder::STATUS_COLORS[$po->status] ?? 'secondary' }}">{{ $po->status_label }}</span></td>
+                            <td class="text-end text-nowrap">Rp {{ number_format($po->totalValue(), 0, ',', '.') }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4" class="text-center text-muted py-4">Belum ada PO untuk supplier ini.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    @endif
+    @if($rows->total() > 0)
+        <div class="card-footer bg-white">{{ $rows->links(data: ['itemLabel' => $activeTab === 'products' ? 'barang' : 'PO']) }}</div>
+    @endif
 </div>
 @endsection
