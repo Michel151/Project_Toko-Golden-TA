@@ -23,7 +23,7 @@
                     <th>Email</th>
                     <th class="text-center">Role</th>
                     <th class="text-center">Status</th>
-                    <th class="text-center">Aksi</th>
+                    <th class="text-end pe-3" style="width:1%">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -52,7 +52,7 @@
                             {{ $user->isActive() ? 'Aktif' : 'Nonaktif' }}
                         </span>
                     </td>
-                    <td class="text-center text-nowrap">
+                    <td class="app-actions-cell text-end pe-3">
                         <a href="{{ route('master.users.edit', $user) }}"
                            class="btn btn-sm btn-outline-warning py-0 px-2">
                             <i class="bi bi-pencil"></i>
