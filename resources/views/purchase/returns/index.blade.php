@@ -43,6 +43,26 @@
     @endforeach
 </div>
 
+<div class="procurement-filter mb-3">
+    <div class="small fw-semibold mb-2">Filter Riwayat Retur/Klaim</div>
+    <form method="GET" action="{{ route('purchase.returns.index') }}" class="app-unified-filter app-filter-bar border-0 p-0" aria-label="Filter Riwayat Retur/Klaim">
+        @include('components.date-range', ['prefix' => 'returnList', 'fromValue' => $from, 'toValue' => $to])
+        <div class="app-unified-field">
+            <label for="returnStatus">Status</label>
+            <select id="returnStatus" name="status" class="form-select form-select-sm">
+                <option value="">Semua Status</option>
+                @foreach($statuses as $key => $label)
+                    <option value="{{ $key }}" @selected(request('status') === $key)>{{ $label }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="app-unified-actions">
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Terapkan</button>
+            <a href="{{ route('purchase.returns.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
+        </div>
+    </form>
+</div>
+
 <section class="card table-card mb-3" id="ready-returns" style="scroll-margin-top:80px">
     <div class="card-header bg-white border-0 py-3">
         <h6 class="fw-bold mb-1">Penerimaan Perlu Retur/Klaim</h6>
@@ -112,23 +132,6 @@
         <h6 class="fw-bold mb-1">Riwayat Retur/Klaim</h6>
         <small class="text-muted">{{ $returns->total() }} dokumen ditemukan</small>
     </div>
-    <form method="GET" action="{{ route('purchase.returns.index') }}#return-history" class="app-unified-filter app-filter-bar">
-        @include('components.date-range', ['prefix' => 'returnList', 'fromValue' => $from, 'toValue' => $to])
-        <div class="app-unified-field">
-            <label for="returnStatus">Status</label>
-            <select id="returnStatus" name="status" class="form-select form-select-sm">
-                <option value="">Semua Status</option>
-                @foreach($statuses as $key => $label)
-                    <option value="{{ $key }}" @selected(request('status') === $key)>{{ $label }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="app-unified-actions">
-            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Terapkan</button>
-            <a href="{{ route('purchase.returns.index') }}#return-history" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
-        </div>
-    </form>
-
     <div class="table-responsive">
         <table class="table table-hover align-middle procurement-table mb-0">
             <thead>
