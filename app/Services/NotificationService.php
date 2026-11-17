@@ -225,31 +225,16 @@ class NotificationService
             }
         }
         $transfers = [];
-        // Supply an empty sales location first, including stock below a warehouse's minimum.
-        $destinations = array_keys($locations);
-        usort($destinations, fn ($a, $b) => [! (! $locations[$a]['can_supply'] && $locations[$a]['quantity'] <= 0), $a]
-            <=> [! (! $locations[$b]['can_supply'] && $locations[$b]['quantity'] <= 0), $b]);
-        foreach ($destinations as $id) {
-            $location = $locations[$id];
-            $priority = ! $location['can_supply'] && $location['quantity'] <= 0;
-            if (! $location['monitored'] && ! $priority) {
-                continue;
+        // Cover Toko's deficit before supplying warehouses, using warehouse surplus first.
+        foreach ($locations as $id => $location) {
+            if (! $location['can_supply']) {
+                $this->planTransfersTo($id, $targets[$id], $locations, $planned, $transfers);
+                $this->planTransfersTo($id, $targets[$id], $locations, $planned, $transfers, useMinimumStock: true);
             }
-            $needed = max(0, $targets[$id] - $planned[$id]);
-            foreach ($locations as $sourceId => $source) {
-                if ($sourceId === $id || ! $source['can_supply'] || $needed <= 0) {
-                    continue;
-                }
-                $available = max(0, $planned[$sourceId] - ($priority ? 0 : $source['minimum']));
-                $quantity = min($available, $needed);
-                if ($quantity <= 0) {
-                    continue;
-                }
-                $transfers[] = ['source_id' => $sourceId, 'destination_id' => $id, 'quantity' => $quantity,
-                    'message' => 'Direkomendasikan transfer stok dari '.$source['name'].' ke '.$location['name'].'.'];
-                $planned[$sourceId] -= $quantity;
-                $planned[$id] += $quantity;
-                $needed -= $quantity;
+        }
+        foreach ($locations as $id => $location) {
+            if ($location['can_supply'] && $location['monitored']) {
+                $this->planTransfersTo($id, $targets[$id], $locations, $planned, $transfers);
             }
         }
         // A store at its minimum can use surplus left after covering actual shortages.
@@ -283,8 +268,41 @@ class NotificationService
             $conditions[] = $this->condition($total <= 0 ? 'out_of_stock' : 'low_stock', $message, $ids->all(), array_column($locations, 'name'));
         }
 
-        return ['conditions' => $conditions, 'transfers' => $transfers, 'empty' => $total <= 0,
+        return ['conditions' => $conditions, 'transfers' => array_values($transfers), 'empty' => $total <= 0,
             'shortfall' => max($locationShortfall, $minimum - $total, 0)];
+    }
+
+    private function planTransfersTo(int $destinationId, float $target, array $locations, array &$planned, array &$transfers, bool $useMinimumStock = false): void
+    {
+        $needed = round($target - $planned[$destinationId], 4);
+        if ($needed <= 0) {
+            return;
+        }
+
+        $sources = [];
+        foreach ($locations as $id => $location) {
+            if ($id !== $destinationId && $location['can_supply']) {
+                $available = round($planned[$id] - ($useMinimumStock ? 0 : $location['minimum']), 4);
+                if ($available > 0) {
+                    $sources[$id] = $available;
+                }
+            }
+        }
+        arsort($sources, SORT_NUMERIC);
+
+        foreach ($sources as $sourceId => $available) {
+            $quantity = min($available, $needed);
+            $route = $sourceId.':'.$destinationId;
+            $transfers[$route] ??= ['source_id' => $sourceId, 'destination_id' => $destinationId, 'quantity' => 0.0,
+                'message' => 'Direkomendasikan transfer stok dari '.$locations[$sourceId]['name'].' ke '.$locations[$destinationId]['name'].'.'];
+            $transfers[$route]['quantity'] = round($transfers[$route]['quantity'] + $quantity, 4);
+            $planned[$sourceId] = round($planned[$sourceId] - $quantity, 4);
+            $planned[$destinationId] = round($planned[$destinationId] + $quantity, 4);
+            $needed = round($needed - $quantity, 4);
+            if ($needed <= 0) {
+                break;
+            }
+        }
     }
 
     private function expiryConditions(Product $product, \Carbon\CarbonInterface $today, callable $display): array

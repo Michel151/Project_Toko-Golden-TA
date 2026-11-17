@@ -337,8 +337,8 @@ class NotificationCenterTest extends TestCase
     public function test_warehouse_can_supply_store_and_other_warehouse_without_using_store_stock(): void
     {
         $product = $this->product('Distribusi gudang');
-        $store = $this->stock($product, 'Toko', 2, 10);
         $destination = $this->stock($product, 'Gudang 2', 0, 5);
+        $store = $this->stock($product, 'Toko', 2, 10);
         $source = $this->stock($product, 'Gudang 1', 30, 10);
         $item = app(NotificationService::class)->checkProduct($product)[0];
         $this->assertCount(2, $item['transfers']);
@@ -346,6 +346,43 @@ class NotificationCenterTest extends TestCase
         $this->assertSame([$store->id, $destination->id], array_column($item['transfers'], 'destination_id'));
         $this->assertEquals([8, 5], array_column($item['transfers'], 'quantity'));
         $this->assertEquals(0, $item['shortfall']);
+    }
+
+    public function test_store_below_minimum_gets_transfer_and_po_when_total_stock_is_insufficient(): void
+    {
+        $product = $this->product('Ale-Ale Orange', ['min_stock_total' => 50]);
+        $this->stock($product, 'Gudang 2', 0, 35);
+        $warehouse = $this->stock($product, 'Gudang 1', 10, 10);
+        $store = $this->stock($product, 'Toko', 4, 5);
+        $transfer = route('inventory.transfers.create', [
+            'product_id' => $product->id, 'from_location_id' => $warehouse->id, 'to_location_id' => $store->id,
+        ]);
+
+        $item = app(NotificationService::class)->checkProduct($product)[0];
+        $this->assertEquals(36, $item['shortfall']);
+        $this->actingAs($this->owner)->get(route('notifications.index', ['product_id' => $product->id]))
+            ->assertOk()->assertSee('Direkomendasikan transfer stok dari Gudang 1 ke Toko.')
+            ->assertSee(e($transfer), false)->assertSee('Buat Transfer')->assertSee('Buat PO');
+        $this->assertEquals(4, Stock::where('product_id', $product->id)->where('location_id', $store->id)->value('quantity'));
+    }
+
+    public function test_store_uses_largest_surplus_first_and_shows_each_route_only_once(): void
+    {
+        $product = $this->product('Distribusi prioritas');
+        $belowMinimum = $this->stock($product, 'Gudang 1', 20, 21);
+        $smallSurplus = $this->stock($product, 'Gudang 2', 6, 5);
+        $largeSurplus = $this->stock($product, 'Gudang 3', 9, 6);
+        $store = $this->stock($product, 'Toko', 1, 8);
+        $item = app(NotificationService::class)->checkProduct($product)[0];
+        $this->assertSame([$largeSurplus->id, $smallSurplus->id, $belowMinimum->id], array_column($item['transfers'], 'source_id'));
+        $this->assertSame(array_fill(0, 3, $store->id), array_column($item['transfers'], 'destination_id'));
+        $this->assertEquals([3, 1, 3], array_column($item['transfers'], 'quantity'));
+
+        $product->productLocations()->where('location_id', $belowMinimum->id)->update(['min_stock' => 0]);
+        Stock::where('product_id', $product->id)->where('location_id', $belowMinimum->id)->update(['quantity' => 0]);
+        $item = app(NotificationService::class)->checkProduct($product->fresh())[0];
+        $this->assertSame([$largeSurplus->id, $smallSurplus->id], array_column($item['transfers'], 'source_id'));
+        $this->assertEquals([6, 1], array_column($item['transfers'], 'quantity'));
     }
 
     public function test_empty_store_can_use_warehouse_stock_below_minimum_and_counts_replenishment(): void
