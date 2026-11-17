@@ -1,3 +1,4 @@
+{{-- Pratinjau memperlihatkan barang, satuan, dan stok awal; penyimpanan dimulai saat konfirmasi. --}}
 @extends('layouts.app')
 @section('title','Import Barang')
 @section('page-title','Import Barang')
@@ -39,6 +40,7 @@
 <section class="trial-section" aria-labelledby="multiImportConfirmHeading">
     <h6 id="multiImportConfirmHeading">Simpan Hasil Impor</h6>
     <p class="small text-muted">Seluruh {{ $preview['product_count'] }} barang dan {{ $preview['stock_count'] }} kelompok stok akan diproses, termasuk yang tidak ditampilkan karena batas pratinjau. Berlaku sampai {{ $run->expires_at->timezone('Asia/Jakarta')->format('H:i') }} WIB.</p>
+    {{-- Kirim token dan konfirmasi agar server memeriksa serta menyimpan pratinjau yang sesuai. --}}
     <form id="multiImportForm" method="POST" action="{{ route('master.products.import.store') }}" data-confirm="Buat barang baru beserta satuan dan stok awal sesuai hasil pratinjau ini? Data akan disimpan ke database." data-confirm-title="Simpan Impor Multi Satuan?" data-confirm-label="Ya, Simpan Impor" data-confirm-tone="success">
         @csrf
         <input type="hidden" name="token" value="{{ $run->token }}">

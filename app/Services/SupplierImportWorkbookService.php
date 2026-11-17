@@ -13,6 +13,7 @@ class SupplierImportWorkbookService
         'Referensi Barang'=>['id_barang','barcode','nama_barang','satuan_tersedia'],
     ];
 
+    // Cocokkan sheet dan judul kolom, lalu susun data workbook untuk pemeriksaan supplier.
     public function preview(array $sheets, bool $canReadProducts = false, bool $full = false, bool $matchExistingByName = false): array
     {
         $errors=[]; $warnings=[]; $errorCount=0;

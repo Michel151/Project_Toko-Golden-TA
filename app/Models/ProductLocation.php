@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ProductLocation extends Model
 {
+    // min_stock adalah batas per pasangan produk dan lokasi, dalam satuan dasar.
     protected $fillable = ['product_id', 'location_id', 'min_stock'];
 
     protected $casts = [
@@ -23,6 +24,7 @@ class ProductLocation extends Model
     }
 
     // Cek apakah stok di lokasi ini di bawah minimum
+    // Bandingkan saldo lokasi yang sama dengan batas minimum, termasuk saat nilainya tepat sama.
     public function isBelowMinStock(): bool
     {
         $stock = Stock::where('product_id', $this->product_id)

@@ -1,3 +1,4 @@
+{{-- Daftar barang menerima filter melalui GET dan memakai data satuan untuk harga serta format stok. --}}
 @extends('layouts.app')
 @section('title', 'Barang')
 @section('page-title', 'Master Barang')
@@ -74,6 +75,8 @@
                 <tbody>
                     @forelse($products as $product)
                     @php
+                        // Jumlahkan stok semua lokasi. Contoh: 27 Pcs tampil sebagai 2 Dus 3 Pcs jika 1 Dus berisi 12 Pcs.
+                        // Kolom harga memakai satuan Beli dan Jual yang dipilih pada form barang.
                         $totalStock = $product->totalStock();
                         $isLow      = $product->isBelowMinStock();
 

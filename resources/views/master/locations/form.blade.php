@@ -1,3 +1,4 @@
+{{-- Nama wajib diisi; deskripsi opsional. Objek $location menentukan mode ubah. --}}
 @extends('layouts.app')
 @section('title', isset($location) ? 'Ubah Lokasi' : 'Tambah Lokasi')
 @section('page-title', isset($location) ? 'Ubah Lokasi' : 'Tambah Lokasi')
@@ -8,6 +9,8 @@
     <div class="col-md-6">
         <div class="card table-card">
             <div class="card-body">
+                {{-- Jika data lama tersedia, form mengirim perubahan ke update(). Jika tidak, form mengirim data baru ke store().
+                    Saat edit, @method('PUT') memberi tahu Laravel untuk memilih route ubah. --}}
                 <form method="POST" action="{{ isset($location)
                     ? route('master.locations.update', $location)
                     : route('master.locations.store') }}">
@@ -25,6 +28,7 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Deskripsi</label>
+                        {{-- old() memakai deskripsi yang terakhir diketik saat validasi gagal, lalu memakai deskripsi tersimpan sebagai cadangan. --}}
                         <textarea name="description" class="form-control" rows="2"
                                   placeholder="Keterangan singkat tentang lokasi ini">{{ old('description', $location->description ?? '') }}</textarea>
                     </div>

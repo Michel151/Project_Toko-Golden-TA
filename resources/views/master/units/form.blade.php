@@ -1,3 +1,4 @@
+{{-- Satu form nama dipakai untuk tambah dan edit berdasarkan keberadaan $unit. --}}
 @extends('layouts.app')
 @section('title', isset($unit) ? 'Ubah Satuan' : 'Tambah Satuan')
 @section('page-title', isset($unit) ? 'Ubah Satuan' : 'Tambah Satuan')
@@ -8,6 +9,8 @@
     <div class="col-md-5">
         <div class="card table-card">
             <div class="card-body">
+                {{-- Jika data lama tersedia, form mengirim perubahan ke update(). Jika tidak, form mengirim data baru ke store().
+                    Saat edit, @method('PUT') memberi tahu Laravel untuk memilih route ubah. --}}
                 <form method="POST" action="{{ isset($unit)
                     ? route('master.units.update', $unit)
                     : route('master.units.store') }}">

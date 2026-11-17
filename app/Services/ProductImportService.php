@@ -10,6 +10,7 @@ use Illuminate\Validation\ValidationException;
 
 class ProductImportService
 {
+    // Periksa isi Excel sebelum menyimpan. Contoh: barcode yang sudah dipakai akan ditandai sebagai kesalahan.
     public function prepare(array $sheets): array
     {
         $plan=app(ProductImportPreviewService::class)->preview($sheets,auth()->user()?->hasPermission('master.suppliers.view') ?? false,true);
@@ -34,6 +35,7 @@ class ProductImportService
         return $plan;
     }
 
+    // Simpan hasil unggahan untuk sementara. Token adalah kode yang dipakai untuk menemukan unggahan milik pengguna saat konfirmasi.
     public function stage(array $sheets, int $userId): ProductImportRun
     {
         ProductImportRun::where('user_id',$userId)->where('status','pending')->where('expires_at','<',now('Asia/Jakarta'))->delete();
@@ -41,6 +43,7 @@ class ProductImportService
             'expires_at'=>now('Asia/Jakarta')->addHour()]);
     }
 
+    // Saat pengguna mengonfirmasi, cek kembali file. Simpan barang dan stok awal bersama agar perubahan bisa dibatalkan jika ada yang gagal.
     public function commit(string $token, int $userId): array
     {
         // Serialize separate uploads as well as double-clicks on the same confirmation.
@@ -85,6 +88,7 @@ class ProductImportService
                     $products[$this->key($row['kode_barang'])]=$product;
                     $result['created']++; $result['units']+=count($createdUnits); $result['product_ids'][]=$product->id;
                 }
+                // Gunakan StockService untuk membuat saldo awal beserta pencatatan stok terkait.
                 foreach($plan['stocks'] as $row){
                     $product=$products[$this->key($row['code'])];
                     $location=$this->named(Location::class,$row['location'],$named);

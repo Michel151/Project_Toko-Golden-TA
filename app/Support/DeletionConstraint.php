@@ -6,6 +6,8 @@ use Illuminate\Database\QueryException;
 
 class DeletionConstraint
 {
+    // Periksa apakah database menolak penghapusan karena baris itu masih dipakai oleh tabel lain.
+    // Pastikan perintah yang gagal memang menghapus tabel yang sedang ditangani.
     public static function isReferenced(QueryException $exception, string $table): bool
     {
         $state = $exception->errorInfo[0] ?? null;

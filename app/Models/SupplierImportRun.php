@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+// Simpan sesi pratinjau impor dengan token, pemilik, masa berlaku, dan hasil konfirmasi.
 class SupplierImportRun extends Model
 {
     protected $fillable = ['token', 'user_id', 'status', 'payload', 'result', 'expires_at'];

@@ -17,17 +17,20 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
+    // Ambil daftar akun terbaru dengan pagination untuk halaman pengelolaan pengguna.
     public function index()
     {
         $users = User::latest()->latest('id')->paginate(25)->withQueryString();
         return view('master.users.index', compact('users'));
     }
 
+    // Buka form pembuatan akun.
     public function create()
     {
         return view('master.users.form');
     }
 
+    // Cek email, pilihan peran, dan syarat kata sandi. Database menyimpan hasil hash, yaitu bentuk olahan password untuk memeriksa login.
     public function store(Request $request)
     {
         $request->validate([
@@ -40,6 +43,7 @@ class UserController extends Controller
         User::create([
             'name'     => $request->name,
             'email'    => $request->email,
+            // Hash::make() menyimpan hasil olahan kata sandi yang dipakai untuk mencocokkan login.
             'password' => Hash::make($request->password),
             'role'     => $request->role,
         ]);
@@ -47,11 +51,13 @@ class UserController extends Controller
         return redirect()->route('master.users.index')->with('success', 'Pengguna berhasil ditambahkan.');
     }
 
+    // Kirim akun yang ditemukan dari ID pada URL agar identitas lama tampil di form.
     public function edit(User $user)
     {
         return view('master.users.form', compact('user'));
     }
 
+    // Periksa perubahan identitas dan password opsional, lalu kunci akun sebelum menyimpan.
     public function update(Request $request, User $user)
     {
         $rules = [
@@ -85,6 +91,7 @@ class UserController extends Controller
         return redirect()->route('master.users.index')->with('success', 'Pengguna berhasil diperbarui.');
     }
 
+    // Buat password sementara untuk pengguna lain. Ketika pengguna itu masuk, aplikasi meminta password baru.
     public function resetPassword(Request $request, User $user, AccountPasswordService $passwords)
     {
         abort_if($user->id === $request->user()->id, 422, 'Untuk akun sendiri, gunakan menu Ubah Password.');
@@ -99,6 +106,7 @@ class UserController extends Controller
         ]);
     }
 
+    // Tampilkan hasil reset dari sesi melalui respons yang tidak disimpan oleh cache browser.
     public function resetResult(Request $request)
     {
         $encrypted = $request->session()->get('temporary_password');
@@ -111,6 +119,7 @@ class UserController extends Controller
         ])->header('Cache-Control', 'no-store, private')->header('Pragma', 'no-cache');
     }
 
+    // Saat akun dinonaktifkan atau diaktifkan kembali, ubah penanda versi akun agar sesi login lama tidak dapat dipakai.
     public function updateStatus(Request $request, User $user)
     {
         $request->validate(['active' => 'required|boolean']);
@@ -138,6 +147,7 @@ class UserController extends Controller
             : 'Akun berhasil dinonaktifkan.');
     }
 
+    // Pengguna tidak bisa menghapus akun yang sedang dipakai atau akun yang masih tercatat dalam transaksi.
     public function destroy(User $user)
     {
         try {
@@ -163,6 +173,7 @@ class UserController extends Controller
         return redirect()->route('master.users.index')->with('success', 'Pengguna berhasil dihapus.');
     }
 
+    // Kunci akun yang sedang login dan akun yang akan diubah. Cek kembali apakah pengguna yang login masih owner aktif.
     private function lockManagedUser(User $user): User
     {
         // Lock both accounts so a concurrent change cannot revoke the acting owner's authority mid-operation.

@@ -36,6 +36,7 @@ class User extends Authenticatable
         ];
     }
 
+    // Status akun dipakai untuk menentukan apakah pengguna boleh bekerja di aplikasi.
     public function isActive(): bool
     {
         return $this->deactivated_at === null;
@@ -66,6 +67,7 @@ class User extends Authenticatable
         return $this->role === $roles;
     }
 
+    // Terjemahkan hak tindakan menjadi keputusan akses untuk pengguna ini.
     public function hasPermission(string $permission): bool
     {
         if ($this->isOwner()) {
@@ -88,6 +90,7 @@ class User extends Authenticatable
             && in_array("$feature.view", $permissions, true);
     }
 
+    // View memakai nama route untuk memeriksa apakah tombol tindakan boleh ditampilkan.
     public function canAccessRoute(string $name): bool
     {
         $permission = AccessPermissions::forRoute($name);
@@ -96,6 +99,7 @@ class User extends Authenticatable
     }
 
     // Relationships
+    // Cek rujukan aktivitas pengguna sebelum mengizinkan penghapusan akun.
     public function hasTransactionHistory(): bool
     {
         $references = [

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
+    // Kolom ini dapat diisi bersama ketika controller membuat atau memperbarui barang.
     protected $fillable = [
         'name',
         'barcode',
@@ -34,11 +35,13 @@ class Product extends Model
     ];
 
     // Relationships
+    // Ambil nama kategori melalui ID kategori pada baris produk.
     public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
+    // Satuan beli dan ecer pada baris produk memakai foreign key yang berbeda.
     public function buyUnit()
     {
         return $this->belongsTo(Unit::class, 'buy_unit_id');
@@ -49,11 +52,13 @@ class Product extends Model
         return $this->belongsTo(Unit::class, 'retail_unit_id');
     }
 
+    // Setiap konfigurasi menghubungkan produk ke master satuan beserta harga dan konversi.
     public function productUnits()
     {
         return $this->hasMany(ProductUnit::class);
     }
 
+    // Jika Pcs ditandai sebagai satuan dasar, stok dihitung dalam Pcs meskipun barang dibeli per Dus.
     public function baseProductUnit()
     {
         return $this->hasOne(ProductUnit::class)->where('is_base_unit', true);
@@ -103,6 +108,7 @@ class Product extends Model
         return $this->hasMany(StockBatch::class)->sellable();
     }
 
+    // Baca pivot->buy_price untuk harga yang khusus untuk supplier dan barang ini.
     public function suppliers()
     {
         return $this->belongsToMany(Supplier::class)
@@ -110,6 +116,7 @@ class Product extends Model
             ->withTimestamps();
     }
 
+    // Contoh: batas Gudang 2 bisa 24 Pcs, sementara stok yang ada 10 Pcs. Kedua angka disimpan terpisah.
     public function productLocations()
     {
         return $this->hasMany(ProductLocation::class);
@@ -135,12 +142,14 @@ class Product extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    // Pengaturan kedaluwarsa bergantung pada saldo bukan nol atau riwayat yang merujuk barang.
     public function isExpirySettingLocked(): bool
     {
         return $this->stocks()->where('quantity', '!=', 0)->exists()
             || $this->hasTransactionHistory();
     }
 
+    // Cari transaksi yang memakai ID barang ini, misalnya penjualan, pembelian, atau pindah stok.
     public function hasTransactionHistory(): bool
     {
         return $this->stockBatches()->exists()
@@ -174,6 +183,7 @@ class Product extends Model
         return compact('physical', 'sellable', 'expired');
     }
 
+    // Jumlahkan kuantitas dasar dari seluruh lokasi untuk barang ini.
     public function totalStock(): float
     {
         return (float) $this->stocks()->sum('quantity');
@@ -187,6 +197,7 @@ class Product extends Model
     }
 
     // Helper: tampilkan stok dalam satuan yang mudah dibaca
+    // Pecah kuantitas dasar menjadi kemasan terbesar dan sisanya, misalnya 27 Pcs menjadi 2 Dus 3 Pcs.
     public function displayStock(float $quantity): string
     {
         if ($this->relationLoaded('productUnits') && $this->productUnits->isNotEmpty()) {

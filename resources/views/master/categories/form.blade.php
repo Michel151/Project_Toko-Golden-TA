@@ -1,3 +1,4 @@
+{{-- Form bersama memilih store atau update; old() mempertahankan isian setelah validasi gagal. --}}
 @extends('layouts.app')
 @section('title', isset($category) ? 'Ubah Kategori' : 'Tambah Kategori')
 @section('page-title', isset($category) ? 'Ubah Kategori' : 'Tambah Kategori')
@@ -14,6 +15,8 @@
                 </h6>
             </div>
             <div class="card-body">
+                {{-- Jika data lama tersedia, form mengirim perubahan ke update(). Jika tidak, form mengirim data baru ke store().
+                    Saat edit, @method('PUT') memberi tahu Laravel untuk memilih route ubah. --}}
                 <form method="POST" action="{{ isset($category)
                     ? route('master.categories.update', $category)
                     : route('master.categories.store') }}">

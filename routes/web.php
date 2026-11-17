@@ -91,19 +91,24 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
         });
 
     // ── Master Data (owner only) ───────────────────────────────────────────────
+    // Alamat menu ini diawali /master. Contoh: /master/categories membuka daftar Kategori.
+    // Izin diperiksa sesuai tindakan yang diminta; menu Pengguna khusus role owner.
     Route::prefix('master')->name('master.')->group(function () {
         Route::resource('categories', CategoryController::class)->except(['show'])->middleware('permission:master.categories');
         Route::resource('units',      UnitController::class)->except(['show'])->middleware('permission:master.units');
         Route::resource('locations',  LocationController::class)->except(['show'])->middleware('permission:master.locations');
+        // Tempatkan URL suppliers/import lebih dulu supaya kata 'import' membuka halaman impor dan tidak dibaca sebagai ID supplier.
         Route::get('suppliers/import', [\App\Http\Controllers\MasterData\SupplierImportController::class, 'create'])->middleware('permission:master.suppliers')->name('suppliers.import');
         Route::get('suppliers/import/template', [\App\Http\Controllers\MasterData\SupplierImportController::class, 'template'])->middleware('permission:master.suppliers')->name('suppliers.import.template');
         Route::post('suppliers/import', [\App\Http\Controllers\MasterData\SupplierImportController::class, 'preview'])->middleware('permission:master.suppliers')->name('suppliers.import.preview');
         Route::post('suppliers/import/store', [\App\Http\Controllers\MasterData\SupplierImportController::class, 'store'])->middleware('permission:master.suppliers')->name('suppliers.import.store');
         Route::resource('suppliers',  SupplierController::class)->middleware('permission:master.suppliers');
+        // Pengelolaan akun dan reset password dibatasi ke role owner.
         Route::get('users/password-reset-result', [UserController::class, 'resetResult'])->middleware('role:owner')->name('users.reset-password-result');
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware(['role:owner', 'throttle:10,1'])->name('users.reset-password');
         Route::patch('users/{user}/status', [UserController::class, 'updateStatus'])->middleware('role:owner')->name('users.status');
         Route::resource('users',      UserController::class)->except(['show'])->middleware('role:owner');
+        // Rute unggah dan konfirmasi impor didaftarkan terpisah dari form barang manual.
         Route::get('products/import', [\App\Http\Controllers\MasterData\ProductImportController::class, 'create'])->middleware('permission:master.products')->name('products.import');
         Route::get('products/import-trial', fn (\Illuminate\Http\Request $request) => redirect()->route('master.products.import', $request->only('preview')))->middleware('permission:master.products')->name('products.import-trial');
         Route::get('products/import-trial/template', fn () => redirect()->route('master.products.import.template'))->middleware('permission:master.products')->name('products.import-trial.template');

@@ -14,6 +14,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class SupplierImportController extends Controller
 {
+    // Buka halaman impor atau pulihkan pratinjau yang masih berlaku milik pengguna.
     public function create(Request $request, SupplierImportService $service)
     {
         $token = $request->query('preview') ?: old('token');
@@ -35,11 +36,13 @@ class SupplierImportController extends Controller
         return view('master.suppliers.import');
     }
 
+    // Unduh template Excel untuk daftar supplier dan hubungan supplier dengan barang.
     public function template()
     {
         return Excel::download(new SupplierImportTemplateExport, 'template-import-supplier.xlsx');
     }
 
+    // Periksa file dan siapkan pratinjau; rencana yang lolos disimpan sementara untuk konfirmasi.
     public function preview(Request $request, ImportWorkbookReader $reader, SupplierImportService $service)
     {
         $request->validate(['file' => ['required', 'file', 'mimes:xlsx', 'max:5120']]);
@@ -50,6 +53,7 @@ class SupplierImportController extends Controller
         return view('master.suppliers.import', ['preview' => $service->display($plan), 'run' => $run]);
     }
 
+    // Terima token pratinjau dan konfirmasi sebelum meminta service menyimpan hasil impor.
     public function store(Request $request, SupplierImportService $service)
     {
         $data = $request->validate(['token' => 'required|uuid', 'confirmed' => 'required|accepted']);

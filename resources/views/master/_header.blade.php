@@ -1,3 +1,4 @@
+{{-- Komponen header bersama menerima ikon, judul, dan deskripsi dari masing-masing menu master. --}}
 @once
 <style>
     .master-heading{position:relative;overflow:hidden;background:var(--app-header);color:#fff;border-radius:15px;padding:1.2rem 1.35rem;box-shadow:0 5px 18px rgba(23,32,57,.13)}

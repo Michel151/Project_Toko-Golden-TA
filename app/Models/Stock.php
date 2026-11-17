@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Stock extends Model
 {
+    // quantity adalah saldo satu produk pada satu lokasi; batas minimumnya berada di ProductLocation.
     protected $fillable = ['product_id', 'location_id', 'quantity'];
 
     protected $casts = [

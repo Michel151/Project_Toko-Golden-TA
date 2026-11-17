@@ -1,3 +1,4 @@
+{{-- Tabel memakai $categories dari index(); products_count mengisi jumlah jenis barang per kategori. --}}
 {{-- resources/views/master/categories/index.blade.php --}}
 @extends('layouts.app')
 @section('title', 'Kategori')
@@ -24,6 +25,7 @@
                 </tr>
             </thead>
             <tbody>
+                {{-- Setiap putaran menerima satu kategori; @empty menampilkan pesan bila halaman tidak punya data. --}}
                 @forelse($categories as $category)
                 <tr>
                     <td class="text-muted">{{ $categories->firstItem() + $loop->index }}</td>

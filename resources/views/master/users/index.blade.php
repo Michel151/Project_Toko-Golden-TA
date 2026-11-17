@@ -1,3 +1,4 @@
+{{-- Halaman owner untuk mengubah identitas, status akun, reset password, dan penghapusan pengguna. --}}
 @extends('layouts.app')
 @section('title', 'Pengguna')
 @section('page-title', 'Master Pengguna')
@@ -66,6 +67,7 @@
                                         ? 'Nonaktifkan akun '.$user->name.'? Pengguna akan keluar dari sesi aktif dan tidak dapat masuk.'
                                         : 'Izinkan '.$user->name.' masuk kembali sesuai hak akses akunnya?';
                                 @endphp
+                                {{-- Aksi status memakai PATCH; akun nonaktif tetap tercatat untuk riwayat. --}}
                                 <form method="POST" action="{{ route('master.users.status', $user) }}" class="d-inline-flex"
                                       data-confirm="{{ $statusPrompt }}" data-confirm-title="{{ $statusLabel }} Akun?" data-confirm-label="{{ $statusLabel }}">
                                     @csrf @method('PATCH')
@@ -79,6 +81,7 @@
                                         <i class="bi {{ $active ? 'bi-person-x' : 'bi-person-check' }}" aria-hidden="true"></i>
                                     </button>
                                 </form>
+                                {{-- Aksi ini meminta controller membuat password sementara untuk pengguna pada baris ini. --}}
                                 <form method="POST" action="{{ route('master.users.reset-password', $user) }}" class="d-inline-flex"
                                       data-confirm="Reset password {{ $user->name }}? Sesi login lama akan dibatalkan. Pengguna wajib mengganti password sementara setelah masuk."
                                       data-confirm-title="Reset Password?" data-confirm-label="Reset Password">

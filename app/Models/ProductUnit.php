@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ProductUnit extends Model
 {
+    // Contoh: baris Dus milik Gula menyimpan isi 12 Pcs, harga per Dus, dan pilihan apakah Dus dipakai untuk beli.
     protected $fillable = [
         'product_id',
         'unit_id',
@@ -19,6 +20,7 @@ class ProductUnit extends Model
         'is_default_sale',
     ];
 
+    // Gunakan empat angka desimal untuk jumlah dan konversi, dua untuk harga, dan true/false untuk pilihan Dasar, Beli, serta Jual.
     protected $casts = [
         'conversion_to_base' => 'decimal:4',
         'contains_quantity' => 'decimal:4',
@@ -39,6 +41,7 @@ class ProductUnit extends Model
         return $this->belongsTo(Unit::class);
     }
 
+    // Contoh: Dus menunjuk ke konfigurasi Pcs milik barang ini. ID konfigurasi itu berbeda dari ID Pcs di Master Satuan.
     public function containsUnit()
     {
         return $this->belongsTo(ProductUnit::class, 'contains_unit_id');

@@ -9,6 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Simpan satuan, peran, dan konversi per barang; master satuan menyediakan nama bersama.
         Schema::create('product_units', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();

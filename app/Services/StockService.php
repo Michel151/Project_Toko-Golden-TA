@@ -25,6 +25,7 @@ class StockService
         }, 3);
     }
 
+    // Hubungkan stok awal dari impor Master Barang dengan pencatatan persediaan.
     public function initializeImportedStock(Product $product, Location $location, float $baseQuantity, Model $reference, ?string $expiry = null, ?string $batchCode = null): void
     {
         $this->atomic(fn () => $this->initializeImportedStockInternal($product, $location, $baseQuantity, $reference, $expiry, $batchCode));
