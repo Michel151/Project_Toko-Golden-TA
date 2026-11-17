@@ -2,10 +2,10 @@
 @section('title', 'Detail Transfer')
 @section('page-title', 'Detail Transfer Stok')
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="fw-bold mb-0">{{ $transfer->transfer_number }}</h5>
+<div class="mb-3">
     <x-back-link :fallback="route('inventory.transfers.index')" />
 </div>
+<h5 class="fw-bold mb-3">{{ $transfer->transfer_number }}</h5>
 <div class="app-document-meta border-bottom pb-3 mb-3">
     <span>Lokasi asal: <strong>{{ $transfer->fromLocation->name }}</strong></span><span>Lokasi tujuan: <strong>{{ $transfer->toLocation->name }}</strong></span>
     <span>Tanggal: <strong>{{ $transfer->transfer_date->format('d/m/Y') }}</strong></span><span>Dibuat oleh: <strong>{{ $transfer->createdBy->name ?? '-' }}</strong></span><span>Total: <strong>{{ $transfer->items_count }} barang</strong></span>
