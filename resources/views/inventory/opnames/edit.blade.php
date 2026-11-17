@@ -43,7 +43,7 @@
         <span class="small text-muted" id="opnameItemCount">{{ $opname->items->count() }} barang</span>
         <input type="search" class="form-control form-control-sm opname-search" id="opnameSearch" placeholder="Cari barang..." aria-label="Cari barang opname">
     </div>
-    <div class="table-responsive bg-white border rounded">
+    <div class="table-responsive position-relative bg-white border rounded">
         <table class="table table-hover mb-0 opname-count-table">
             <thead><tr><th>Barang</th><th class="text-end">Stok Sistem</th><th style="width:310px">Stok Fisik</th><th class="text-end">Selisih</th><th>Keterangan</th></tr></thead>
             <tbody>
