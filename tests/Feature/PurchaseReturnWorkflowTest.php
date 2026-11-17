@@ -527,7 +527,7 @@ class PurchaseReturnWorkflowTest extends TestCase
 
         $filters = ['product' => $this->order->items()->first()->product_id, 'from' => '2026-11-15', 'to' => '2026-11-17'];
         $card = route('inventory.stock-card.show', $filters);
-        $this->get($card)->assertOk()->assertDontSee('Penyerahan Retur')->assertSee('10 Dus tiba, 8 Dus lolos pemeriksaan')
+        $this->get($card)->assertOk()->assertDontSee('diserahkan ke supplier.')->assertSee('10 Dus tiba, 8 Dus lolos pemeriksaan')
             ->assertSee('2 Dus rusak, ditahan di Gudang')->assertSee('kurang 1 Dus');
 
         $this->travelTo(\Carbon\Carbon::parse('2026-11-16 09:00:00', 'Asia/Jakarta'));
@@ -555,14 +555,19 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->assertEquals(60, $page->viewData('totalIn'));
         $this->assertEquals(0, $page->viewData('totalOut'));
         $this->assertDatabaseCount('stock_movements', 2);
-        $this->get(route('inventory.stock-card.show', $filters + ['direction' => 'in']))->assertOk()->assertDontSee('Penyerahan Retur');
-        $this->get(route('inventory.stock-card.pdf', $filters))->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->get(route('inventory.stock-card.show', $filters + ['direction' => 'in']))->assertOk()->assertDontSee('diserahkan ke supplier.');
 
-        $excel = $this->get(route('inventory.stock-card.excel', $filters))->assertOk();
+        $dispatchFilters = $filters + ['movement_type' => 'return_dispatch'];
+        $this->get(route('inventory.stock-card.show', $dispatchFilters))->assertOk()
+            ->assertViewHas('movements', fn ($rows) => $rows->pluck('reference_number')->all() === [$return->return_number]);
+        $this->get(route('inventory.stock-card.pdf', $dispatchFilters))->assertOk()->assertHeader('Content-Type', 'application/pdf');
+
+        $excel = $this->get(route('inventory.stock-card.excel', $dispatchFilters))->assertOk();
         $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($excel->baseResponse->getFile()->getPathname())->getActiveSheet();
-        $this->assertSame($return->return_number, $sheet->getCell('B6')->getValue());
-        $this->assertSame('-', $sheet->getCell('G6')->getValue());
-        $this->assertSame('8 Dus', $sheet->getCell('H6')->getValue());
+        $this->assertSame($return->return_number, $sheet->getCell('B5')->getValue());
+        $this->assertSame('-', $sheet->getCell('G5')->getValue());
+        $this->assertSame('8 Dus', $sheet->getCell('H5')->getValue());
+        $this->assertSame('TOTAL', $sheet->getCell('A6')->getValue());
     }
 
     public function test_monthly_po_returns_follow_the_root_number_across_months_and_keep_unique_suffixes(): void

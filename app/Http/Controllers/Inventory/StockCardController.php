@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StockCardController extends Controller
@@ -102,11 +103,22 @@ class StockCardController extends Controller
 
     private function cardData(Request $request, Product $product, bool $paginate = true): array
     {
+        $movementTypes = [
+            'purchase' => 'Penerimaan',
+            'return_dispatch' => 'Penyerahan Retur',
+            'sale' => 'Penjualan',
+            'sale_edit_restore' => 'Koreksi Penjualan',
+            'sale_cancelled' => 'Pembatalan Penjualan',
+            'transfer_in' => 'Transfer Masuk',
+            'transfer_out' => 'Transfer Keluar',
+            'opname_adjustment' => 'Stock Opname',
+            'initial_import' => 'Stok Awal Impor',
+        ];
         $request->validate([
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'location_id' => 'nullable|exists:locations,id',
-            'movement_type' => 'nullable|in:purchase,sale,transfer_in,transfer_out,opname_adjustment',
+            'movement_type' => ['nullable', 'string', Rule::in(array_keys($movementTypes))],
             'direction' => 'nullable|in:in,out',
         ]);
         $product->load([
@@ -167,11 +179,9 @@ class StockCardController extends Controller
 
         return compact(
             'product', 'movements', 'from', 'to', 'locationId', 'openingBalance',
-            'closingBalance', 'totalIn', 'totalOut'
+            'closingBalance', 'totalIn', 'totalOut', 'movementTypes'
         ) + [
             'locations' => Location::orderBy('name')->get(),
-            'movementTypes' => ['purchase' => 'Penerimaan', 'sale' => 'Penjualan', 'transfer_in' => 'Transfer Masuk',
-                'transfer_out' => 'Transfer Keluar', 'opname_adjustment' => 'Stock Opname'],
         ];
     }
 }

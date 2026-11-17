@@ -79,6 +79,13 @@ class StockCardExcelTest extends TestCase
             $this->getJson(route($route, $filters + ['direction'=>'invalid']))->assertUnprocessable();
             $this->getJson(route($route, $filters + ['movement_type'=>'invalid']))->assertUnprocessable();
         }
+
+        foreach (['sale_edit_restore' => 'Koreksi Penjualan', 'sale_cancelled' => 'Pembatalan Penjualan', 'initial_import' => 'Stok Awal Impor'] as $type => $label) {
+            StockMovement::create($baseMovement + ['movement_type' => $type, 'quantity' => 1, 'reference_number' => $type]);
+            $this->get(route('inventory.stock-card.show', $filters + ['movement_type' => $type]))
+                ->assertOk()->assertViewHas('movements', fn ($rows) => $rows->pluck('reference_number')->all() === [$type])
+                ->assertViewHas('movementTypes', fn ($options) => $options[$type] === $label);
+        }
     }
 
     public function test_excel_exports_all_filtered_movements_with_same_running_balances_and_multi_units(): void
