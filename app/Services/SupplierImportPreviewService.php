@@ -48,7 +48,7 @@ class SupplierImportPreviewService
                 if (!filled($row['nama_supplier'])) { $fail('Master Supplier',$row['_row'],'Supplier baru wajib memiliki nama_supplier.'); continue; }
                 $identity = 'new:'.$key($row['nama_supplier']);
                 if ($existing->contains(fn($supplier)=>$key($supplier->name)===$key($row['nama_supplier']))) $warn('Master Supplier',$row['_row'],'Nama supplier sudah ada. Isi id_supplier untuk merujuk supplier lama; nama tidak dicocokkan otomatis.');
-                $entry = ['code'=>$row['kode_supplier'],'name'=>$row['nama_supplier'],'address'=>$row['alamat'],'phone'=>$row['telepon'],'id'=>null,'status'=>'Baru (uji coba)','identity'=>$identity];
+                $entry = ['code'=>$row['kode_supplier'],'name'=>$row['nama_supplier'],'address'=>$row['alamat'],'phone'=>$row['telepon'],'id'=>null,'status'=>'Baru','identity'=>$identity];
             }
             if (isset($seenIdentities[$identity])) { $fail('Master Supplier',$row['_row'],'Supplier yang sama menggunakan lebih dari satu kode dalam file.'); continue; }
             $seenIdentities[$identity] = true;

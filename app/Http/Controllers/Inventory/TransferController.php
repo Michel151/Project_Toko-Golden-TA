@@ -223,20 +223,4 @@ class TransferController extends Controller
     {
         return back()->with('error', 'Transfer tidak bisa dihapus untuk menjaga integritas stok.');
     }
-
-    // AJAX: ambil stok produk di lokasi tertentu
-    public function getStock(Request $request)
-    {
-        $stock = \App\Models\Stock::where('product_id', $request->product_id)
-                                  ->where('location_id', $request->location_id)
-                                  ->first();
-
-        $product = Product::with(['buyUnit', 'retailUnit', 'productUnits.unit'])->find($request->product_id);
-
-        return response()->json([
-            'quantity'  => $stock ? (float) $stock->quantity : 0,
-            'unit_name' => $product->baseProductUnit?->unit?->name
-                ?? ($product->can_retail ? $product->retailUnit->name ?? $product->buyUnit->name : $product->buyUnit->name),
-        ]);
-    }
 }

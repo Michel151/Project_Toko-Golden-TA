@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Exports\SupplierImportTrialTemplateExport;
+use App\Exports\SupplierImportTemplateExport;
 use App\Models\{Category,Product,ProductUnit,Supplier,Unit,User};
-use App\Services\SupplierImportTrialService;
+use App\Services\SupplierImportWorkbookService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +13,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
-class SupplierImportTrialTest extends TestCase
+class SupplierImportPreviewTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -34,8 +34,8 @@ class SupplierImportTrialTest extends TestCase
 
     private function data(): array
     {
-        return ['Master Supplier'=>[SupplierImportTrialService::HEADINGS['Master Supplier'],['NEW','Supplier Baru','Alamat Baru','081000','']],
-            'Supplier Barang'=>[SupplierImportTrialService::HEADINGS['Supplier Barang'],['001234','','NEW','Dus',48000],['',$this->product->id,'SUP-'.$this->supplier->id,'Pcs',1500]]];
+        return ['Master Supplier'=>[SupplierImportWorkbookService::HEADINGS['Master Supplier'],['NEW','Supplier Baru','Alamat Baru','081000','']],
+            'Supplier Barang'=>[SupplierImportWorkbookService::HEADINGS['Supplier Barang'],['001234','','NEW','Dus',48000],['',$this->product->id,'SUP-'.$this->supplier->id,'Pcs',1500]]];
     }
 
     private function upload(array $sheets): UploadedFile
@@ -69,7 +69,7 @@ class SupplierImportTrialTest extends TestCase
 
     public function test_downloaded_template_round_trips_and_supplier_only_import_is_supported(): void
     {
-        $export=new SupplierImportTrialTemplateExport;
+        $export=new SupplierImportTemplateExport;
         $sheets=$export->sheets();
         $this->assertSame(['Master Supplier','Supplier Barang','Referensi Barang'],array_map(fn($sheet)=>$sheet->title(),$sheets));
         $bytes=Excel::raw($export,\Maatwebsite\Excel\Excel::XLSX);
@@ -88,22 +88,22 @@ class SupplierImportTrialTest extends TestCase
     public function test_bad_product_references_units_and_duplicate_links_are_reported(): void
     {
         foreach([['1234','','NEW','Dus',1],['',$this->product->id+100,'NEW','Dus',1],['bad',$this->product->id,'NEW','Dus',1],['001234','','NEW','Unknown',1],['','','NEW','Dus',1]] as $row){
-            $data=$this->data();$data['Supplier Barang']=[SupplierImportTrialService::HEADINGS['Supplier Barang'],$row];
-            $preview=app(SupplierImportTrialService::class)->preview($data,true);
+            $data=$this->data();$data['Supplier Barang']=[SupplierImportWorkbookService::HEADINGS['Supplier Barang'],$row];
+            $preview=app(SupplierImportWorkbookService::class)->preview($data,true);
             $this->assertGreaterThan(0,$preview['error_count']);$this->assertSame(0,$preview['supplier_link_count']);
         }
         $data=$this->data();$data['Supplier Barang'][]=['',$this->product->id,'NEW','Pcs',1];
-        $this->assertStringContainsString('Hubungan barang-supplier ganda',json_encode(app(SupplierImportTrialService::class)->preview($data,true)['errors']));
+        $this->assertStringContainsString('Hubungan barang-supplier ganda',json_encode(app(SupplierImportWorkbookService::class)->preview($data,true)['errors']));
         $this->product->update(['is_active'=>false]);
-        $this->assertStringContainsString('tidak aktif',json_encode(app(SupplierImportTrialService::class)->preview($this->data(),true)['errors']));
+        $this->assertStringContainsString('tidak aktif',json_encode(app(SupplierImportWorkbookService::class)->preview($this->data(),true)['errors']));
     }
 
     public function test_reference_sheet_cannot_create_products_and_existing_supplier_is_not_overwritten(): void
     {
         $data=$this->data();
         $data['Master Supplier'][]=['SUP-'.$this->supplier->id,'Changed','Changed','099999',$this->supplier->id];
-        $data['Referensi Barang']=[SupplierImportTrialService::HEADINGS['Referensi Barang'],[999999,'Fake','Fake','Dus']];
-        $preview=app(SupplierImportTrialService::class)->preview($data,true);
+        $data['Referensi Barang']=[SupplierImportWorkbookService::HEADINGS['Referensi Barang'],[999999,'Fake','Fake','Dus']];
+        $preview=app(SupplierImportWorkbookService::class)->preview($data,true);
         $this->assertSame(0,$preview['error_count']);$this->assertCount(1,$preview['warnings']);
         $this->assertSame('Alamat Asli',collect($preview['suppliers'])->firstWhere('id',$this->supplier->id)['address']);
         $this->assertDatabaseCount('products',1);$this->assertDatabaseCount('suppliers',1);
@@ -120,8 +120,10 @@ class SupplierImportTrialTest extends TestCase
         $this->post(route('master.suppliers.import.preview'))->assertForbidden();
         DB::table('role_permissions')->insert(['role'=>'kasir','permission'=>'master.suppliers.import']);
         $this->get(route('master.suppliers.import'))->assertOk();
-        $this->assertSame([SupplierImportTrialService::HEADINGS['Referensi Barang']],(new SupplierImportTrialTemplateExport)->sheets()[2]->array());
+        $this->assertSame([SupplierImportWorkbookService::HEADINGS['Referensi Barang']],(new SupplierImportTemplateExport)->sheets()[2]->array());
         $response=$this->post(route('master.suppliers.import.preview'),['file'=>$this->upload($this->data())]);
-        $response->assertOk()->assertSee('hak akses melihat Master Barang')->assertDontSee('Barang Terdaftar');
+        $response->assertOk()->assertSee('hak akses melihat Master Barang');
+        $this->assertSame([], $response->viewData('preview')['supplier_links']);
+        $this->assertSame(0, $response->viewData('preview')['supplier_link_count']);
     }
 }

@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\Product;
 use Illuminate\Support\Facades\Validator;
 
-class SupplierImportTrialService
+class SupplierImportWorkbookService
 {
     public const HEADINGS = [
         'Master Supplier'=>['kode_supplier','nama_supplier','alamat','telepon','id_supplier'],
@@ -104,7 +104,7 @@ class SupplierImportTrialService
             $product=$byId[(int)$link['product_code']];
             $existing=$link['supplier_id'] ? $product->suppliers->firstWhere('id',$link['supplier_id']) : null;
             $link['barcode']=$product->barcode;
-            $link['relationship_status']=$existing ? 'Sudah terhubung (tidak diubah)' : 'Hubungan baru (uji coba)';
+            $link['relationship_status']=$existing ? 'Sudah terhubung (tidak diubah)' : 'Hubungan baru';
             $link['existing_price']=$existing ? (float)$existing->pivot->buy_price : null;
             $link['existing_unit']=$product->productUnits->firstWhere('is_default_purchase',true)?->unit?->name ?? $product->buyUnit?->name;
             $purchaseUnit = $product->productUnits->firstWhere('is_default_purchase',true);

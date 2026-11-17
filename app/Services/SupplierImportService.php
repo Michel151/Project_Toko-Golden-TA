@@ -11,7 +11,7 @@ class SupplierImportService
 {
     public function prepare(array $sheets, bool $canReadProducts): array
     {
-        $plan = app(SupplierImportTrialService::class)->preview($sheets, $canReadProducts, true, true);
+        $plan = app(SupplierImportWorkbookService::class)->preview($sheets, $canReadProducts, true, true);
         $names = []; $codes = [];
         foreach ($plan['suppliers'] as &$supplier) {
             $code = $this->key($supplier['code']);

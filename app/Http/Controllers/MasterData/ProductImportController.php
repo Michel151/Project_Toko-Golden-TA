@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProductImportRun;
 use App\Services\ProductImportPreviewService;
 use App\Services\ProductImportService;
-use App\Services\TrialWorkbookReader;
+use App\Services\ImportWorkbookReader;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -46,7 +46,7 @@ class ProductImportController extends Controller
     public function preview(Request $request, ProductImportService $service)
     {
         $request->validate(['file' => ['required', 'file', 'mimes:xlsx', 'max:5120']]);
-        $sheets = app(TrialWorkbookReader::class)->read($request->file('file'), 3, 5);
+        $sheets = app(ImportWorkbookReader::class)->read($request->file('file'), 3, 5);
 
         // Old five-sheet files remain preview-only; supplier import is now separate.
         $preview = app(ProductImportPreviewService::class)->preview($sheets, auth()->user()->hasPermission('master.suppliers.view'));

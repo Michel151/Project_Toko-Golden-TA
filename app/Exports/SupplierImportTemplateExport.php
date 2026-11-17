@@ -4,10 +4,10 @@ namespace App\Exports;
 
 use App\Models\Product;
 use App\Models\Supplier;
-use App\Services\SupplierImportTrialService;
+use App\Services\SupplierImportWorkbookService;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class SupplierImportTrialTemplateExport implements WithMultipleSheets
+class SupplierImportTemplateExport implements WithMultipleSheets
 {
     public function sheets(): array
     {
@@ -32,9 +32,9 @@ class SupplierImportTrialTemplateExport implements WithMultipleSheets
             }
         }
         return [
-            new ProductImportSheetExport('Master Supplier',SupplierImportTrialService::HEADINGS['Master Supplier'],$suppliers,['A'=>'@','D'=>'@','E'=>'0'],[]),
-            new ProductImportSheetExport('Supplier Barang',SupplierImportTrialService::HEADINGS['Supplier Barang'],$links,['A'=>'@','B'=>'0','C'=>'@','D'=>'@','E'=>'0.00'],[]),
-            new ProductImportSheetExport('Referensi Barang',SupplierImportTrialService::HEADINGS['Referensi Barang'],$references,['A'=>'0','B'=>'@'],[]),
+            new ProductImportSheetExport('Master Supplier',SupplierImportWorkbookService::HEADINGS['Master Supplier'],$suppliers,['A'=>'@','D'=>'@','E'=>'0'],[]),
+            new ProductImportSheetExport('Supplier Barang',SupplierImportWorkbookService::HEADINGS['Supplier Barang'],$links,['A'=>'@','B'=>'0','C'=>'@','D'=>'@','E'=>'0.00'],[]),
+            new ProductImportSheetExport('Referensi Barang',SupplierImportWorkbookService::HEADINGS['Referensi Barang'],$references,['A'=>'0','B'=>'@'],[]),
         ];
     }
 }

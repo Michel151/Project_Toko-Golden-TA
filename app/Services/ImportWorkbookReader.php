@@ -8,7 +8,7 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 
-class TrialWorkbookReader
+class ImportWorkbookReader
 {
     public function read(UploadedFile $file, int $minSheets, int $maxSheets): array
     {

@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\{Category, Location, Product, ProductUnit, Sale, SaleItem, Stock, Supplier, SupplierImportRun, Unit, User};
-use App\Services\{SupplierImportService, SupplierImportTrialService};
+use App\Services\{SupplierImportService, SupplierImportWorkbookService};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -43,8 +43,8 @@ class SupplierImportCommitTest extends TestCase
 
     private function sheets(): array
     {
-        return ['Master Supplier'=>[SupplierImportTrialService::HEADINGS['Master Supplier'], ['NEW','Supplier Baru','Alamat Baru','081000',null]],
-            'Supplier Barang'=>[SupplierImportTrialService::HEADINGS['Supplier Barang'], ['001234',$this->product->id,'NEW','Dus',48000],
+        return ['Master Supplier'=>[SupplierImportWorkbookService::HEADINGS['Master Supplier'], ['NEW','Supplier Baru','Alamat Baru','081000',null]],
+            'Supplier Barang'=>[SupplierImportWorkbookService::HEADINGS['Supplier Barang'], ['001234',$this->product->id,'NEW','Dus',48000],
                 ['001234',$this->product->id,'SUP-'.$this->supplier->id,'Pcs',1500]]];
     }
 
@@ -214,7 +214,7 @@ class SupplierImportCommitTest extends TestCase
 
     public function test_all_rows_beyond_preview_limit_are_saved_and_reimport_is_idempotent(): void
     {
-        $data = ['Master Supplier'=>[SupplierImportTrialService::HEADINGS['Master Supplier']], 'Supplier Barang'=>[SupplierImportTrialService::HEADINGS['Supplier Barang']]];
+        $data = ['Master Supplier'=>[SupplierImportWorkbookService::HEADINGS['Master Supplier']], 'Supplier Barang'=>[SupplierImportWorkbookService::HEADINGS['Supplier Barang']]];
         for ($i=1; $i<=205; $i++) {
             $data['Master Supplier'][] = ['CODE-'.$i,'Pemasok '.$i,null,null,null];
             $data['Supplier Barang'][] = ['001234',$this->product->id,'CODE-'.$i,'Dus',24000];
