@@ -466,7 +466,7 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->assertDatabaseCount('purchase_orders', 2);
         $this->get(route('purchase.returns.show', $return))->assertOk()->assertSee('Catat Penerimaan')
             ->assertSee('PO Retur:')->assertDontSee('PO Tindak Lanjut')
-            ->assertDontSee('Penyerahan Retur Fisik')->assertDontSee('Catat Sudah Diserahkan');
+            ->assertSee('Penyerahan Retur Fisik')->assertSee('Serahkan Retur');
         $this->get(route('purchase.orders.show', $replacement))->assertOk()->assertSee('Tanpa tagihan tambahan');
         $pdf = view('purchase.orders.pdf', ['order' => $replacement->load('items.product', 'supplier', 'createdBy')])->render();
         $this->assertStringContainsString('TANPA TAGIHAN TAMBAHAN', $pdf);
@@ -477,7 +477,7 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->post(route('purchase.returns.dispatch', $return))->assertSessionHasNoErrors();
         $this->assertNotNull($return->fresh()->dispatched_at);
         $this->get(route('purchase.returns.show', $return))->assertOk()
-            ->assertDontSee('Penyerahan Retur Fisik')->assertDontSee('Catat Sudah Diserahkan');
+            ->assertSee('Sudah Diserahkan')->assertDontSee('Serahkan Retur');
         $this->assertEquals(540, Stock::sum('quantity'));
         $this->post(route('purchase.receipts.store'), $this->payload($replacement, 10))->assertSessionHasNoErrors();
         $this->assertEquals(600, Stock::sum('quantity'));
@@ -487,6 +487,47 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->assertEquals(0, $this->order->items()->first()->quantity_reserved);
         $this->assertDatabaseCount('stock_movements', 2);
         $this->get(route('report.purchase'))->assertOk();
+    }
+
+    public function test_stock_card_shows_receipt_handoff_and_replacement_without_subtracting_rejected_stock(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-11-15 09:00:00', 'Asia/Jakarta'));
+        $this->setupOrder();
+        $this->post(route('purchase.receipts.store'), $this->payload($this->order, 8, 2, 0, 1))->assertSessionHasNoErrors();
+        $return = $this->claim(PurchaseReceipt::firstOrFail());
+        $this->get(route('purchase.returns.show', $return))->assertOk()->assertDontSee('Serahkan Retur');
+        $this->post(route('purchase.returns.approve', $return))->assertSessionHasNoErrors();
+
+        $filters = ['product' => $this->order->items()->first()->product_id, 'from' => '2026-11-15', 'to' => '2026-11-17'];
+        $card = route('inventory.stock-card.show', $filters);
+        $this->get($card)->assertOk()->assertDontSee('Penyerahan Retur')->assertSee('10 Dus tiba, 8 Dus lolos pemeriksaan')
+            ->assertSee('2 Dus rusak, ditahan di Gudang')->assertSee('1 Dus belum tiba');
+
+        $this->travelTo(\Carbon\Carbon::parse('2026-11-16 09:00:00', 'Asia/Jakarta'));
+        $this->post(route('purchase.returns.dispatch', $return))->assertSessionHasNoErrors();
+        $this->post(route('purchase.returns.dispatch', $return))->assertSessionHasNoErrors();
+
+        $this->travelTo(\Carbon\Carbon::parse('2026-11-17 09:00:00', 'Asia/Jakarta'));
+        $replacement = $return->fresh()->replacementOrder;
+        $this->post(route('purchase.receipts.store'), $this->payload($replacement, 2))->assertSessionHasNoErrors();
+
+        $page = $this->get($card)->assertOk()->assertSeeInOrder(['Penerimaan Pengganti', 'Penyerahan Retur', '10 Dus tiba'])
+            ->assertSee('2 Dus diserahkan ke supplier.');
+        $rows = $page->viewData('movements')->getCollection();
+        $this->assertSame([$replacement->po_number, $return->return_number, $this->order->po_number], $rows->pluck('reference_number')->all());
+        $this->assertEquals([12, 0, 48], $rows->pluck('quantity')->all());
+        $this->assertEquals([60, 48, 48], $rows->pluck('card_balance')->all());
+        $this->assertEquals(60, $page->viewData('totalIn'));
+        $this->assertEquals(0, $page->viewData('totalOut'));
+        $this->assertDatabaseCount('stock_movements', 2);
+        $this->get(route('inventory.stock-card.show', $filters + ['direction' => 'in']))->assertOk()->assertDontSee('Penyerahan Retur');
+        $this->get(route('inventory.stock-card.pdf', $filters))->assertOk()->assertHeader('Content-Type', 'application/pdf');
+
+        $excel = $this->get(route('inventory.stock-card.excel', $filters))->assertOk();
+        $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($excel->baseResponse->getFile()->getPathname())->getActiveSheet();
+        $this->assertSame($return->return_number, $sheet->getCell('B6')->getValue());
+        $this->assertSame('-', $sheet->getCell('G6')->getValue());
+        $this->assertSame('8 Dus', $sheet->getCell('H6')->getValue());
     }
 
     public function test_monthly_po_returns_follow_the_root_number_across_months_and_keep_unique_suffixes(): void
@@ -557,6 +598,7 @@ class PurchaseReturnWorkflowTest extends TestCase
         $new = PurchaseReturn::latest('id')->first();
         $this->post(route('purchase.returns.approve', $return))->assertSessionHasErrors('return');
         $this->post(route('purchase.returns.approve', $new))->assertSessionHasNoErrors();
+        $this->get(route('purchase.returns.show', $new))->assertOk()->assertDontSee('Serahkan Retur');
         $this->post(route('purchase.returns.dispatch', $new))->assertSessionHasErrors('return');
         $this->assertEquals(540, Stock::sum('quantity'));
     }
@@ -572,6 +614,11 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->assertDatabaseCount('purchase_receipt_items', 0);
         $this->assertEquals(90, $this->order->items()->first()->receivableQuantity());
         $this->get(route('purchase.receipts.show', PurchaseReceipt::first()))->assertOk()->assertSee('Hasil Pemeriksaan');
+        $this->get(route('inventory.stock-card.show', [
+            'product' => $this->order->items()->first()->product_id,
+            'location_id' => $this->location->id,
+        ]))->assertOk()->assertSee('Pemeriksaan Penerimaan')->assertSee('4 Dus tiba, 0 Dus lolos pemeriksaan')
+            ->assertViewHas('movements', fn ($rows) => $rows->total() === 1 && (float) $rows->first()->card_balance === 0.0);
         $this->assertFalse($this->order->fresh()->canModify());
         $this->delete(route('purchase.orders.destroy', $this->order))->assertSessionHas('error');
     }
@@ -611,11 +658,13 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->post(route('purchase.returns.approve', $return))->assertForbidden();
         $this->post(route('purchase.returns.reject', $return), ['rejection_reason' => 'Tidak sesuai'])->assertForbidden();
         $this->actingAs($this->owner)->post(route('purchase.returns.approve', $return))->assertSessionHasNoErrors();
-        $this->actingAs($warehouse)->get(route('purchase.returns.show', $return))->assertOk()->assertDontSee('Detail PO');
+        $this->actingAs($warehouse)->get(route('purchase.returns.show', $return))->assertOk()
+            ->assertSee('Serahkan Retur')->assertDontSee('Detail PO');
         $this->post(route('purchase.returns.dispatch', $return))->assertSessionHasNoErrors();
         $cashier = User::create(['name' => 'Kasir', 'email' => 'cashier-return@example.com', 'password' => 'password', 'role' => 'kasir']);
         $this->actingAs($cashier)->get(route('purchase.returns.index'))->assertForbidden();
         $this->post(route('purchase.returns.approve', $return))->assertForbidden();
+        $this->post(route('purchase.returns.dispatch', $return))->assertForbidden();
     }
 
     public function test_partial_claims_and_repeated_form_submission_do_not_duplicate_documents(): void

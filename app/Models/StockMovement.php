@@ -24,6 +24,11 @@ class StockMovement extends Model
     public function createdBy() { return $this->belongsTo(User::class, 'created_by'); }
     public function reference() { return $this->morphTo(); }
 
+    public function getCardTypeLabelAttribute(?string $value): string
+    {
+        return $value ?? $this->type_label;
+    }
+
     public function getTypeLabelAttribute(): string
     {
         return match ($this->movement_type) {

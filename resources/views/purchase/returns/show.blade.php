@@ -19,6 +19,27 @@
 @if($return->status==='draft' && auth()->user()->canAccessRoute('purchase.returns.approve'))
 <div class="bg-white p-3 mb-3 border-bottom"><form method="POST" action="{{ route('purchase.returns.approve',$return) }}" data-confirm="Setujui pengajuan retur/klaim dan terbitkan PO Retur tanpa tagihan tambahan?" data-confirm-title="Persetujuan Retur/Klaim" data-confirm-tone="success" data-confirm-label="Setujui dan Terbitkan PO" class="mb-3">@csrf<button class="btn btn-primary"><i class="bi bi-check-circle me-1"></i>Setujui dan Terbitkan PO</button></form><form method="POST" action="{{ route('purchase.returns.reject',$return) }}" data-confirm="Tolak pengajuan retur/klaim ini?" data-confirm-label="Tolak Pengajuan" class="d-flex flex-wrap gap-2"><input name="rejection_reason" class="form-control" placeholder="Alasan penolakan" aria-label="Alasan penolakan" maxlength="2000" required>@csrf<button class="btn btn-outline-danger text-nowrap"><i class="bi bi-x-circle me-1"></i>Tolak Pengajuan</button></form></div>
 @endif
+@if($return->status === 'approved' && $return->items->contains(fn ($item) => in_array($item->kind, ['damaged', 'wrong'], true)))
+    <section class="bg-white p-3 mb-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <h6 class="fw-bold mb-1">Penyerahan Retur Fisik</h6>
+            @if($return->dispatched_at)
+                <span class="badge bg-success">Sudah Diserahkan</span>
+                <span class="small text-muted ms-1">{{ $return->dispatched_at->format('d/m/Y H:i') }} · {{ $return->dispatchedBy?->name ?? 'Sistem' }}</span>
+            @else
+                <span class="small text-muted">Belum diserahkan ke supplier</span>
+            @endif
+        </div>
+        @if(! $return->dispatched_at && auth()->user()->canAccessRoute('purchase.returns.dispatch'))
+            <form method="POST" action="{{ route('purchase.returns.dispatch', $return) }}"
+                  data-confirm="Pastikan barang retur sudah diserahkan ke supplier sebelum mencatat penyerahan."
+                  data-confirm-title="Serahkan Retur?" data-confirm-label="Serahkan Retur">
+                @csrf
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-box-arrow-up me-1" aria-hidden="true"></i>Serahkan Retur</button>
+            </form>
+        @endif
+    </section>
+@endif
 @if($return->replacementOrder)
 <section class="bg-white p-3 mb-3 border-bottom"><div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><div><h6 class="fw-bold mb-1">PO Retur: {{ $return->replacementOrder->po_number }}</h6><span class="small text-muted">Tanpa tagihan tambahan | {{ $return->replacementOrder->status==='completed'?'Pemenuhan Selesai':'Menunggu Penerimaan' }}</span></div><div class="d-flex gap-2">@if(auth()->user()->canAccessRoute('purchase.orders.show'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('purchase.orders.show',$return->replacementOrder) }}"><i class="bi bi-eye me-1"></i>Detail PO</a>@endif @if($return->replacementOrder->status!=='completed' && auth()->user()->canAccessRoute('purchase.receipts.create'))<a class="btn btn-sm btn-primary" href="{{ route('purchase.receipts.create',['order_id'=>$return->replacementOrder->id]) }}"><i class="bi bi-box-arrow-in-down me-1"></i>Catat Penerimaan</a>@endif</div></div>
 <div class="app-detail-scroll">@foreach($return->replacementOrder->items as $replacement)<div class="d-flex flex-wrap justify-content-between border-top py-2 gap-2"><span>{{ $replacement->product->name }}</span><span>{{ \App\Support\DisplayNumber::quantity($replacement->quantity_received) }} / {{ \App\Support\DisplayNumber::quantity($replacement->quantity_ordered) }} {{ $replacement->productUnit?->unit?->name }} baik</span></div>@endforeach</div></section>

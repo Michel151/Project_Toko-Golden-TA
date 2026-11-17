@@ -7,12 +7,16 @@ use App\Models\Location;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Exports\ReportExport;
+use App\Services\StockCardPurchaseHistory;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StockCardController extends Controller
 {
+    public function __construct(private StockCardPurchaseHistory $purchaseHistory) {}
+
     public function show(Request $request, Product $product)
     {
         $data = $this->cardData($request, $product);
@@ -32,7 +36,7 @@ class StockCardController extends Controller
         $rows = $data['movements']->map(function ($movement) use ($product) {
             $quantity = (float) $movement->quantity;
             return [$movement->movement_date->format('d/m/Y'), $movement->reference_number ?? '-',
-                $movement->type_label.($movement->notes ? ' - '.$movement->notes : ''), $movement->location->name, $movement->createdBy->name ?? 'Sistem',
+                $movement->card_type_label.($movement->notes ? ' - '.$movement->notes : ''), $movement->location?->name ?? '-', $movement->createdBy->name ?? 'Sistem',
                 $quantity > 0 ? $product->displayStock($quantity) : '-',
                 $quantity < 0 ? $product->displayStock(abs($quantity)) : '-',
                 $product->displayStock((float) $movement->card_balance)];
@@ -74,17 +78,16 @@ class StockCardController extends Controller
             'stockBatches.location',
             'stockBatches.purchaseReceiptItem.purchaseReceipt.purchaseOrder',
         ]);
-        $from = $request->get('from', now()->startOfMonth()->toDateString());
-        $to = $request->get('to', now()->toDateString());
+        $from = $request->date('from')?->toDateString() ?? now()->startOfMonth()->toDateString();
+        $to = $request->date('to')?->toDateString() ?? now()->toDateString();
         $locationId = $request->filled('location_id') ? (int) $request->location_id : null;
 
-        $query = StockMovement::with(['location', 'createdBy'])
+        $periodMovements = StockMovement::with(['location', 'createdBy'])
             ->where('product_id', $product->id)
             ->when($locationId, fn ($q) => $q->where('location_id', $locationId))
-            ->whereBetween('movement_date', [$from, $to])
-            ->orderBy('movement_date')->orderBy('id');
-
-        $periodMovements = (clone $query)->get();
+            ->whereDate('movement_date', '>=', $from)
+            ->whereDate('movement_date', '<=', $to)
+            ->orderBy('movement_date')->orderBy('id')->get();
         $currentBalance = $locationId
             ? (float) ($product->stocks->firstWhere('location_id', $locationId)?->quantity ?? 0)
             : (float) $product->stocks->sum('quantity');
@@ -97,25 +100,29 @@ class StockCardController extends Controller
         $totalIn = (float) $periodMovements->where('quantity', '>', 0)->sum('quantity');
         $totalOut = abs((float) $periodMovements->where('quantity', '<', 0)->sum('quantity'));
 
+        $purchaseNotes = $this->purchaseHistory->rows($product, $periodMovements, $from, $to, $locationId);
+        $cardRows = $periodMovements->toBase()->concat($purchaseNotes)->sortBy([
+            fn ($a, $b) => $a->movement_date->timestamp <=> $b->movement_date->timestamp,
+            fn ($a, $b) => $a->created_at?->timestamp <=> $b->created_at?->timestamp,
+            fn ($a, $b) => $b->exists <=> $a->exists,
+            fn ($a, $b) => $a->id <=> $b->id,
+        ]);
         $runningBalance = $openingBalance;
-        $cardRows = $periodMovements->map(function ($movement) use (&$runningBalance) {
+        foreach ($cardRows as $movement) {
             $runningBalance += (float) $movement->quantity;
             $movement->card_balance = $runningBalance;
-            return $movement;
-        });
+        }
 
-        $query->when($request->filled('movement_type'), fn ($q) => $q->where('movement_type', $request->movement_type))
-            ->when($request->direction === 'in', fn ($q) => $q->where('quantity', '>', 0))
-            ->when($request->direction === 'out', fn ($q) => $q->where('quantity', '<', 0));
-
-        $movements = $paginate
-            ? $query->reorder()->orderByDesc('movement_date')->orderByDesc('id')->paginate(25)->withQueryString()
-            : $query->get();
-        $rowsById = $cardRows->keyBy('id');
-        $visibleRows = $paginate ? $movements->getCollection() : $movements;
-        $visibleRows->each(function ($movement) use ($rowsById) {
-            $movement->card_balance = $rowsById[$movement->id]->card_balance;
-        });
+        $movements = $cardRows
+            ->when($request->filled('movement_type'), fn ($rows) => $rows->where('movement_type', $request->movement_type))
+            ->when($request->direction === 'in', fn ($rows) => $rows->where('quantity', '>', 0))
+            ->when($request->direction === 'out', fn ($rows) => $rows->where('quantity', '<', 0))
+            ->values();
+        if ($paginate) {
+            $page = LengthAwarePaginator::resolveCurrentPage();
+            $movements = (new LengthAwarePaginator($movements->reverse()->forPage($page, 25)->values(),
+                $movements->count(), 25, $page, ['path' => $request->url()]))->withQueryString();
+        }
 
         return compact(
             'product', 'movements', 'from', 'to', 'locationId', 'openingBalance',

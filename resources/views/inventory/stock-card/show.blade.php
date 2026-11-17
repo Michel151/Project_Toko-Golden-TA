@@ -179,15 +179,15 @@
     </form>
 </div>
 <div class="card table-card">
-    <div class="card-header bg-white border-0 py-3"><h6 class="fw-bold mb-1">Mutasi Persediaan</h6><small class="text-muted">{{ $movements->total() }} transaksi sesuai filter dalam periode terpilih</small>
+    <div class="card-header bg-white border-0 py-3"><h6 class="fw-bold mb-1">Mutasi Persediaan</h6><small class="text-muted">{{ $movements->total() }} catatan sesuai filter dalam periode terpilih</small>
         @if(request()->filled('movement_type') || request()->filled('direction'))<div class="small text-muted mt-1">Ringkasan dan saldo mencakup seluruh transaksi pada lokasi dan periode terpilih.</div>@endif
     </div>
     <div class="table-responsive"><table class="table table-hover stock-card-table app-mobile-records mb-0" data-mobile-records>
         <thead><tr><th>Tanggal</th><th>Referensi</th><th>Keterangan</th><th>Lokasi</th><th>Petugas</th><th class="text-end">Masuk</th><th class="text-end">Keluar</th><th class="text-end">Saldo</th></tr></thead>
         <tbody>
         @forelse($movements as $movement)
-            @php $quantity = (float) $movement->quantity; @endphp
-            <tr><td class="text-nowrap">{{ $movement->movement_date->format('d/m/Y') }}<div class="small text-muted">{{ $movement->created_at->format('H:i') }}</div></td><td class="font-monospace small">{{ $movement->reference_number ?? '-' }}</td><td><span class="badge bg-{{ $quantity > 0 ? 'success' : 'danger' }} bg-opacity-10 text-{{ $quantity > 0 ? 'success' : 'danger' }}">{{ $movement->type_label }}</span>@if($movement->notes)<div class="small text-muted mt-1">{{ $movement->notes }}</div>@endif</td><td><i class="bi bi-geo-alt text-muted me-1"></i>{{ $movement->location->name }}</td><td class="small text-muted">{{ $movement->createdBy->name ?? 'Sistem' }}</td><td class="text-end fw-semibold text-success">{{ $quantity > 0 ? $product->displayStock($quantity) : '-' }}</td><td class="text-end fw-semibold text-danger">{{ $quantity < 0 ? $product->displayStock(abs($quantity)) : '-' }}</td><td class="text-end fw-bold">{{ $product->displayStock((float) $movement->card_balance) }}</td></tr>
+            @php $quantity = (float) $movement->quantity; $tone = $quantity > 0 ? 'success' : ($quantity < 0 ? 'danger' : 'secondary'); @endphp
+            <tr><td class="text-nowrap">{{ $movement->movement_date->format('d/m/Y') }}<div class="small text-muted">{{ $movement->created_at?->format('H:i') }}</div></td><td class="font-monospace small">{{ $movement->reference_number ?? '-' }}</td><td><span class="badge bg-{{ $tone }} bg-opacity-10 text-{{ $tone }}">{{ $movement->card_type_label }}</span>@if($movement->notes)<div class="small text-muted mt-1">{{ $movement->notes }}</div>@endif</td><td><i class="bi bi-geo-alt text-muted me-1"></i>{{ $movement->location?->name ?? '-' }}</td><td class="small text-muted">{{ $movement->createdBy->name ?? 'Sistem' }}</td><td class="text-end fw-semibold text-success">{{ $quantity > 0 ? $product->displayStock($quantity) : '-' }}</td><td class="text-end fw-semibold text-danger">{{ $quantity < 0 ? $product->displayStock(abs($quantity)) : '-' }}</td><td class="text-end fw-bold">{{ $product->displayStock((float) $movement->card_balance) }}</td></tr>
         @empty
             <tr><td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada mutasi pada periode ini</td></tr>
         @endforelse
