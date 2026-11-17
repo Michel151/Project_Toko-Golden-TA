@@ -289,6 +289,27 @@ class NotificationCenterTest extends TestCase
         $this->assertSame('expired', $service->forRequest()[0]['kind']);
     }
 
+    public function test_store_at_its_minimum_recommends_available_warehouse_surplus_instead_of_a_po(): void
+    {
+        $product = $this->product('Aqua Uji', ['min_stock_total' => 50]);
+        $store = $this->stock($product, 'Toko', 5, 5);
+        $warehouseTwo = $this->stock($product, 'Gudang 2', 50, 10);
+        $warehouseOne = $this->stock($product, 'Gudang 1', 46, 5);
+        $url = route('notifications.index', ['product_id' => $product->id]);
+        $transfer = route('inventory.transfers.create', [
+            'product_id' => $product->id, 'from_location_id' => $warehouseOne->id, 'to_location_id' => $store->id,
+        ]);
+        $this->actingAs($this->owner)->get($url)->assertOk()->assertSee('Stok Rendah')
+            ->assertSee('Direkomendasikan transfer stok dari Gudang 1 ke Toko.')
+            ->assertSee(e($transfer), false)->assertDontSee('Buat PO');
+
+        Stock::where('location_id', $warehouseTwo->id)->update(['quantity' => 10]);
+        Stock::where('location_id', $warehouseOne->id)->update(['quantity' => 5]);
+        $product->update(['min_stock_total' => 15]);
+        $this->get($url)->assertOk()->assertSee('Stok berada pada batas minimum')
+            ->assertDontSee('Buat Transfer')->assertDontSee('Buat PO');
+    }
+
     public function test_store_surplus_is_kept_for_sales_and_warehouse_shortage_requires_po(): void
     {
         $product = $this->product('Stok untuk penjualan');

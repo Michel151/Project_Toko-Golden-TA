@@ -93,6 +93,8 @@ class NotificationService
                     : 'Periksa penerimaan dan distribusi barang sebelum membuat pesanan tambahan.';
             } elseif ($shortfall > 0) {
                 $advice = 'Direkomendasikan pengadaan dari supplier untuk memenuhi kekurangan stok sebesar '.$display($shortfall).'.';
+            } elseif ($stock['empty']) {
+                $advice = 'Total stok layak jual habis. Pertimbangkan pengadaan dari supplier.';
             } elseif ($stock['transfers'] === []) {
                 $advice = 'Stok berada pada batas minimum. Pantau kebutuhan sebelum menambah pesanan.';
             }
@@ -106,6 +108,7 @@ class NotificationService
             'location_names' => $locations, 'badges' => $badges, 'conditions' => $conditions->all(),
             'summary' => $primary['message'], 'message' => $conditions->pluck('message')->implode(' '),
             'transfers' => $stock['transfers'], 'incoming_quantity' => $incoming, 'orders' => $orders, 'advice' => $advice, 'shortfall' => $shortfall,
+            'suggest_purchase' => $shortfall > 0 || ($stock['empty'] && $incoming <= 0),
         ])];
     }
 
@@ -249,6 +252,25 @@ class NotificationService
                 $needed -= $quantity;
             }
         }
+        // A store at its minimum can use surplus left after covering actual shortages.
+        // This is a route suggestion only, so it does not create additional demand.
+        $sourceId = null;
+        $largestSurplus = 0.0;
+        foreach ($locations as $id => $location) {
+            $surplus = round($planned[$id] - $location['minimum'], 4);
+            if ($location['can_supply'] && $surplus > $largestSurplus) {
+                $sourceId = $id;
+                $largestSurplus = $surplus;
+            }
+        }
+        if ($sourceId !== null) {
+            foreach ($locations as $id => $location) {
+                if (! $location['can_supply'] && $location['quantity'] > 0 && $location['quantity'] === $location['minimum']) {
+                    $transfers[] = ['source_id' => $sourceId, 'destination_id' => $id, 'quantity' => null,
+                        'message' => 'Direkomendasikan transfer stok dari '.$locations[$sourceId]['name'].' ke '.$location['name'].'.'];
+                }
+            }
+        }
         $locationShortfall = 0.0;
         foreach ($locations as $id => $location) {
             if ($location['monitored'] || ! $location['can_supply']) {
@@ -261,7 +283,8 @@ class NotificationService
             $conditions[] = $this->condition($total <= 0 ? 'out_of_stock' : 'low_stock', $message, $ids->all(), array_column($locations, 'name'));
         }
 
-        return ['conditions' => $conditions, 'transfers' => $transfers, 'shortfall' => max($locationShortfall, $minimum - $total, 0)];
+        return ['conditions' => $conditions, 'transfers' => $transfers, 'empty' => $total <= 0,
+            'shortfall' => max($locationShortfall, $minimum - $total, 0)];
     }
 
     private function expiryConditions(Product $product, \Carbon\CarbonInterface $today, callable $display): array

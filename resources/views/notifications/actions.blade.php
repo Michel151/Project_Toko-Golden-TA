@@ -23,7 +23,7 @@
         </a>
         @endforeach
     @endif
-    @if(auth()->user()->canAccessRoute('purchase.orders.create') && collect($notif['conditions'])->contains(fn ($condition) => $condition['type'] === 'stock') && ($notif['shortfall'] > 0 || ($notif['incoming_quantity'] <= 0 && empty($notif['transfers']))))
+    @if($notif['suggest_purchase'] && auth()->user()->canAccessRoute('purchase.orders.create'))
     <a class="btn btn-sm btn-outline-success" href="{{ route('purchase.orders.create', ['product_id'=>$notif['product_id']]) }}"><i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Buat PO</a>
     @endif
     @if(auth()->user()->canAccessRoute('purchase.orders.show'))
