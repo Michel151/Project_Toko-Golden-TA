@@ -32,9 +32,9 @@ class SupplierImportTrialTemplateExport implements WithMultipleSheets
             }
         }
         return [
-            new ProductImportTrialSheetExport('Master Supplier',SupplierImportTrialService::HEADINGS['Master Supplier'],$suppliers,['A'=>'@','D'=>'@','E'=>'0'],[]),
-            new ProductImportTrialSheetExport('Supplier Barang',SupplierImportTrialService::HEADINGS['Supplier Barang'],$links,['A'=>'@','B'=>'0','C'=>'@','D'=>'@','E'=>'0.00'],[]),
-            new ProductImportTrialSheetExport('Referensi Barang',SupplierImportTrialService::HEADINGS['Referensi Barang'],$references,['A'=>'0','B'=>'@'],[]),
+            new ProductImportSheetExport('Master Supplier',SupplierImportTrialService::HEADINGS['Master Supplier'],$suppliers,['A'=>'@','D'=>'@','E'=>'0'],[]),
+            new ProductImportSheetExport('Supplier Barang',SupplierImportTrialService::HEADINGS['Supplier Barang'],$links,['A'=>'@','B'=>'0','C'=>'@','D'=>'@','E'=>'0.00'],[]),
+            new ProductImportSheetExport('Referensi Barang',SupplierImportTrialService::HEADINGS['Referensi Barang'],$references,['A'=>'0','B'=>'@'],[]),
         ];
     }
 }

@@ -6,7 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
-class ProductImportTrialService
+class ProductImportPreviewService
 {
     public const HEADINGS = [
         'Barang' => ['kode_barang','nama_barang','barcode','kategori','satuan_beli','satuan_jual','stok_minimum','kedaluwarsa'],

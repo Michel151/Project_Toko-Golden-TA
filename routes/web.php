@@ -104,14 +104,14 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware(['role:owner', 'throttle:10,1'])->name('users.reset-password');
         Route::patch('users/{user}/status', [UserController::class, 'updateStatus'])->middleware('role:owner')->name('users.status');
         Route::resource('users',      UserController::class)->except(['show'])->middleware('role:owner');
-        Route::get('products/import', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'create'])->middleware('permission:master.products')->name('products.import');
+        Route::get('products/import', [\App\Http\Controllers\MasterData\ProductImportController::class, 'create'])->middleware('permission:master.products')->name('products.import');
         Route::get('products/import-trial', fn (\Illuminate\Http\Request $request) => redirect()->route('master.products.import', $request->only('preview')))->middleware('permission:master.products')->name('products.import-trial');
         Route::get('products/import-trial/template', fn () => redirect()->route('master.products.import.template'))->middleware('permission:master.products')->name('products.import-trial.template');
-        Route::post('products/import-trial', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'preview'])->middleware('permission:master.products')->name('products.import-trial.preview');
-        Route::post('products/import-trial/store', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'store'])->middleware('permission:master.products')->name('products.import-trial.store');
-        Route::get('products/import/template', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'template'])->middleware('permission:master.products')->name('products.import.template');
-        Route::post('products/import', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'preview'])->middleware('permission:master.products')->name('products.import.preview');
-        Route::post('products/import/store', [\App\Http\Controllers\MasterData\ProductImportTrialController::class, 'store'])->middleware('permission:master.products')->name('products.import.store');
+        Route::post('products/import-trial', [\App\Http\Controllers\MasterData\ProductImportController::class, 'preview'])->middleware('permission:master.products')->name('products.import-trial.preview');
+        Route::post('products/import-trial/store', [\App\Http\Controllers\MasterData\ProductImportController::class, 'store'])->middleware('permission:master.products')->name('products.import-trial.store');
+        Route::get('products/import/template', [\App\Http\Controllers\MasterData\ProductImportController::class, 'template'])->middleware('permission:master.products')->name('products.import.template');
+        Route::post('products/import', [\App\Http\Controllers\MasterData\ProductImportController::class, 'preview'])->middleware('permission:master.products')->name('products.import.preview');
+        Route::post('products/import/store', [\App\Http\Controllers\MasterData\ProductImportController::class, 'store'])->middleware('permission:master.products')->name('products.import.store');
         Route::get('products/{product}/label', [ProductController::class, 'printLabel'])
              ->middleware('permission:master.products')->name('products.label');
         Route::resource('products',   ProductController::class)->middleware('permission:master.products');

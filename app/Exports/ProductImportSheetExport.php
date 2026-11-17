@@ -6,7 +6,7 @@ use Maatwebsite\Excel\Concerns\{FromArray, ShouldAutoSize, WithColumnFormatting,
 use PhpOffice\PhpSpreadsheet\Cell\{Cell, DataType, DataValidation, DefaultValueBinder};
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ProductImportTrialSheetExport implements FromArray, ShouldAutoSize, WithColumnFormatting, WithCustomValueBinder, WithStyles, WithTitle
+class ProductImportSheetExport implements FromArray, ShouldAutoSize, WithColumnFormatting, WithCustomValueBinder, WithStyles, WithTitle
 {
     public function __construct(private string $name, private array $headers, private array $rows, private array $formats, private array $dropdowns) {}
 

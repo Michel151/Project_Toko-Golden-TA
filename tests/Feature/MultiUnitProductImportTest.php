@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Exports\ProductImportTrialTemplateExport;
+use App\Exports\ProductImportTemplateExport;
 use App\Models\{Category,Location,Product,ProductImportRun,Stock,StockBatch,StockMovement,Unit,User};
-use App\Services\MultiUnitProductImportService;
+use App\Services\ProductImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -24,13 +24,13 @@ class MultiUnitProductImportTest extends TestCase
     private function sheets(): array
     {
         $sheets=[];
-        foreach((new ProductImportTrialTemplateExport)->sheets() as $sheet) $sheets[$sheet->title()]=$sheet->array();
+        foreach((new ProductImportTemplateExport)->sheets() as $sheet) $sheets[$sheet->title()]=$sheet->array();
         return $sheets;
     }
 
     private function stage(?array $sheets=null): ProductImportRun
     {
-        return app(MultiUnitProductImportService::class)->stage($sheets ?? $this->sheets(),$this->owner->id);
+        return app(ProductImportService::class)->stage($sheets ?? $this->sheets(),$this->owner->id);
     }
 
     public function test_confirmed_import_creates_units_chain_prices_and_initial_stock_exactly_once(): void
@@ -108,14 +108,14 @@ class MultiUnitProductImportTest extends TestCase
     {
         $sheets=$this->sheets();
         $sheets['Stok Awal'][5][4]='';
-        $plan=app(MultiUnitProductImportService::class)->prepare($sheets);
+        $plan=app(ProductImportService::class)->prepare($sheets);
         $this->assertStringContainsString('wajib memiliki tanggal_kedaluwarsa',json_encode($plan['errors']));
         $sheets=$this->sheets();
         $sheets['Stok Awal'][1][4]='2027-01-01';
-        $this->assertStringContainsString('kedaluwarsa barang adalah tidak',json_encode(app(MultiUnitProductImportService::class)->prepare($sheets)['errors']));
+        $this->assertStringContainsString('kedaluwarsa barang adalah tidak',json_encode(app(ProductImportService::class)->prepare($sheets)['errors']));
         $sheets=$this->sheets();
         $sheets['Stok Awal'][5][4]='2026-02-31';
-        $this->assertStringContainsString('yang valid',json_encode(app(MultiUnitProductImportService::class)->prepare($sheets)['errors']));
+        $this->assertStringContainsString('yang valid',json_encode(app(ProductImportService::class)->prepare($sheets)['errors']));
         $this->assertDatabaseCount('products',0);
     }
 

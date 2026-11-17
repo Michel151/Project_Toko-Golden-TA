@@ -2,155 +2,114 @@
 
 namespace App\Services;
 
-use App\Models\Category;
-use App\Models\Location;
-use App\Models\Product;
-use App\Models\ProductLocation;
-use App\Models\ProductUnit;
-use App\Models\Supplier;
-use App\Models\Unit;
+use App\Models\{Category,Location,Product,ProductImportRun,ProductLocation,ProductUnit,Unit};
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ProductImportService
 {
-    public const REQUIRED_HEADINGS = ['nama_barang', 'barcode', 'kategori', 'satuan_dasar', 'harga_beli', 'harga_jual', 'lokasi', 'stok_aktual', 'stok_minimum'];
-
-    public const HEADINGS = [...self::REQUIRED_HEADINGS, 'supplier'];
-
-    public function import(array $rows, bool $importStock): array
+    public function prepare(array $sheets): array
     {
-        $headings = array_map(fn ($value) => trim((string) $value), array_shift($rows) ?? []);
-        if (count(array_unique($headings)) !== count($headings) || array_diff(self::REQUIRED_HEADINGS, $headings)) {
-            $this->fail('Baris 1 harus berisi semua judul kolom sesuai template, tanpa judul ganda.');
-        }
-        if (count($rows) > 5000) {
-            $this->fail('Maksimal 5.000 baris per impor. Pisahkan data ke beberapa file.');
-        }
-
-        return DB::transaction(function () use ($rows, $headings, $importStock) {
-            $result = ['created' => 0, 'existing' => 0, 'stocks' => 0];
-            $seen = [];
-            $reference = 'IMPORT-' . now()->format('Ymd-His');
-            foreach ($rows as $index => $values) {
-                if (! array_filter($values, fn ($value) => $value !== null && trim((string) $value) !== '')) {
-                    continue;
-                }
-                $line = $index + 2;
-                $data = [];
-                foreach ($headings as $column => $heading) {
-                    $value = $values[$column] ?? null;
-                    $data[$heading] = is_string($value) ? trim($value) : $value;
-                }
-                $validator = Validator::make($data, [
-                    'nama_barang' => 'required|string|max:200',
-                    'barcode' => 'nullable|max:100',
-                    'kategori' => 'required|string|max:255',
-                    'satuan_dasar' => 'required|string|max:255',
-                    'harga_beli' => 'required|numeric|min:0|max:9999999999999.99',
-                    'harga_jual' => 'required|numeric|min:0|max:9999999999999.99',
-                    'lokasi' => 'required|string|max:255',
-                    'stok_aktual' => 'nullable|numeric|min:0|max:99999999999.9999',
-                    'stok_minimum' => 'nullable|numeric|min:0|max:99999999999.9999',
-                    'supplier' => 'nullable|string|max:2000',
-                ]);
-                if ($validator->fails()) {
-                    $this->fail("Baris {$line}: " . implode(' ', $validator->errors()->all()));
-                }
-
-                $barcode = (string) ($data['barcode'] ?? '');
-                $matches = $barcode !== ''
-                    ? Product::where('barcode', $barcode)->lockForUpdate()->get()
-                    : Product::where('name', $data['nama_barang'])->lockForUpdate()->get();
-                if ($matches->count() > 1) {
-                    $this->fail("Baris {$line}: nama barang tidak unik. Isi barcode untuk menentukan barang.");
-                }
-                $product = $matches->first();
-                if (! $product && $barcode !== '' && Product::where('name', $data['nama_barang'])->exists()) {
-                    $this->fail("Baris {$line}: nama barang sudah ada dengan barcode lain. Gunakan barcode yang tersimpan.");
-                }
-                if ($product) {
-                    $baseUnit = $product->baseProductUnit?->unit ?? ($product->can_retail ? $product->retailUnit : $product->buyUnit);
-                    if (mb_strtolower($baseUnit?->name ?? '') !== mb_strtolower($data['satuan_dasar'])) {
-                        $this->fail("Baris {$line}: satuan dasar harus sesuai barang yang tersimpan ({$baseUnit?->name}).");
-                    }
-                    if (mb_strtolower($product->name) !== mb_strtolower($data['nama_barang'])) {
-                        $this->fail("Baris {$line}: barcode cocok dengan barang lain ({$product->name}).");
-                    }
-                    $result['existing']++;
-                } else {
-                    $category = Category::firstOrCreate(['name' => $data['kategori']]);
-                    $unit = Unit::firstOrCreate(['name' => $data['satuan_dasar']]);
-                    $product = Product::create([
-                        'name' => $data['nama_barang'], 'barcode' => $barcode ?: null,
-                        'category_id' => $category->id, 'buy_unit_id' => $unit->id,
-                        'retail_unit_id' => $unit->id, 'conversion_factor' => 1,
-                        'buy_price' => $data['harga_beli'], 'sell_price_wholesale' => $data['harga_jual'],
-                        'sell_price_retail' => $data['harga_jual'], 'can_retail' => false,
-                        'is_active' => true, 'is_expirable' => false,
-                        'min_stock_total' => $data['stok_minimum'] ?: 0,
-                    ]);
-                    ProductUnit::create([
-                        'product_id' => $product->id, 'unit_id' => $unit->id,
-                        'contains_quantity' => 1, 'conversion_to_base' => 1,
-                        'buy_price' => $data['harga_beli'], 'sell_price' => $data['harga_jual'],
-                        'is_base_unit' => true, 'is_default_purchase' => true, 'is_default_sale' => true,
-                    ]);
-                    if (! $product->barcode) {
-                        $product->updateQuietly(['barcode' => 'TG' . str_pad((string) $product->id, 10, '0', STR_PAD_LEFT)]);
-                    }
-                    $result['created']++;
-                }
-                $this->linkSuppliers($product, $data['supplier'] ?? null, $line);
-                $location = Location::firstOrCreate(['name' => $data['lokasi']]);
-                $key = $product->id . ':' . $location->id;
-                if (isset($seen[$key])) {
-                    $this->fail("Baris {$line}: barang dan lokasi sudah tercantum pada baris {$seen[$key]}.");
-                }
-                $seen[$key] = $line;
-                ProductLocation::firstOrCreate(['product_id' => $product->id, 'location_id' => $location->id], ['min_stock' => 0]);
-                $product->stocks()->firstOrCreate(['location_id' => $location->id], ['quantity' => 0]);
-                if ($importStock && $data['stok_aktual'] !== null && $data['stok_aktual'] !== '') {
-                    app(StockService::class)->adjustStock($product, $location, (float) $data['stok_aktual'], referenceNumber: $reference, valuationUnitCost: (string) $data['harga_beli']);
-                    $result['stocks']++;
-                }
+        $plan=app(ProductImportPreviewService::class)->preview($sheets,auth()->user()?->hasPermission('master.suppliers.view') ?? false,true);
+        $issues=[]; $names=[]; $normalize=fn($value)=>mb_strtolower(trim((string)$value));
+        $sheetNames=array_map($normalize,array_keys($sheets)); sort($sheetNames);
+        if($sheetNames!==['barang','satuan','stok awal']) $issues[]=['sheet'=>'File','row'=>1,'message'=>'Penyimpanan hanya menerima template tiga sheet barang. Supplier tetap diimpor melalui menu Master Supplier.'];
+        foreach($plan['products'] as $product){
+            $name=$normalize($product['nama_barang']);
+            if(isset($names[$name])) $issues[]=['sheet'=>'Barang','row'=>$product['_row'],'message'=>'Nama barang ganda dalam file. Gunakan nama yang berbeda untuk setiap produk.'];
+            $names[$name]=true;
+            $existing=Product::where(function($query) use($product,$name){
+                $query->whereRaw('LOWER(name) = ?',[$name]);
+                if(filled($product['barcode'])) $query->orWhere('barcode',$product['barcode']);
+            })->exists();
+            if($existing) $issues[]=['sheet'=>'Barang','row'=>$product['_row'],'message'=>'Barang/barcode sudah terdaftar. Impor multi satuan hanya membuat barang baru; data lama tidak ditimpa.'];
+            foreach($product['units'] as $unit){
+                if($normalize($unit['satuan'])===$normalize($product['satuan_beli']) && $unit['conversion']>999999.9999) $issues[]=['sheet'=>'Satuan','row'=>$unit['_row'],'message'=>'Konversi satuan beli melebihi batas 999999,9999 pada produk.'];
             }
-            if (! $seen) {
-                $this->fail('File tidak berisi data barang.');
-            }
-            return $result;
+        }
+        $plan['error_count']+=count($issues);
+        $plan['errors']=array_slice(array_merge($plan['errors'],$issues),0,200);
+        return $plan;
+    }
+
+    public function stage(array $sheets, int $userId): ProductImportRun
+    {
+        ProductImportRun::where('user_id',$userId)->where('status','pending')->where('expires_at','<',now('Asia/Jakarta'))->delete();
+        return ProductImportRun::create(['token'=>(string)Str::uuid(),'user_id'=>$userId,'payload'=>$sheets,
+            'expires_at'=>now('Asia/Jakarta')->addHour()]);
+    }
+
+    public function commit(string $token, int $userId): array
+    {
+        // Serialize separate uploads as well as double-clicks on the same confirmation.
+        return Cache::store('file')->lock('multi-unit-product-import',900)->block(10,function() use($token,$userId){
+            return DB::transaction(function() use($token,$userId){
+                $run=ProductImportRun::where('token',$token)->where('user_id',$userId)->lockForUpdate()->firstOrFail();
+                if($run->status==='completed') return $run->result;
+                if($run->expires_at->isPast() || !$run->payload) throw ValidationException::withMessages(['file'=>'Pratinjau sudah kedaluwarsa. Unggah ulang file sebelum menyimpan.']);
+                $plan=$this->prepare($run->payload);
+                if($plan['error_count']) throw ValidationException::withMessages(['file'=>array_map(fn($issue)=>$issue['sheet'].' baris '.$issue['row'].': '.$issue['message'],$plan['errors'])]);
+                $result=['created'=>0,'units'=>0,'stocks'=>0,'batches'=>0,'product_ids'=>[]];
+                $products=[]; $locations=[]; $named=[];
+                foreach($plan['products'] as $row){
+                    $unitIds=[];
+                    foreach($row['units'] as $unit) $unitIds[$this->key($unit['satuan'])]=$this->named(Unit::class,$unit['satuan'],$named)->id;
+                    $definitions=collect($row['units'])->keyBy(fn($unit)=>$this->key($unit['satuan']));
+                    $buy=$definitions[$this->key($row['satuan_beli'])]; $base=$definitions[$this->key($row['base'])];
+                    $product=Product::create([
+                        'name'=>$row['nama_barang'],'barcode'=>filled($row['barcode']) ? $row['barcode'] : null,
+                        'category_id'=>$this->named(Category::class,$row['kategori'],$named)->id,
+                        'buy_unit_id'=>$unitIds[$this->key($row['satuan_beli'])],'buy_price'=>$buy['harga_beli'],
+                        'sell_price_wholesale'=>$buy['harga_jual'],'can_retail'=>count($row['units'])>1,
+                        'retail_unit_id'=>$unitIds[$this->key($row['base'])],'conversion_factor'=>$buy['conversion'],
+                        'sell_price_retail'=>$base['harga_jual'],'min_stock_total'=>$row['stok_minimum'] ?: 0,
+                        'is_active'=>true,'is_expirable'=>$row['kedaluwarsa']==='ya',
+                    ]);
+                    if(!$product->barcode) $product->updateQuietly(['barcode'=>'TG'.str_pad((string)$product->id,10,'0',STR_PAD_LEFT)]);
+                    $createdUnits=[];
+                    foreach($row['units'] as $unit){
+                        $key=$this->key($unit['satuan']);
+                        $createdUnits[$key]=ProductUnit::create(['product_id'=>$product->id,'unit_id'=>$unitIds[$key],
+                            'contains_quantity'=>$unit['isi'],'conversion_to_base'=>$unit['conversion'],
+                            'buy_price'=>$unit['harga_beli'],'sell_price'=>$unit['harga_jual'],
+                            'is_base_unit'=>$key===$this->key($row['base']),
+                            'is_default_purchase'=>$key===$this->key($row['satuan_beli']),
+                            'is_default_sale'=>$key===$this->key($row['satuan_jual'])]);
+                    }
+                    foreach($row['units'] as $unit){
+                        $key=$this->key($unit['satuan']);
+                        if($key!==$this->key($row['base'])) $createdUnits[$key]->update(['contains_unit_id'=>$createdUnits[$this->key($unit['satuan_isi'])]->id]);
+                    }
+                    $products[$this->key($row['kode_barang'])]=$product;
+                    $result['created']++; $result['units']+=count($createdUnits); $result['product_ids'][]=$product->id;
+                }
+                foreach($plan['stocks'] as $row){
+                    $product=$products[$this->key($row['code'])];
+                    $location=$this->named(Location::class,$row['location'],$named);
+                    ProductLocation::firstOrCreate(['product_id'=>$product->id,'location_id'=>$location->id],['min_stock'=>0]);
+                    app(StockService::class)->initializeImportedStock($product,$location,(float)$row['quantity'],$run,$row['expiry'],$product->is_expirable ? $row['batch'] : null);
+                    $locations[$product->id.':'.$location->id]=true;
+                    if($product->is_expirable && $row['quantity']>0) $result['batches']++;
+                }
+                $result['stocks']=count($locations);
+                $run->update(['status'=>'completed','payload'=>null,'result'=>$result]);
+                return $result;
+            },3);
         });
     }
 
-    private function linkSuppliers(Product $product, ?string $names, int $line): void
-    {
-        $seen = [];
-        foreach (explode(';', $names ?? '') as $name) {
-            $name = trim($name);
-            $key = mb_strtolower($name);
-            if ($name === '' || isset($seen[$key])) {
-                continue;
-            }
-            if (mb_strlen($name) > 255) {
-                $this->fail("Baris {$line}: setiap nama supplier maksimal 255 karakter.");
-            }
-            $seen[$key] = true;
-            $matches = Supplier::whereRaw('LOWER(name) = ?', [$key])->get();
-            if ($matches->count() > 1) {
-                $this->fail("Baris {$line}: nama supplier {$name} tidak unik. Rapikan data supplier sebelum impor.");
-            }
-            $supplier = $matches->first() ?? Supplier::create(['name' => $name]);
-            if (! $product->suppliers()->whereKey($supplier->id)->exists()) {
-                $product->suppliers()->attach($supplier->id, [
-                    'buy_price' => $product->defaultPurchaseUnit?->buy_price ?? $product->buy_price,
-                ]);
-            }
-        }
-    }
+    private function key(string $name): string { return mb_strtolower(trim($name)); }
 
-    private function fail(string $message): never
+    private function named(string $class, string $name, array &$cache)
     {
-        throw ValidationException::withMessages(['file' => $message]);
+        $key=$class.':'.$this->key($name);
+        if(!isset($cache[$key])){
+            $matches=$class::whereRaw('LOWER(name) = ?',[$this->key($name)])->lockForUpdate()->get();
+            if($matches->count()>1) throw ValidationException::withMessages(['file'=>'Nama referensi tidak unik: '.$name.'. Rapikan data master terlebih dahulu.']);
+            $cache[$key]=$matches->first() ?? $class::create(['name'=>$name]);
+        }
+        return $cache[$key];
     }
 }

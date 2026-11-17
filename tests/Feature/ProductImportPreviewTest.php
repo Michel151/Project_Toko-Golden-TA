@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Exports\ProductImportTrialTemplateExport;
+use App\Exports\ProductImportTemplateExport;
 use App\Models\User;
 use App\Models\Supplier;
-use App\Services\ProductImportTrialService;
+use App\Services\ProductImportPreviewService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -14,16 +14,16 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
-class ProductImportTrialTest extends TestCase
+class ProductImportPreviewTest extends TestCase
 {
     use RefreshDatabase;
 
     private function data(): array
     {
         return [
-            'Barang'=>[ProductImportTrialService::HEADINGS['Barang'],['A','Barang A','00123','Kategori','Dus','Bks',0,'tidak']],
-            'Satuan'=>[ProductImportTrialService::HEADINGS['Satuan'],['A','Dus',5,'Bal',500,1000],['A','Bal',10,'Slop',100,200],['A','Slop',10,'Bks',10,20],['A','Bks',1,'Bks',1,2]],
-            'Stok Awal'=>[ProductImportTrialService::HEADINGS['Stok Awal'],['A','Toko',2,'Dus',''],['A','Toko',3,'Bks',''],['A','Gudang 1',20,'Dus',''],['A','Gudang 2',25,'Bal','']],
+            'Barang'=>[ProductImportPreviewService::HEADINGS['Barang'],['A','Barang A','00123','Kategori','Dus','Bks',0,'tidak']],
+            'Satuan'=>[ProductImportPreviewService::HEADINGS['Satuan'],['A','Dus',5,'Bal',500,1000],['A','Bal',10,'Slop',100,200],['A','Slop',10,'Bks',10,20],['A','Bks',1,'Bks',1,2]],
+            'Stok Awal'=>[ProductImportPreviewService::HEADINGS['Stok Awal'],['A','Toko',2,'Dus',''],['A','Toko',3,'Bks',''],['A','Gudang 1',20,'Dus',''],['A','Gudang 2',25,'Bal','']],
         ];
     }
 
@@ -47,7 +47,7 @@ class ProductImportTrialTest extends TestCase
         }
     }
 
-    public function test_trial_converts_chained_units_and_combines_mixed_stock_without_writes(): void
+    public function test_preview_converts_chained_units_and_combines_mixed_stock_without_writes(): void
     {
         $user=User::create(['name'=>'Owner','email'=>'trial@example.com','password'=>'password','role'=>'owner']);
         $this->actingAs($user);
@@ -67,14 +67,14 @@ class ProductImportTrialTest extends TestCase
     {
         $user=User::create(['name'=>'Owner','email'=>'template-trial@example.com','password'=>'password','role'=>'owner']);
         $this->actingAs($user);
-        $bytes=Excel::raw(new ProductImportTrialTemplateExport,\Maatwebsite\Excel\Excel::XLSX);
+        $bytes=Excel::raw(new ProductImportTemplateExport,\Maatwebsite\Excel\Excel::XLSX);
         $file=tempnam(sys_get_temp_dir(),'import-template-');
         try {
             file_put_contents($file,$bytes);
             $book=\PhpOffice\PhpSpreadsheet\IOFactory::load($file);
             $stockSheet=$book->getSheetByName('Stok Awal');
             $this->assertSame('E',$stockSheet->getHighestDataColumn());
-            $this->assertSame([ProductImportTrialService::HEADINGS['Stok Awal']],$stockSheet->rangeToArray('A1:E1'));
+            $this->assertSame([ProductImportPreviewService::HEADINGS['Stok Awal']],$stockSheet->rangeToArray('A1:E1'));
             $this->assertSame(now('Asia/Jakarta')->addMonths(6)->toDateString(),$stockSheet->getCell('E6')->getValue());
             $this->assertSame('A2',$stockSheet->getFreezePane());
             $this->assertSame('"Dus,Bal,Slop,Bks,Pcs"',$stockSheet->getCell('D2')->getDataValidation()->getFormula1());
@@ -99,7 +99,7 @@ class ProductImportTrialTest extends TestCase
         $data = $this->data();
         foreach ($data['Satuan'] as &$row) $row = array_pad($row, 14, null);
         unset($row);
-        $service = app(ProductImportTrialService::class);
+        $service = app(ProductImportPreviewService::class);
         $preview = $service->preview($data);
         $this->assertSame(0, $preview['error_count'], json_encode($preview['errors']));
         $this->assertSame(1003.0, $preview['stocks'][0]['quantity']);
@@ -117,16 +117,16 @@ class ProductImportTrialTest extends TestCase
     {
         $data=$this->data();
         $data['Satuan'][2][3]='Dus';
-        $preview=app(ProductImportTrialService::class)->preview($data);
+        $preview=app(ProductImportPreviewService::class)->preview($data);
         $this->assertGreaterThan(0,$preview['error_count']);
         $this->assertStringContainsString('berputar',json_encode($preview['errors']));
         $this->assertSame([],$preview['products']);
         $data=$this->data();
         $data['Satuan'][1][3]='Tidak Ada';
-        $this->assertStringContainsString('tidak ditemukan',json_encode(app(ProductImportTrialService::class)->preview($data)['errors']));
+        $this->assertStringContainsString('tidak ditemukan',json_encode(app(ProductImportPreviewService::class)->preview($data)['errors']));
         $data=$this->data();
         $data['Barang'][]=$data['Barang'][1];
-        $this->assertStringContainsString('Kode barang ganda',json_encode(app(ProductImportTrialService::class)->preview($data)['errors']));
+        $this->assertStringContainsString('Kode barang ganda',json_encode(app(ProductImportPreviewService::class)->preview($data)['errors']));
     }
 
     public function test_batches_keep_expiry_separate_and_exclude_expired_stock_from_sellable_totals(): void
@@ -138,16 +138,16 @@ class ProductImportTrialTest extends TestCase
             ['A','Toko',3,'Bks','B1',now('Asia/Jakarta')->addDay()->toDateString()],
             ['A','Toko',1,'Dus','B2',now('Asia/Jakarta')->subDay()->toDateString()],
         ];
-        $preview=app(ProductImportTrialService::class)->preview($data);
+        $preview=app(ProductImportPreviewService::class)->preview($data);
         $this->assertSame(0,$preview['error_count']);
         $this->assertSame(2,$preview['stock_count']);
         $this->assertSame(1003.0,$preview['stocks'][0]['sellable']);
         $this->assertSame(0,$preview['stocks'][1]['sellable']);
         $this->assertCount(1,$preview['warnings']);
         $data['Stok Awal'][2][5]='2020-01-01';
-        $this->assertStringContainsString('tanggal kedaluwarsa berbeda',json_encode(app(ProductImportTrialService::class)->preview($data)['errors']));
+        $this->assertStringContainsString('tanggal kedaluwarsa berbeda',json_encode(app(ProductImportPreviewService::class)->preview($data)['errors']));
         $data['Stok Awal'][1][5]='2026-02-31';
-        $this->assertStringContainsString('yang valid',json_encode(app(ProductImportTrialService::class)->preview($data)['errors']));
+        $this->assertStringContainsString('yang valid',json_encode(app(ProductImportPreviewService::class)->preview($data)['errors']));
     }
 
     public function test_legacy_optional_code_column_accepts_blank_codes_with_different_expiry_dates(): void
@@ -159,7 +159,7 @@ class ProductImportTrialTest extends TestCase
             ['A','Toko',1,'Dus','',now('Asia/Jakarta')->addMonth()->toDateString()],
             ['A','Toko',1,'Bks','0',now('Asia/Jakarta')->addMonth()->toDateString()],
         ];
-        $service=app(ProductImportTrialService::class);
+        $service=app(ProductImportPreviewService::class);
         $preview=$service->preview($data);
         $this->assertSame(0,$preview['error_count'],json_encode($preview['errors']));
         $this->assertSame(3,$preview['stock_count']);
@@ -170,7 +170,7 @@ class ProductImportTrialTest extends TestCase
         $this->assertDatabaseCount('stock_batches',0);
     }
 
-    public function test_trial_rejects_formulas_and_requires_import_permission(): void
+    public function test_preview_rejects_formulas_and_requires_import_permission(): void
     {
         $user=User::create(['name'=>'Owner','email'=>'formula-trial@example.com','password'=>'password','role'=>'owner']);
         $this->actingAs($user);
@@ -190,9 +190,9 @@ class ProductImportTrialTest extends TestCase
         $this->actingAs($user);
         $supplier=Supplier::create(['name'=>'Supplier Lama','address'=>'Alamat asli','phone'=>'081234']);
         $data=$this->data();
-        $data['Master Supplier']=[ProductImportTrialService::HEADINGS['Master Supplier'],
+        $data['Master Supplier']=[ProductImportPreviewService::HEADINGS['Master Supplier'],
             ['OLD','Nama diubah','Alamat diubah','089999',$supplier->id],['NEW','Supplier Baru','Alamat baru','081111','']];
-        $data['Supplier Barang']=[ProductImportTrialService::HEADINGS['Supplier Barang'],['A','OLD','Dus',500],['A','NEW','Bal',150]];
+        $data['Supplier Barang']=[ProductImportPreviewService::HEADINGS['Supplier Barang'],['A','OLD','Dus',500],['A','NEW','Bal',150]];
         $response=$this->post(route('master.products.import.preview'),['file'=>$this->upload($data)]);
         $response->assertOk()->assertSee('Supplier Lama')->assertSee('Supplier Baru');
         $preview=$response->viewData('preview');
@@ -213,14 +213,14 @@ class ProductImportTrialTest extends TestCase
     {
         $supplier=Supplier::create(['name'=>'Lama']);
         $data=$this->data();
-        $data['Supplier Barang']=[ProductImportTrialService::HEADINGS['Supplier Barang'],['A','SUP-'.$supplier->id,'Dus',500]];
-        $preview=app(ProductImportTrialService::class)->preview($data,true);
+        $data['Supplier Barang']=[ProductImportPreviewService::HEADINGS['Supplier Barang'],['A','SUP-'.$supplier->id,'Dus',500]];
+        $preview=app(ProductImportPreviewService::class)->preview($data,true);
         $this->assertSame(0,$preview['error_count']);
         $this->assertSame(1,$preview['supplier_link_count']);
         $this->assertSame('Terdaftar',$preview['suppliers'][0]['status']);
-        $data['Master Supplier']=[ProductImportTrialService::HEADINGS['Master Supplier'],['ALIAS','Lama','','',$supplier->id]];
+        $data['Master Supplier']=[ProductImportPreviewService::HEADINGS['Master Supplier'],['ALIAS','Lama','','',$supplier->id]];
         $data['Supplier Barang'][]=['A','ALIAS','Bal',100];
-        $preview=app(ProductImportTrialService::class)->preview($data,true);
+        $preview=app(ProductImportPreviewService::class)->preview($data,true);
         $this->assertSame(1,$preview['supplier_count']);
         $this->assertSame(1,$preview['supplier_link_count']);
         $this->assertStringContainsString('Hubungan barang-supplier ganda',json_encode($preview['errors']));
@@ -229,19 +229,19 @@ class ProductImportTrialTest extends TestCase
     public function test_unknown_supplier_invalid_unit_negative_price_and_duplicate_supplier_are_reported(): void
     {
         $base=$this->data();
-        $base['Master Supplier']=[ProductImportTrialService::HEADINGS['Master Supplier'],['NEW','Nama','','','']];
+        $base['Master Supplier']=[ProductImportPreviewService::HEADINGS['Master Supplier'],['NEW','Nama','','','']];
         foreach ([['A','MISSING','Dus',500],['A','NEW','Unknown',500],['A','NEW','Dus',-1],['UNKNOWN','NEW','Dus',500]] as $row) {
             $data=$base;
-            $data['Supplier Barang']=[ProductImportTrialService::HEADINGS['Supplier Barang'],$row];
-            $preview=app(ProductImportTrialService::class)->preview($data);
+            $data['Supplier Barang']=[ProductImportPreviewService::HEADINGS['Supplier Barang'],$row];
+            $preview=app(ProductImportPreviewService::class)->preview($data);
             $this->assertGreaterThan(0,$preview['error_count']);
             $this->assertSame(0,$preview['supplier_link_count']);
         }
         $base['Master Supplier'][]=['new','Lain','','',''];
-        $preview=app(ProductImportTrialService::class)->preview($base);
+        $preview=app(ProductImportPreviewService::class)->preview($base);
         $this->assertStringContainsString('Kode supplier ganda',json_encode($preview['errors']));
         $base['Master Supplier'][2]=['SUP-999','Tidak Ada','','',''];
-        $this->assertStringContainsString('ID supplier tidak ditemukan',json_encode(app(ProductImportTrialService::class)->preview($base,true)['errors']));
+        $this->assertStringContainsString('ID supplier tidak ditemukan',json_encode(app(ProductImportPreviewService::class)->preview($base,true)['errors']));
     }
 
     public function test_supplier_contact_data_is_not_exposed_without_supplier_view_permission(): void
@@ -250,11 +250,11 @@ class ProductImportTrialTest extends TestCase
         $user=User::create(['name'=>'Kasir','email'=>'private-supplier@example.com','password'=>'password','role'=>'kasir']);
         foreach(['master.products.view','master.products.import'] as $permission) DB::table('role_permissions')->insert(['role'=>'kasir','permission'=>$permission]);
         $this->actingAs($user);
-        $sheets=(new ProductImportTrialTemplateExport)->sheets();
+        $sheets=(new ProductImportTemplateExport)->sheets();
         $this->assertCount(3,$sheets);
         $this->assertStringNotContainsString('Secret Supplier',json_encode(array_map(fn($sheet)=>$sheet->array(),$sheets)));
         $data=$this->data();
-        $data['Supplier Barang']=[ProductImportTrialService::HEADINGS['Supplier Barang'],['A','SUP-'.$supplier->id,'Dus',500]];
+        $data['Supplier Barang']=[ProductImportPreviewService::HEADINGS['Supplier Barang'],['A','SUP-'.$supplier->id,'Dus',500]];
         $response=$this->post(route('master.products.import.preview'),['file'=>$this->upload($data)]);
         $response->assertOk()->assertSee('hak akses Master Supplier')->assertDontSee('Secret Supplier')->assertDontSee('Secret Address')->assertDontSee('Secret Phone');
     }
