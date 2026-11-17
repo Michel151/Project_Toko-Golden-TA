@@ -64,16 +64,17 @@ class StockCardPurchaseHistory
 
     private function receiptSummary(Collection $inspections, Product $product): ?string
     {
-        $issues = collect(['damaged' => 'rusak', 'wrong' => 'tidak sesuai', 'missing' => 'belum tiba'])
+        $issues = collect(['damaged' => '%s rusak', 'wrong' => '%s tidak sesuai', 'missing' => 'kurang %s'])
             ->flatMap(function ($label, $kind) use ($inspections, $product) {
                 $rows = $inspections->filter(fn ($row) => $row->{'quantity_'.$kind} > 0);
 
-                return $rows->groupBy('quarantine_location_id')->map(function ($group) use ($product, $kind, $label) {
-                    $quantity = $this->quantities($group, $product, fn ($row) => $row->{'quantity_'.$kind});
-                    $location = $kind === 'missing' ? null : $group->first()->quarantineLocation?->name;
+                return $rows->groupBy(fn ($row) => $kind === 'missing' ? null : $row->quarantine_location_id)
+                    ->map(function ($group) use ($product, $kind, $label) {
+                        $quantity = $this->quantities($group, $product, fn ($row) => $row->{'quantity_'.$kind});
+                        $location = $kind === 'missing' ? null : $group->first()->quarantineLocation?->name;
 
-                    return $quantity.' '.$label.($location ? ', ditahan di '.$location : '');
-                })->values();
+                        return sprintf($label, $quantity).($location ? ', ditahan di '.$location : '');
+                    })->values();
             });
         if ($issues->isEmpty()) {
             return null;

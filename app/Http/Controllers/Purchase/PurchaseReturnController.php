@@ -8,7 +8,9 @@ use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnItem;
 use App\Services\PurchaseFulfillmentService;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -19,23 +21,32 @@ class PurchaseReturnController extends Controller
     public function index(Request $request)
     {
         ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
-        $query = PurchaseReturn::with(['purchaseReceipt.purchaseOrder.supplier', 'replacementOrder']);
-        $query->when($from, fn ($query)=>$query->whereDate('created_at', '>=', $from))
+        $history = PurchaseReturn::query()
+            ->when($from, fn ($query)=>$query->whereDate('created_at', '>=', $from))
             ->when($to, fn ($query)=>$query->whereDate('created_at', '<=', $to));
+        $statusCounts = (clone $history)->selectRaw('status, COUNT(*) AS total')->groupBy('status')->pluck('total', 'status');
         if (in_array($request->status, ['draft', 'approved', 'rejected'], true)) {
-            $query->where('status', $request->status);
+            $history->where('status', $request->status);
         }
-        $returns = $query->latest('id')->paginate(25)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
+        $period = ['from' => $from ?? '', 'to' => $to ?? ''];
+        $returns = $history->with(['purchaseReceipt.purchaseOrder.supplier', 'replacementOrder'])
+            ->latest('id')->paginate(25)->withQueryString()->appends($period)->fragment('return-history');
 
-        return view('purchase.returns.index', compact('returns', 'from', 'to'));
+        $readyReceipts = $this->claimableReceipts()
+            ->with(['inspections' => fn ($query) => $query->withClaimableIssues()->withClaimedQuantities()
+                ->with(['purchaseOrderItem.product', 'purchaseOrderItem.productUnit.unit', 'quarantineLocation'])])
+            ->latest('receipt_date')->latest('id')
+            ->paginate(25, ['*'], 'ready_page')->withQueryString()->appends($period)->fragment('ready-returns');
+
+        $openIssues = $readyReceipts->getCollection()->mapWithKeys(fn (PurchaseReceipt $receipt) =>
+            [$receipt->id => $this->openIssues($receipt)]);
+
+        return view('purchase.returns.index', compact('returns', 'from', 'to', 'statusCounts', 'readyReceipts', 'openIssues'));
     }
 
     public function create(Request $request)
     {
-        $receipts = PurchaseReceipt::with('purchaseOrder.supplier')
-            ->whereHas('purchaseOrder', fn ($query) => $query->where('status', '!=', 'completed'))
-            ->whereHas('inspections', fn ($query) => $query->withClaimableIssues())
-            ->latest('id')->get();
+        $receipts = $this->claimableReceipts()->latest('id')->get();
         $receipt = null;
         if ($id = old('purchase_receipt_id', $request->receipt_id)) {
             $receipt = $receipts->firstWhere('id', $id);
@@ -48,6 +59,35 @@ class PurchaseReturnController extends Controller
         }
 
         return view('purchase.returns.form', compact('receipt', 'receipts'));
+    }
+
+    private function claimableReceipts(): Builder
+    {
+        return PurchaseReceipt::with('purchaseOrder.supplier')
+            ->whereHas('purchaseOrder', fn ($query) => $query->where('status', '!=', 'completed'))
+            ->whereHas('inspections', fn ($query) => $query->withClaimableIssues());
+    }
+
+    private function openIssues(PurchaseReceipt $receipt): Collection
+    {
+        return $receipt->inspections->flatMap(function ($inspection) {
+            $issues = [];
+            foreach (PurchaseReturnItem::KINDS as $kind => $label) {
+                $quantity = $inspection->claimable($kind);
+                if ($quantity <= 0) {
+                    continue;
+                }
+                $issues[] = [
+                    'product' => $inspection->purchaseOrderItem->product->name,
+                    'label' => $label,
+                    'quantity' => $quantity,
+                    'unit' => $inspection->purchaseOrderItem->productUnit?->unit?->name,
+                    'location' => $kind === 'missing' ? null : $inspection->quarantineLocation?->name,
+                ];
+            }
+
+            return $issues;
+        });
     }
 
     public function store(Request $request)

@@ -60,6 +60,32 @@ class PurchaseReturnWorkflowTest extends TestCase
             'quantity_ordered' => 100, 'buy_price' => 12000]);
     }
 
+    public function test_return_index_lists_the_remaining_issues_and_opens_the_selected_receipt(): void
+    {
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-31 09:00:00', 'Asia/Jakarta'));
+        $this->setupOrder();
+        $this->post(route('purchase.receipts.store'), $this->payload($this->order, 8, 2, 0, 1))->assertSessionHasNoErrors();
+        $receipt = PurchaseReceipt::firstOrFail();
+        $inspection = $receipt->inspections()->firstOrFail();
+        $create = route('purchase.returns.create', ['receipt_id' => $receipt->id]);
+
+        $this->travelTo(\Carbon\Carbon::parse('2026-11-01 09:00:00', 'Asia/Jakarta'));
+        $index = route('purchase.returns.index', ['status' => 'approved']);
+        $this->get($index)->assertOk()->assertSeeInOrder(['Penerimaan Perlu Retur/Klaim', 'Rusak · 2 Dus', 'Riwayat Retur/Klaim'])
+            ->assertSee('Kekurangan Kiriman · 1 Dus')->assertSee('Ditahan di Gudang')->assertSee(e($create), false);
+        $this->get($create)->assertOk()->assertViewHas('receipt', fn ($selected) => $selected->is($receipt));
+
+        $this->post(route('purchase.returns.store'), ['purchase_receipt_id' => $receipt->id, 'items' => [
+            ['purchase_inspection_id' => $inspection->id, 'kind' => 'damaged', 'quantity' => 1],
+            ['purchase_inspection_id' => $inspection->id, 'kind' => 'missing', 'quantity' => 1],
+        ]])->assertSessionHasNoErrors();
+
+        $this->get($index)->assertOk()->assertSee('Rusak · 1 Dus')->assertDontSee('Kekurangan Kiriman · 1 Dus');
+        $this->claim($receipt);
+        $this->get($index)->assertOk()->assertViewHas('readyReceipts', fn ($rows) => $rows->total() === 0)
+            ->assertDontSee(e($create), false);
+    }
+
     public function test_large_receipt_and_return_details_have_searchable_bounded_lists(): void
     {
         $this->setupOrder();
@@ -501,7 +527,7 @@ class PurchaseReturnWorkflowTest extends TestCase
         $filters = ['product' => $this->order->items()->first()->product_id, 'from' => '2026-11-15', 'to' => '2026-11-17'];
         $card = route('inventory.stock-card.show', $filters);
         $this->get($card)->assertOk()->assertDontSee('Penyerahan Retur')->assertSee('10 Dus tiba, 8 Dus lolos pemeriksaan')
-            ->assertSee('2 Dus rusak, ditahan di Gudang')->assertSee('1 Dus belum tiba');
+            ->assertSee('2 Dus rusak, ditahan di Gudang')->assertSee('kurang 1 Dus');
 
         $this->travelTo(\Carbon\Carbon::parse('2026-11-16 09:00:00', 'Asia/Jakarta'));
         $this->post(route('purchase.returns.dispatch', $return))->assertSessionHasNoErrors();
