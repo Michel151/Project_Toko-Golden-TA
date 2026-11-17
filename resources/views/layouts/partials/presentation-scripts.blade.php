@@ -60,8 +60,17 @@
             }
         }
         const controls = scope.querySelectorAll('input:not([type="hidden"]),select,textarea');
+        // Index labels once instead of asking each input to scan the document for its labels.
+        const labelsByControl = new Map();
+        for (const label of document.querySelectorAll('label')) {
+            const control = label.control;
+            if (!control) continue;
+            if (!labelsByControl.has(control)) labelsByControl.set(control, []);
+            labelsByControl.get(control).push(label);
+        }
         for (const input of controls) {
-            if (!input.labels?.length && !input.getAttribute('aria-label') && !input.getAttribute('aria-labelledby')) {
+            let labels = labelsByControl.get(input) || [];
+            if (!labels.length && !input.getAttribute('aria-label') && !input.getAttribute('aria-labelledby')) {
                 const parent = input.parentElement;
                 const label = parent.querySelector('label:not([for])');
                 if (label && parent.querySelectorAll('input:not([type="hidden"]),select,textarea').length === 1) {
@@ -69,9 +78,10 @@
                         do { input.id = 'app-field-' + ++nextId; } while (document.querySelectorAll('#' + input.id).length > 1);
                     }
                     label.htmlFor = input.id;
+                    labels = [label];
                 }
             }
-            for (const label of input.labels || []) label.classList.toggle('app-field-required', input.matches(':required'));
+            for (const label of labels) label.classList.toggle('app-field-required', input.matches(':required'));
         }
         for (const table of scope.querySelectorAll('[data-mobile-records]')) {
             const headings = [...table.querySelectorAll('thead th')].map(th => th.textContent.trim());
