@@ -101,9 +101,18 @@
         }
     }
     enhance(root);
-    root.addEventListener('change', () => enhance(root));
+    root.addEventListener('change', event => {
+        const scope = event.target.closest('#opnameForm') ? event.target.parentElement : root;
+        enhance(scope);
+    });
     new MutationObserver(changes => {
-        if (changes.some(change => [...change.addedNodes].some(node => node.nodeType === Node.ELEMENT_NODE))) enhance(root);
+        const scopes = new Set();
+        for (const change of changes) {
+            if (![...change.addedNodes].some(node => node.nodeType === Node.ELEMENT_NODE)) continue;
+            scopes.add(change.target.closest('#opnameForm') ? change.target : root);
+        }
+        if (scopes.has(root)) enhance(root);
+        else scopes.forEach(enhance);
     }).observe(root, { childList: true, subtree: true });
 })();
 </script>

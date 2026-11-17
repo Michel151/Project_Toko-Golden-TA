@@ -145,7 +145,8 @@
             cached.physical.value = round(total);
             cached.total.textContent = formatQuantity(round(total), units);
             cached.count.textContent = rows.length + ' rincian tanggal';
-            updateExpiryIndicators(main, rows, units);
+            // Expiry filters use the system snapshot, so quantity edits cannot change them.
+            if (refresh || !expiryQuantities.has(main)) updateExpiryIndicators(main, rows, units);
         }
         const difference = round(Number(cached.physical.value) - Number(main.dataset.system));
         paintDifference(cached.difference, difference, units);
@@ -173,7 +174,7 @@
             });
             value.value = round(total);
             if (isMain) main.querySelector('.item-physical').value = value.value;
-            updateItem(id);
+            updateItem(id, false);
         };
         widget.querySelectorAll('input[type="number"]').forEach(input => input.addEventListener('input', update));
     }

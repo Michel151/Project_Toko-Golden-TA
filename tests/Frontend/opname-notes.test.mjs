@@ -6,6 +6,33 @@ import test from 'node:test';
 const source = readFileSync(new URL('../../resources/views/inventory/opnames/count-scripts.blade.php', import.meta.url), 'utf8');
 const updateItem = source.slice(source.indexOf('    function clearNotesError('), source.indexOf('    function bindQuantity('));
 const completion = source.slice(source.indexOf("    document.getElementById('btnSelesaikan')"), source.lastIndexOf('})();'));
+const bindQuantity = source.slice(source.indexOf('    function bindQuantity('), source.indexOf('    mainRows.forEach(main => {'));
+
+test('quantity input updates its item immediately without refreshing all filters', () => {
+    const physical = { value: '24' };
+    const submitted = { value: '24' };
+    const main = { querySelector: () => physical };
+    const inputs = [12, 1].map(conversion => ({
+        value: conversion === 12 ? '2' : '0', dataset: { conversion: String(conversion) },
+        addEventListener(event, handler) { this.onInput = handler; },
+    }));
+    const widget = {
+        querySelector: () => submitted, querySelectorAll: () => inputs, closest: () => main,
+    };
+    const updates = [];
+    const context = vm.createContext({
+        widget, mainById: new Map([['1', main]]), Number,
+        round: value => Math.round(value * 10000) / 10000,
+        updateItem: (id, refresh) => updates.push({ id, refresh }),
+    });
+    vm.runInContext(bindQuantity + '\nbindQuantity(widget, "1");', context);
+    inputs[0].value = '3';
+    inputs[1].value = '0.25';
+    inputs[1].onInput();
+    assert.equal(submitted.value, 36.25);
+    assert.equal(physical.value, 36.25);
+    assert.deepEqual(updates, [{ id: '1', refresh: false }]);
+});
 
 function fixture(expiry = false) {
     const classes = new Set();
@@ -39,7 +66,7 @@ function fixture(expiry = false) {
     const detail = form.querySelector('[data-expiry-item="1"]');
     const context = vm.createContext({ form, search, Event, Number, Math,
         mainRows: [main], mainById: new Map([['1', main]]), detailById: new Map([['1', detail]]),
-        itemCache: new WeakMap(), expiryCache: new WeakMap(),
+        itemCache: new WeakMap(), expiryCache: new WeakMap(), expiryQuantities: new Map(),
         round: value => Math.round(value * 10000) / 10000,
         formatQuantity: () => '', paintDifference() {}, updateExpiryIndicators() {}, refreshFilters() {}, expiryFilter: '',
         document: { getElementById: () => button },
