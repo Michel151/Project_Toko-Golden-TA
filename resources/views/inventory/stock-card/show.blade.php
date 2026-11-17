@@ -187,7 +187,13 @@
         <tbody>
         @forelse($movements as $movement)
             @php $quantity = (float) $movement->quantity; $tone = $quantity > 0 ? 'success' : ($quantity < 0 ? 'danger' : 'secondary'); @endphp
-            <tr><td class="text-nowrap">{{ $movement->movement_date->format('d/m/Y') }}<div class="small text-muted">{{ $movement->created_at?->format('H:i') }}</div></td><td class="font-monospace small">{{ $movement->reference_number ?? '-' }}</td><td><span class="badge bg-{{ $tone }} bg-opacity-10 text-{{ $tone }}">{{ $movement->card_type_label }}</span>@if($movement->notes)<div class="small text-muted mt-1">{{ $movement->notes }}</div>@endif</td><td><i class="bi bi-geo-alt text-muted me-1"></i>{{ $movement->location?->name ?? '-' }}</td><td class="small text-muted">{{ $movement->createdBy->name ?? 'Sistem' }}</td><td class="text-end fw-semibold text-success">{{ $quantity > 0 ? $product->displayStock($quantity) : '-' }}</td><td class="text-end fw-semibold text-danger">{{ $quantity < 0 ? $product->displayStock(abs($quantity)) : '-' }}</td><td class="text-end fw-bold">{{ $product->displayStock((float) $movement->card_balance) }}</td></tr>
+            <tr><td class="text-nowrap">{{ $movement->movement_date->format('d/m/Y') }}<div class="small text-muted">{{ $movement->created_at?->format('H:i') }}</div></td><td class="font-monospace small">
+                @if($movement->card_reference_url ?? null)
+                    <a class="fw-semibold" href="{{ $movement->card_reference_url }}">{{ $movement->reference_number }}</a>
+                @else
+                    {{ $movement->reference_number ?? '-' }}
+                @endif
+            </td><td><span class="badge bg-{{ $tone }} bg-opacity-10 text-{{ $tone }}">{{ $movement->card_type_label }}</span>@if($movement->notes)<div class="small text-muted mt-1">{{ $movement->notes }}</div>@endif</td><td><i class="bi bi-geo-alt text-muted me-1"></i>{{ $movement->location?->name ?? '-' }}</td><td class="small text-muted">{{ $movement->createdBy->name ?? 'Sistem' }}</td><td class="text-end fw-semibold text-success">{{ $quantity > 0 ? $product->displayStock($quantity) : '-' }}</td><td class="text-end fw-semibold text-danger">{{ $quantity < 0 ? $product->displayStock(abs($quantity)) : '-' }}</td><td class="text-end fw-bold">{{ $product->displayStock((float) $movement->card_balance) }}</td></tr>
         @empty
             <tr><td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada mutasi pada periode ini</td></tr>
         @endforelse

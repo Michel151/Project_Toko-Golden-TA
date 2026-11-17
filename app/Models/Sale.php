@@ -34,6 +34,11 @@ class Sale extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function isAccessibleBy(User $user): bool
+    {
+        return ! $user->isKasir() || (int) $this->created_by === (int) $user->id;
+    }
+
     public function getTransactionTimeLabelAttribute(): string
     {
         return $this->sale_time ? $this->sale_time.' WIB' : 'Jam tidak tercatat';

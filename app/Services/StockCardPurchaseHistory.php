@@ -8,6 +8,7 @@ use App\Models\PurchaseReceipt;
 use App\Models\PurchaseReturnItem;
 use App\Models\StockMovement;
 use App\Support\DisplayNumber;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -56,7 +57,7 @@ class StockCardPurchaseHistory
             }
             $notes->push($this->note($receipt->id, 'purchase', $receipt->receipt_date, $receipt->created_at,
                 $receipt->purchaseOrder->po_number, $summary, $location, $receipt->receivedBy,
-                $replacement ? 'Pemeriksaan Pengganti' : 'Pemeriksaan Penerimaan'));
+                $replacement ? 'Pemeriksaan Pengganti' : 'Pemeriksaan Penerimaan', $receipt));
         }
 
         return $notes->concat($this->dispatchRows($product, $from, $to, $locationId));
@@ -105,7 +106,7 @@ class StockCardPurchaseHistory
 
                 return $this->note($first->id, 'return_dispatch', $return->dispatched_at, $return->dispatched_at,
                     $return->return_number, $quantity.' diserahkan ke supplier.',
-                    $first->purchaseInspection->quarantineLocation, $return->dispatchedBy, 'Penyerahan Retur');
+                    $first->purchaseInspection->quarantineLocation, $return->dispatchedBy, 'Penyerahan Retur', $return);
             })->values();
     }
 
@@ -120,11 +121,12 @@ class StockCardPurchaseHistory
         })->map(fn ($group, $unit) => trim(DisplayNumber::quantity($group->sum($quantity)).' '.$unit))->implode(' + ');
     }
 
-    private function note(int $id, string $type, $date, $time, string $reference, string $description, $location, $user, string $label): StockMovement
+    private function note(int $id, string $type, $date, $time, string $reference, string $description, $location, $user, string $label, Model $document): StockMovement
     {
         $row = new StockMovement([
             'movement_type' => $type, 'quantity' => 0, 'movement_date' => $date->toDateString(),
-            'reference_number' => $reference, 'notes' => $description,
+            'reference_number' => $reference, 'reference_type' => $document->getMorphClass(),
+            'reference_id' => $document->getKey(), 'notes' => $description,
         ]);
         $row->id = $id;
         $row->created_at = $time;

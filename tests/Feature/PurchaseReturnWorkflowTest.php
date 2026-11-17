@@ -520,7 +520,8 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->travelTo(\Carbon\Carbon::parse('2026-11-15 09:00:00', 'Asia/Jakarta'));
         $this->setupOrder();
         $this->post(route('purchase.receipts.store'), $this->payload($this->order, 8, 2, 0, 1))->assertSessionHasNoErrors();
-        $return = $this->claim(PurchaseReceipt::firstOrFail());
+        $receipt = PurchaseReceipt::firstOrFail();
+        $return = $this->claim($receipt);
         $this->get(route('purchase.returns.show', $return))->assertOk()->assertDontSee('Serahkan Retur');
         $this->post(route('purchase.returns.approve', $return))->assertSessionHasNoErrors();
 
@@ -536,9 +537,17 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->travelTo(\Carbon\Carbon::parse('2026-11-17 09:00:00', 'Asia/Jakarta'));
         $replacement = $return->fresh()->replacementOrder;
         $this->post(route('purchase.receipts.store'), $this->payload($replacement, 2))->assertSessionHasNoErrors();
+        $replacementReceipt = $replacement->receipts()->firstOrFail();
 
         $page = $this->get($card)->assertOk()->assertSeeInOrder(['Penerimaan Pengganti', 'Penyerahan Retur', '10 Dus tiba'])
             ->assertSee('2 Dus diserahkan ke supplier.');
+        foreach ([
+            route('purchase.receipts.show', $receipt),
+            route('purchase.receipts.show', $replacementReceipt),
+            route('purchase.returns.show', $return),
+        ] as $url) {
+            $page->assertSee('href="'.e($url).'"', false);
+        }
         $rows = $page->viewData('movements')->getCollection();
         $this->assertSame([$replacement->po_number, $return->return_number, $this->order->po_number], $rows->pluck('reference_number')->all());
         $this->assertEquals([12, 0, 48], $rows->pluck('quantity')->all());

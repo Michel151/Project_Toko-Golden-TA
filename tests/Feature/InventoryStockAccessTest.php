@@ -5,8 +5,12 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\Location;
 use App\Models\Product;
+use App\Models\Sale;
 use App\Models\Stock;
 use App\Models\StockBatch;
+use App\Models\StockMovement;
+use App\Models\StockOpname;
+use App\Models\StockTransfer;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -60,6 +64,53 @@ class InventoryStockAccessTest extends TestCase
         $this->actingAs($cashier)
             ->get(route('inventory.transfers.create'))
             ->assertForbidden();
+    }
+
+    public function test_stock_card_links_only_available_documents_the_user_can_open(): void
+    {
+        $cashier = User::create(['name' => 'Kasir', 'email' => 'references-cashier@test.com', 'password' => 'password', 'role' => 'kasir']);
+        $owner = User::create(['name' => 'Owner', 'email' => 'references-owner@test.com', 'password' => 'password', 'role' => 'owner']);
+        $location = Location::create(['name' => 'Toko']);
+        $warehouse = Location::create(['name' => 'Gudang']);
+        $product = $this->makeProduct('Barang Referensi', Category::create(['name' => 'Tes']), Unit::create(['name' => 'Pcs']));
+        $sale = ['sale_date' => today(), 'total_amount' => 1000, 'payment_method' => 'tunai', 'status' => 'paid'];
+        $ownSale = Sale::create($sale + ['sale_number' => 'INV-SENDIRI', 'created_by' => $cashier->id]);
+        $otherSale = Sale::create($sale + ['sale_number' => 'INV-OWNER', 'created_by' => $owner->id]);
+        $transfer = StockTransfer::create(['transfer_number' => 'TRF-UJI', 'transfer_date' => today(),
+            'from_location_id' => $warehouse->id, 'to_location_id' => $location->id, 'created_by' => $owner->id,
+            'product_id' => $product->id, 'quantity' => 2]);
+        $opname = StockOpname::create(['opname_number' => 'OPN-UJI', 'opname_date' => today(),
+            'location_id' => $location->id, 'created_by' => $owner->id, 'status' => 'completed']);
+        $base = ['product_id' => $product->id, 'location_id' => $location->id, 'movement_date' => today(),
+            'balance_before' => 0, 'balance_after' => 0, 'created_by' => $owner->id];
+        foreach ([
+            [$ownSale, 'sale', $ownSale->sale_number, -1],
+            [$otherSale, 'sale', $otherSale->sale_number, -1],
+            [$transfer, 'transfer_in', $transfer->transfer_number, 2],
+            [$opname, 'opname_adjustment', $opname->opname_number, 0],
+        ] as [$document, $type, $number, $quantity]) {
+            StockMovement::create($base + ['movement_type' => $type, 'quantity' => $quantity,
+                'reference_type' => $document->getMorphClass(), 'reference_id' => $document->id, 'reference_number' => $number]);
+        }
+        StockMovement::create($base + ['movement_type' => 'sale', 'quantity' => -1,
+            'reference_type' => Sale::class, 'reference_id' => 999999, 'reference_number' => 'INV-LAMA']);
+
+        $url = route('inventory.stock-card.show', $product);
+        $ownSaleUrl = route('sale.sales.show', $ownSale);
+        $otherSaleUrl = route('sale.sales.show', $otherSale);
+        $transferUrl = route('inventory.transfers.show', $transfer);
+        $opnameUrl = route('inventory.opnames.show', $opname);
+        $cashierCard = $this->actingAs($cashier)->get($url)->assertOk()
+            ->assertSee('href="'.e($ownSaleUrl).'"', false)->assertSee('INV-OWNER');
+        foreach ([$otherSaleUrl, $transferUrl, $opnameUrl] as $restricted) {
+            $cashierCard->assertDontSee('href="'.e($restricted).'"', false);
+            $this->get($restricted)->assertForbidden();
+        }
+        $ownerCard = $this->actingAs($owner)->get($url)->assertOk()->assertSee('INV-LAMA')
+            ->assertDontSee('href="'.e(route('sale.sales.show', 999999)).'"', false);
+        foreach ([$ownSaleUrl, $otherSaleUrl, $transferUrl, $opnameUrl] as $visible) {
+            $ownerCard->assertSee('href="'.e($visible).'"', false);
+        }
     }
 
     public function test_stock_monitoring_can_filter_by_expiry_status(): void

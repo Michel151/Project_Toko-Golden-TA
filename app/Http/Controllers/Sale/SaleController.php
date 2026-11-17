@@ -570,9 +570,7 @@ class SaleController extends Controller
 
     private function ensureSaleIsAccessible(Sale $sale): void
     {
-        if (auth()->user()->isKasir() && (int) $sale->created_by !== (int) auth()->id()) {
-            abort(403, 'Anda tidak memiliki akses ke transaksi kasir lain.');
-        }
+        abort_unless($sale->isAccessibleBy(auth()->user()), 403, 'Anda tidak memiliki akses ke transaksi kasir lain.');
     }
 
     private function normalizeCurrencyInputs(Request $request): void
