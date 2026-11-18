@@ -17,20 +17,20 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-    // Ambil daftar akun terbaru dengan pagination untuk halaman pengelolaan pengguna.
+    // Menyiapkan daftar akun untuk halaman Master Pengguna.
     public function index()
     {
         $users = User::latest()->latest('id')->paginate(25)->withQueryString();
         return view('master.users.index', compact('users'));
     }
 
-    // Buka form pembuatan akun.
+    // Membuka form tambah pengguna.
     public function create()
     {
         return view('master.users.form');
     }
 
-    // Cek email, pilihan peran, dan syarat kata sandi. Database menyimpan hasil hash, yaitu bentuk olahan password untuk memeriksa login.
+    // Membuat akun baru dengan identitas, peran, dan kata sandi.
     public function store(Request $request)
     {
         $request->validate([
@@ -43,7 +43,7 @@ class UserController extends Controller
         User::create([
             'name'     => $request->name,
             'email'    => $request->email,
-            // Hash::make() menyimpan hasil olahan kata sandi yang dipakai untuk mencocokkan login.
+            // Simpan kata sandi dalam bentuk hash.
             'password' => Hash::make($request->password),
             'role'     => $request->role,
         ]);
@@ -51,13 +51,13 @@ class UserController extends Controller
         return redirect()->route('master.users.index')->with('success', 'Pengguna berhasil ditambahkan.');
     }
 
-    // Kirim akun yang ditemukan dari ID pada URL agar identitas lama tampil di form.
+    // Membuka form ubah untuk pengguna yang dipilih.
     public function edit(User $user)
     {
         return view('master.users.form', compact('user'));
     }
 
-    // Periksa perubahan identitas dan password opsional, lalu kunci akun sebelum menyimpan.
+    // Menyimpan perubahan identitas, peran, dan kata sandi bila diisi.
     public function update(Request $request, User $user)
     {
         $rules = [
@@ -91,7 +91,7 @@ class UserController extends Controller
         return redirect()->route('master.users.index')->with('success', 'Pengguna berhasil diperbarui.');
     }
 
-    // Buat password sementara untuk pengguna lain. Ketika pengguna itu masuk, aplikasi meminta password baru.
+    // Memberi kata sandi sementara kepada pengguna yang dipilih.
     public function resetPassword(Request $request, User $user, AccountPasswordService $passwords)
     {
         abort_if($user->id === $request->user()->id, 422, 'Untuk akun sendiri, gunakan menu Ubah Password.');
@@ -106,7 +106,7 @@ class UserController extends Controller
         ]);
     }
 
-    // Tampilkan hasil reset dari sesi melalui respons yang tidak disimpan oleh cache browser.
+    // Menampilkan hasil pembuatan kata sandi sementara.
     public function resetResult(Request $request)
     {
         $encrypted = $request->session()->get('temporary_password');
@@ -119,7 +119,7 @@ class UserController extends Controller
         ])->header('Cache-Control', 'no-store, private')->header('Pragma', 'no-cache');
     }
 
-    // Saat akun dinonaktifkan atau diaktifkan kembali, ubah penanda versi akun agar sesi login lama tidak dapat dipakai.
+    // Mengubah apakah sebuah akun boleh masuk ke aplikasi.
     public function updateStatus(Request $request, User $user)
     {
         $request->validate(['active' => 'required|boolean']);
@@ -147,7 +147,7 @@ class UserController extends Controller
             : 'Akun berhasil dinonaktifkan.');
     }
 
-    // Pengguna tidak bisa menghapus akun yang sedang dipakai atau akun yang masih tercatat dalam transaksi.
+    // Menghapus akun yang memenuhi syarat penghapusan.
     public function destroy(User $user)
     {
         try {
@@ -173,7 +173,7 @@ class UserController extends Controller
         return redirect()->route('master.users.index')->with('success', 'Pengguna berhasil dihapus.');
     }
 
-    // Kunci akun yang sedang login dan akun yang akan diubah. Cek kembali apakah pengguna yang login masih owner aktif.
+    // Mengambil akun yang akan dikelola dan memeriksa apakah pelaksana masih berwenang.
     private function lockManagedUser(User $user): User
     {
         // Lock both accounts so a concurrent change cannot revoke the acting owner's authority mid-operation.

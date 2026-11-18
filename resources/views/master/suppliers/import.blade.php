@@ -1,4 +1,4 @@
-{{-- Unggah workbook untuk pratinjau terlebih dahulu; konfirmasi memakai token pratinjau yang masih berlaku. --}}
+{{-- Periksa data Excel supplier sebelum disimpan. --}}
 @extends('layouts.app')
 @section('title','Import Supplier')
 @section('page-title','Import Supplier')
@@ -30,7 +30,7 @@
     <h6 id="supplierImportConfirmHeading">Konfirmasi Import Supplier</h6>
     <p class="small text-muted">Seluruh {{ $preview['supplier_count'] }} supplier dan {{ $preview['supplier_link_count'] }} hubungan akan diproses, termasuk yang tidak ditampilkan pada pratinjau. Supplier dan harga hubungan yang sudah terdaftar tidak ditimpa. Stok, Master Barang, dan HPP transaksi lama tidak diubah.</p>
     <p class="small text-muted">Berlaku sampai {{ $run->expires_at->timezone('Asia/Jakarta')->format('d/m/Y H:i') }} WIB.</p>
-    {{-- Konfirmasi menggunakan token pratinjau yang dibuat untuk pengguna ini. --}}
+    {{-- Gunakan token untuk menemukan pratinjau yang dikonfirmasi. --}}
     <form method="POST" action="{{ route('master.suppliers.import.store') }}" data-confirm="Simpan supplier dan hubungan barang baru sesuai pratinjau? Data lama tetap dipertahankan." data-confirm-title="Konfirmasi Import Supplier" data-confirm-label="Konfirmasi & Simpan" data-confirm-tone="success">
         @csrf
         <input type="hidden" name="token" value="{{ $run->token }}">

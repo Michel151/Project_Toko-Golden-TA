@@ -1,4 +1,4 @@
-{{-- Tampilkan kontak dan jumlah PO; form GET memakai q agar pencarian bisa dibawa pada URL. --}}
+{{-- Tampilkan kontak supplier dan jumlah pesanannya. --}}
 @extends('layouts.app')
 @section('title', 'Supplier')
 @section('page-title', 'Master Supplier')
@@ -39,7 +39,6 @@
                 </tr>
             </thead>
             <tbody>
-                {{-- purchase_orders_count berasal dari withCount; tautan detail menerima ID supplier dari baris ini. --}}
                 @forelse($suppliers as $supplier)
                 <tr>
                     <td class="text-muted">{{ $suppliers->firstItem() + $loop->index }}</td>

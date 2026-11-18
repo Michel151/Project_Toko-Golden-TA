@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Simpan satu hubungan dan satu harga beli untuk setiap pasangan supplier dan produk.
+        // Buat tabel harga beli untuk tiap pasangan supplier dan barang.
         Schema::create('product_supplier', function (Blueprint $table) {
             $table->id();
             $table->foreignId('supplier_id')->constrained('suppliers')->cascadeOnDelete();

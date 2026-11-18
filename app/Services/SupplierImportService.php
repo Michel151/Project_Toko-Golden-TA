@@ -9,7 +9,7 @@ use Illuminate\Validation\ValidationException;
 
 class SupplierImportService
 {
-    // Sebelum menyimpan, baca file Excel dan tampilkan mana supplier baru, mana supplier lama, dan mana barang yang sudah terhubung.
+    // Menyiapkan daftar supplier dan hubungan barang untuk pratinjau.
     public function prepare(array $sheets, bool $canReadProducts): array
     {
         $plan = app(SupplierImportWorkbookService::class)->preview($sheets, $canReadProducts, true, true);
@@ -39,7 +39,7 @@ class SupplierImportService
         return $plan;
     }
 
-    // Simpan isi Excel dan barang/supplier yang cocok sementara, supaya bisa dibandingkan lagi saat pengguna klik Konfirmasi.
+    // Menyimpan data pratinjau supplier sementara.
     public function stage(array $sheets, array $plan, int $userId): SupplierImportRun
     {
         if ($plan['error_count']) $this->invalid($plan);
@@ -50,7 +50,7 @@ class SupplierImportService
         ]);
     }
 
-    // Saat Konfirmasi, periksa apakah barang dan supplier masih sesuai dengan yang dilihat saat pratinjau. Proses impor lain yang memakai kunci ini menunggu.
+    // Menyimpan supplier dan hubungan barang yang baru setelah konfirmasi.
     public function commit(string $token, int $userId, bool $canReadProducts): array
     {
         return Cache::store('file')->lock('supplier-import', 900)->block(10, function () use ($token, $userId, $canReadProducts) {
@@ -103,7 +103,7 @@ class SupplierImportService
         });
     }
 
-    // Batasi rincian yang dikirim ke halaman pratinjau.
+    // Menyiapkan bagian pratinjau yang akan ditampilkan di layar.
     public function display(array $plan): array
     {
         $plan['suppliers'] = array_slice($plan['suppliers'], 0, 200);

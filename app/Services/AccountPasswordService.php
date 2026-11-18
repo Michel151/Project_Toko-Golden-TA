@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class AccountPasswordService
 {
-    // Simpan password dalam bentuk hash, catat perubahan, dan naikkan nomor versi agar sesi lama bisa ditolak.
+    // Mengganti kata sandi akun dan memperbarui data sesi login.
     public function replace(User $user, string $password, bool $temporary): User
     {
         return DB::transaction(function () use ($user, $password, $temporary) {

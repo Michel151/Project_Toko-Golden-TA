@@ -1,4 +1,4 @@
-{{-- Kolom Jenis Barang menghitung baris stok. Roti yang jumlahnya 0 tetap menambah hitungan satu jenis. --}}
+{{-- Tampilkan lokasi dan jumlah jenis barang yang tercatat. --}}
 @extends('layouts.app')
 @section('title', 'Lokasi/Gudang')
 @section('page-title', 'Master Lokasi/Gudang')
@@ -24,7 +24,6 @@
                 </tr>
             </thead>
             <tbody>
-                {{-- Nomor dari $loop->iteration dimulai dari satu pada halaman yang sedang dibuka. --}}
                 @forelse($locations as $location)
                 <tr>
                     <td class="text-muted">{{ $loop->iteration }}</td>

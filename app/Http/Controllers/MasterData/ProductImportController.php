@@ -15,7 +15,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ProductImportController extends Controller
 {
-    // Buka halaman impor atau bangun kembali pratinjau yang masih berlaku milik pengguna.
+    // Menampilkan halaman impor barang atau membuka hasil pemeriksaan sebelumnya.
     public function create(Request $request, ProductImportService $service)
     {
         $token = $request->query('preview') ?: old('token');
@@ -39,13 +39,13 @@ class ProductImportController extends Controller
         return view('master.products.import');
     }
 
-    // Unduh template Excel untuk identitas barang, satuan, dan stok awal.
+    // Menyiapkan unduhan contoh file untuk impor barang.
     public function template()
     {
         return Excel::download(new ProductImportTemplateExport, 'template-import-barang.xlsx');
     }
 
-    // Validasi unggahan, baca workbook, lalu siapkan pratinjau dan token untuk rencana yang lolos.
+    // Memeriksa isi Excel sebelum pengguna menyetujui penyimpanan.
     public function preview(Request $request, ProductImportService $service)
     {
         $request->validate(['file' => ['required', 'file', 'mimes:xlsx', 'max:5120']]);
@@ -67,7 +67,7 @@ class ProductImportController extends Controller
         return view('master.products.import', compact('preview', 'run', 'canStore'));
     }
 
-    // Validasi token dan konfirmasi sebelum meminta service menyimpan rencana impor.
+    // Menyimpan impor barang yang sudah diperiksa dan dikonfirmasi.
     public function store(Request $request, ProductImportService $service)
     {
         $data = $request->validate(['token' => 'required|uuid', 'confirmed' => 'required|accepted']);

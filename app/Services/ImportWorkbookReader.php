@@ -10,7 +10,7 @@ use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 
 class ImportWorkbookReader
 {
-    // Impor Barang dan Supplier memakai pembaca Excel yang sama untuk memeriksa file sebelum mengambil isi tiap tab.
+    // Mengambil isi file Excel agar bisa diperiksa oleh fitur impor.
     public function read(UploadedFile $file, int $minSheets, int $maxSheets): array
     {
         $path = $file->getRealPath();

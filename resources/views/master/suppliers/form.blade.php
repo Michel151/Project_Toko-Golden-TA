@@ -1,4 +1,4 @@
-{{-- Form menyimpan identitas dan pilihan barang. Harga per barang tersimpan pada hubungan dengan supplier. --}}
+{{-- Form kontak supplier, pilihan barang, dan harga beli. --}}
 @extends('layouts.app')
 @section('title', isset($supplier) ? 'Ubah Supplier' : 'Tambah Supplier')
 @section('page-title', isset($supplier) ? 'Ubah Supplier' : 'Tambah Supplier')
@@ -9,8 +9,7 @@
     <div class="col-lg-9">
         <div class="card table-card">
             <div class="card-body">
-                {{-- Jika data lama tersedia, form mengirim perubahan ke update(). Jika tidak, form mengirim data baru ke store().
-                    Saat edit, @method('PUT') memberi tahu Laravel untuk memilih route ubah. --}}
+                {{-- Pilih tujuan Simpan sesuai mode tambah atau ubah. --}}
                 <form method="POST" action="{{ isset($supplier)
                     ? route('master.suppliers.update', $supplier)
                     : route('master.suppliers.store') }}">
@@ -39,7 +38,7 @@
                     </div>
 
                     @php
-                        // Kelompokkan barang yang sudah dipasok berdasarkan ID. Form bisa mencari barang ID 12 untuk mengisi centang dan harga belinya.
+                        // Temukan barang yang sudah dipasok berdasarkan ID-nya.
                         $supplierProducts = isset($supplier)
                             ? $supplier->products->keyBy('id')
                             : collect();
@@ -104,8 +103,7 @@
                                 <tbody>
                                     @forelse($products as $product)
                                         @php
-                                            // Jika validasi gagal, pakai centang terakhir. Saat pertama membuka edit, centang barang yang sudah terhubung ke supplier.
-                                            // Contoh: products.12.selected membaca centang terakhir untuk barang ID 12.
+                                            // Tentukan barang yang dicentang saat form dibuka.
                                             $oldSelected = old("products.{$product->id}.selected");
                                             $selected = old('products') !== null
                                                 ? (bool) $oldSelected
@@ -229,7 +227,7 @@ document.querySelectorAll('[data-supplier-products-panel]').forEach((panel) => {
         return String(value || '').toLowerCase().trim();
     }
 
-    // Checkbox menentukan apakah harga untuk baris ini bisa diisi dan dikirim.
+    // Mengikuti perubahan centang barang di form supplier.
     function syncRowState(row) {
         const checkbox = row.querySelector('.supplier-product-check');
         const priceInput = row.querySelector('.supplier-product-price');
@@ -326,7 +324,7 @@ document.querySelectorAll('[data-supplier-products-panel]').forEach((panel) => {
         updateSummary();
     }
 
-    // Pencarian dan status centang mengatur baris yang terlihat; pengiriman tetap mengikuti input form.
+    // Menampilkan barang yang cocok dengan pencarian dan pilihan filter.
     function applyFilters() {
         const keyword = normalizeText(searchInput.value);
         const filter = currentFilter();

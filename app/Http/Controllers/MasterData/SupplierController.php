@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 class SupplierController extends Controller
 {
-    // Cari supplier lewat nama, telepon, atau alamat; hitung PO dan pertahankan pencarian saat pindah halaman.
+    // Menyiapkan daftar supplier, pencarian, dan jumlah pesanan pembelian.
     public function index(Request $request)
     {
         $search = $request->query('q');
@@ -20,7 +20,7 @@ class SupplierController extends Controller
                 $pattern = '%'.$search.'%';
 
                 $query->where(fn ($supplier) => $supplier->whereLike('name', $pattern)
-                    // Cukup satu kolom cocok. Contoh: mencari 0812 bisa menemukan telepon 08123456789.
+                    // Cocokkan kata pencarian dengan nama, telepon, atau alamat.
                     ->orWhereLike('phone', $pattern)
                     ->orWhereLike('address', $pattern));
             })
@@ -32,7 +32,7 @@ class SupplierController extends Controller
         return view('master.suppliers.index', compact('suppliers', 'search'));
     }
 
-    // Muat pilihan barang beserta kategori dan satuan belinya untuk form supplier baru.
+    // Membuka form tambah supplier beserta pilihan barang yang bisa dipasok.
     public function create()
     {
         $products = Product::with(['buyUnit', 'category'])->orderBy('name')->get();
@@ -40,7 +40,7 @@ class SupplierController extends Controller
         return view('master.suppliers.form', compact('products'));
     }
 
-    // Simpan nama, alamat, dan telepon di suppliers. Simpan barang yang dipilih beserta harganya di product_supplier.
+    // Membuat supplier baru dan menyimpan daftar barang yang dipasoknya.
     public function store(Request $request)
     {
         $this->normalizeProductPrices($request);
@@ -60,8 +60,7 @@ class SupplierController extends Controller
         return redirect()->route('master.suppliers.index')->with('success', 'Supplier berhasil ditambahkan.');
     }
 
-    // Jika tab Barang dibuka, $rows berisi barang supplier. Jika tab Riwayat PO dibuka dan diizinkan,
-    // $rows berisi pesanan pembelian dari supplier yang sama.
+    // Menampilkan detail supplier dan isi tab yang dipilih.
     public function show(Request $request, Supplier $supplier)
     {
         $canViewOrders = $request->user()->hasPermission('purchase.orders.view');
@@ -93,7 +92,7 @@ class SupplierController extends Controller
         return view('master.suppliers.show', compact('supplier', 'rows', 'productCount', 'canViewOrders', 'activeTab', 'search', 'searchParams'));
     }
 
-    // Ambil barang yang sudah dipasok agar kotaknya tercentang saat edit. Setelah itu ambil juga pilihan barang lainnya.
+    // Membuka form ubah dengan kontak, centang barang, dan harga yang tersimpan.
     public function edit(Supplier $supplier)
     {
         $supplier->load('products');
@@ -102,7 +101,7 @@ class SupplierController extends Controller
         return view('master.suppliers.form', compact('supplier', 'products'));
     }
 
-    // Simpan kontak baru dan sesuaikan barang yang dipasok dengan centang terakhir pada form.
+    // Menyimpan perubahan kontak supplier dan pilihan barangnya.
     public function update(Request $request, Supplier $supplier)
     {
         $this->normalizeProductPrices($request);
@@ -121,7 +120,7 @@ class SupplierController extends Controller
         return redirect()->route('master.suppliers.index')->with('success', 'Supplier berhasil diperbarui.');
     }
 
-    // Jika supplier sudah memiliki pesanan pembelian, batalkan hapus agar riwayat masih bisa menampilkan suppliernya.
+    // Menghapus supplier yang belum memiliki pesanan pembelian.
     public function destroy(Supplier $supplier)
     {
         if ($supplier->purchaseOrders()->exists()) {
@@ -131,8 +130,7 @@ class SupplierController extends Controller
         return redirect()->route('master.suppliers.index')->with('success', 'Supplier berhasil dihapus.');
     }
 
-    // Simpan pilihan barang yang dicentang. Jika Gula dilepas centangnya, hubungan Gula dengan supplier ini dihapus.
-    // Barang Gula masih ada di Master Barang.
+    // Menyamakan hubungan supplier dan barang di database dengan pilihan pada form.
     private function syncProducts(Supplier $supplier, array $products): void
     {
         $syncData = [];
@@ -151,7 +149,7 @@ class SupplierController extends Controller
         $supplier->products()->sync($syncData);
     }
 
-    // Rapikan harga pada setiap baris barang, lalu masukkan hasilnya kembali ke request sebelum validasi.
+    // Menyiapkan harga tiap barang agar bisa diperiksa sebagai angka.
     private function normalizeProductPrices(Request $request): void
     {
         $products = $request->input('products', []);
@@ -165,7 +163,7 @@ class SupplierController extends Controller
         $request->merge(['products' => $products]);
     }
 
-    // Tafsirkan pemisah angka agar masukan seperti 14.500,50 bisa diperiksa sebagai 14500.50.
+    // Mengubah teks harga menjadi angka dalam bentuk teks yang bisa dibaca PHP.
     private function normalizeCurrency(mixed $value): string
     {
         $value = preg_replace('/[^\d,\.]/', '', (string) $value);

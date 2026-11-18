@@ -1,4 +1,4 @@
-{{-- Controller mengisi $rows untuk tab aktif; tab PO tersedia jika pengguna punya izin melihat PO. --}}
+{{-- Tampilkan isi tab Barang Supplier atau Riwayat PO. --}}
 @extends('layouts.app')
 @section('title', 'Detail Supplier')
 @section('page-title', 'Detail Supplier')
@@ -64,7 +64,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {{-- Contoh: harga Gula di baris CV Maju dibaca dari pasangan CV Maju dan Gula pada tabel product_supplier. --}}
+                    {{-- Baca harga beli khusus untuk pasangan supplier dan barang. --}}
                     @forelse($rows as $product)
                         <tr>
                             <td class="fw-semibold text-break">{{ $product->name }}</td>
@@ -103,7 +103,7 @@
             </table>
         </div>
     @endif
-    {{-- Tampilkan tautan pindah halaman untuk isi tab yang sedang dibuka, baik Barang Supplier maupun Riwayat PO. --}}
+    {{-- Tampilkan navigasi untuk tab yang sedang dibuka. --}}
     @if($rows->total() > 0)
         <div class="card-footer bg-white">{{ $rows->links(data: ['itemLabel' => $activeTab === 'products' ? 'barang' : 'PO']) }}</div>
     @endif

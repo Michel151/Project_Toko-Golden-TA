@@ -1,4 +1,4 @@
-{{-- Tampilkan hasil reset yang dikirim controller melalui sesi. --}}
+{{-- Tampilkan kata sandi sementara setelah reset. --}}
 @extends('layouts.app')
 @section('title', 'Password Sementara')
 @section('page-title', 'Hasil Reset Password')

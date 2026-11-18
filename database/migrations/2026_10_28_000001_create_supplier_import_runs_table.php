@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Simpan token, pemilik, dan data sementara untuk menghubungkan pratinjau dengan konfirmasi.
+        // Simpan data pratinjau sampai pengguna mengonfirmasi impor.
         Schema::create('supplier_import_runs', function (Blueprint $table) {
             $table->id();
             $table->uuid('token')->unique();

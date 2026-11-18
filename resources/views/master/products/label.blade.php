@@ -1,4 +1,4 @@
-{{-- Nilai barcode dari controller dipakai oleh JsBarcode untuk menyiapkan label cetak. --}}
+{{-- Buat gambar barcode untuk label cetak. --}}
 <!DOCTYPE html>
 <html lang="id">
 <head>

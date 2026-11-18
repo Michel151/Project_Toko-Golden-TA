@@ -23,7 +23,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Pisahkan pengaturan minimum per lokasi dari saldo stok yang berubah saat transaksi.
+        // Buat tabel batas stok per barang dan lokasi.
         Schema::create('product_locations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
@@ -33,7 +33,7 @@ return new class extends Migration
             $table->unique(['product_id', 'location_id']);
         });
 
-        // Satu saldo per pasangan produk dan lokasi; kuantitas disimpan dalam satuan dasar.
+        // Buat tabel saldo barang per lokasi.
         Schema::create('stocks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();

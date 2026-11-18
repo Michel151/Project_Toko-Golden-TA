@@ -8,26 +8,25 @@ class Unit extends Model
 {
     protected $fillable = ['name'];
 
-    // Pakai buy_unit_id karena barang juga memiliki kolom terpisah untuk satuan ecer.
+    // Menemukan barang yang memilih satuan ini untuk pembelian.
     public function productsAsBuyUnit()
     {
         return $this->hasMany(Product::class, 'buy_unit_id');
     }
 
-    // Hitung pemakaian sebagai satuan ecer lewat retail_unit_id.
+    // Menemukan barang yang memilih satuan ini untuk penjualan ecer.
     public function productsAsRetailUnit()
     {
         return $this->hasMany(Product::class, 'retail_unit_id');
     }
 
-    // Konfigurasi multi satuan memakai product_units.unit_id untuk merujuk master satuan.
+    // Menemukan konfigurasi kemasan yang memakai satuan ini.
     public function productUnits()
     {
         return $this->hasMany(ProductUnit::class);
     }
 
-    // Cek apakah satuan masih dipakai produk
-    // Jika satuan masih dipakai sebagai satuan beli, satuan ecer, atau pilihan kemasan, penghapusan ditolak.
+    // Memeriksa apakah satuan masih dipakai sebelum dihapus.
     public function isUsed(): bool
     {
         return $this->productsAsBuyUnit()->exists()

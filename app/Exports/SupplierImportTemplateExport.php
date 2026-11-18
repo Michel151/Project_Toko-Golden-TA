@@ -9,7 +9,7 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 class SupplierImportTemplateExport implements WithMultipleSheets
 {
-    // Susun sheet identitas supplier, hubungan barang, dan referensi yang diizinkan.
+    // Membuat lembar yang disertakan dalam template Excel supplier.
     public function sheets(): array
     {
         $suppliers=[['DEMO-SUP001','PT Pemasok Contoh','Alamat contoh','081200000001',''],['DEMO-SUP002','CV Grosir Contoh','Alamat contoh','081200000002','']];

@@ -6,16 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 
 class Location extends Model
 {
-    // Nama dan deskripsi berasal dari form lokasi.
+    // Izinkan nama dan deskripsi diisi dari form.
     protected $fillable = ['name', 'description'];
 
-    // Hubungkan baris stok ke lokasi melalui stocks.location_id.
+    // Menemukan saldo barang di lokasi ini.
     public function stocks()
     {
         return $this->hasMany(Stock::class);
     }
 
-    // Ambil pengaturan produk per lokasi, termasuk batas minimum stok.
+    // Menemukan pengaturan barang yang berlaku di lokasi ini.
     public function productLocations()
     {
         return $this->hasMany(ProductLocation::class);
@@ -31,7 +31,7 @@ class Location extends Model
         return $this->hasMany(SaleItemSource::class);
     }
 
-    // Lokasi asal dan tujuan memakai dua foreign key berbeda pada tabel transfer.
+    // Menemukan transfer yang berangkat dari lokasi ini.
     public function stockTransfersFrom()
     {
         return $this->hasMany(StockTransfer::class, 'from_location_id');
@@ -47,7 +47,7 @@ class Location extends Model
         return $this->hasMany(StockOpname::class);
     }
 
-    // Cari rujukan dari penerimaan, penjualan, transfer, opname, mutasi, batch, dan karantina.
+    // Memeriksa apakah ada catatan transaksi yang masih memakai lokasi ini.
     public function hasTransactionHistory(): bool
     {
         return $this->purchaseReceiptItems()->exists()
@@ -60,8 +60,7 @@ class Location extends Model
             || PurchaseInspection::where('quarantine_location_id', $this->id)->exists();
     }
 
-    // Cek apakah lokasi masih memiliki stok > 0
-    // Contoh: Roti 20 berarti masih ada stok. Baris Roti dengan jumlah 0 tidak membuat hasStock() bernilai true.
+    // Menentukan apakah ada barang dengan jumlah di atas nol.
     public function hasStock(): bool
     {
         return $this->stocks()->where('quantity', '>', 0)->exists();

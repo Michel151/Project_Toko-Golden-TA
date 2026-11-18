@@ -1,4 +1,4 @@
-{{-- Tampilkan hasil pemeriksaan supplier dan hubungan barang beserta status tiap baris. --}}
+{{-- Tampilkan hasil pemeriksaan impor supplier dan barangnya. --}}
 <div class="row g-3">
 <div class="col-xl-5"><section class="trial-section" aria-labelledby="trialSupplierHeading"><h6 id="trialSupplierHeading">Master Supplier</h6><div class="table-responsive trial-scroll" tabindex="0" aria-label="Data supplier hasil pratinjau"><table class="table table-hover align-middle"><thead><tr><th>Supplier</th><th>Kontak / Alamat</th><th>Status</th></tr></thead><tbody>
 @forelse($preview['suppliers'] as $supplier)<tr><td><strong>{{ $supplier['name'] }}</strong><div class="small text-muted">{{ $supplier['code'] }}</div></td><td>{{ $supplier['phone'] ?: '-' }}<div class="small text-muted">{{ $supplier['address'] ?: '-' }}</div></td><td><span class="badge bg-{{ $supplier['id'] ? 'secondary' : 'info text-dark' }}">{{ $supplier['status'] }}</span>@if($supplier['id'])<div class="small text-muted">ID {{ $supplier['id'] }}</div>@endif</td></tr>@empty<tr><td colspan="3" class="text-muted text-center py-3">Tidak ada supplier valid. Sheet supplier bersifat opsional.</td></tr>@endforelse

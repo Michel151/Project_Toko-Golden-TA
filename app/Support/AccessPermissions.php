@@ -9,7 +9,7 @@ class AccessPermissions
     public static function features(): array
     {
         return [
-            // Izin lihat, tambah, ubah, dan hapus bisa berbeda. Menu Pengguna memeriksa apakah akun adalah owner.
+            // Daftarkan izin untuk tindakan Master Data.
             'master.products' => ['label' => 'Barang', 'group' => 'Master Data', 'icon' => 'box-seam', 'actions' => ['view', 'create', 'edit', 'delete', 'import']],
             'master.categories' => ['label' => 'Kategori', 'group' => 'Master Data', 'icon' => 'tags', 'actions' => ['view', 'create', 'edit', 'delete']],
             'master.units' => ['label' => 'Satuan', 'group' => 'Master Data', 'icon' => 'rulers', 'actions' => ['view', 'create', 'edit', 'delete']],
@@ -52,7 +52,7 @@ class AccessPermissions
         return array_values(array_filter(self::keys(), fn ($key) => $key !== 'purchase.returns.approve' && in_array(substr($key, 0, strrpos($key, '.')), $features, true)));
     }
 
-    // Contoh: ketika pengguna mengirim perubahan barang ke master.products.update, aplikasi memeriksa izin ubah barang.
+    // Menentukan izin yang diperlukan untuk menjalankan suatu tindakan.
     public static function forRoute(string $name): ?string
     {
         if ($name === 'notifications.index') return 'inventory.stock.view';

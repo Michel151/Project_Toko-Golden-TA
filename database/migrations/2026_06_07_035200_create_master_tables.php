@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Master kategori dan satuan memakai nama unik; lokasi dan supplier punya informasi tambahan.
+        // Buat tabel pengaturan Master Data.
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
@@ -21,7 +21,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Deskripsi lokasi opsional; nama tetap menjadi identitas yang harus unik.
+        // Buat tabel lokasi dengan nama unik dan deskripsi opsional.
         Schema::create('locations', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
@@ -29,7 +29,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Simpan identitas supplier di sini; harga per barang dicatat pada tabel penghubung.
+        // Buat tabel identitas dan kontak supplier.
         Schema::create('suppliers', function (Blueprint $table) {
             $table->id();
             $table->string('name');

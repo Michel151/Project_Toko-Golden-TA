@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Validator;
 
 class SupplierImportPreviewService
 {
-    // Periksa data supplier dan hubungan barang sebelum service membuat rencana penyimpanan.
+    // Memeriksa isian supplier dan hubungan dengan barang.
     public function preview(array $data, array $products, array $resolved, bool $canReadSuppliers, callable $fail, callable $warn, bool $full = false, bool $matchExistingByName = false): array
     {
         $key = fn ($value) => mb_strtolower(trim((string)$value));

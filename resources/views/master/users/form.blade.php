@@ -1,4 +1,4 @@
-{{-- Form bersama memuat nilai pengguna saat edit; password baru bersifat opsional pada mode edit. --}}
+{{-- Form tambah dan ubah pengguna. --}}
 @extends('layouts.app')
 @section('title', isset($user) ? 'Ubah Pengguna' : 'Tambah Pengguna')
 @section('page-title', isset($user) ? 'Ubah Pengguna' : 'Tambah Pengguna')
@@ -9,8 +9,7 @@
     <div class="col-md-6">
         <div class="card table-card">
             <div class="card-body">
-                {{-- Jika data lama tersedia, form mengirim perubahan ke update(). Jika tidak, form mengirim data baru ke store().
-                    Saat edit, @method('PUT') memberi tahu Laravel untuk memilih route ubah. --}}
+                {{-- Pilih tujuan Simpan sesuai mode tambah atau ubah. --}}
                 <form method="POST" action="{{ isset($user)
                     ? route('master.users.update', $user)
                     : route('master.users.store') }}">

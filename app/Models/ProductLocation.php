@@ -23,8 +23,7 @@ class ProductLocation extends Model
         return $this->belongsTo(Location::class);
     }
 
-    // Cek apakah stok di lokasi ini di bawah minimum
-    // Bandingkan saldo lokasi yang sama dengan batas minimum, termasuk saat nilainya tepat sama.
+    // Memeriksa apakah stok di satu lokasi sudah mencapai batas peringatan.
     public function isBelowMinStock(): bool
     {
         $stock = Stock::where('product_id', $this->product_id)

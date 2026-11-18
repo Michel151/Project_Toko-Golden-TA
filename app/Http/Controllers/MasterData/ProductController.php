@@ -18,8 +18,7 @@ use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
-    // Contoh: cari 'gula', lalu pilih Bahan Pokok dan Aktif. Hasil harus cocok dengan kategori dan status itu,
-    // serta mengandung 'gula' pada nama atau barcode.
+    // Menyiapkan daftar barang sesuai pencarian dan filter pengguna.
     public function index(Request $request)
     {
         $query = Product::with(['category', 'buyUnit', 'retailUnit', 'stocks', 'productUnits.unit']);
@@ -43,7 +42,7 @@ class ProductController extends Controller
         return view('master.products.index', compact('products', 'categories'));
     }
 
-    // Ambil semua pilihan dari master kategori, satuan, lokasi, dan supplier untuk form baru.
+    // Membuka form tambah barang dan mengisi daftar pilihannya.
     public function create()
     {
         $categories = Category::orderBy('name')->get();
@@ -53,8 +52,7 @@ class ProductController extends Controller
         return view('master.products.form', compact('categories', 'units', 'locations', 'suppliers'));
     }
 
-    // Saat Simpan ditekan, periksa isian, hitung konversi, lalu simpan barang beserta data terkait.
-    // Jika ada operasi database yang gagal di dalam transaksi, perubahan dalam transaksi dibatalkan.
+    // Menyimpan barang baru beserta pengaturan satuan, lokasi, dan supplier.
     public function store(Request $request)
     {
         $this->normalizePrices($request);
@@ -95,7 +93,7 @@ class ProductController extends Controller
         return redirect()->route('master.products.index')->with('success', 'Barang berhasil ditambahkan.');
     }
 
-    // Buka detail barang, lalu siapkan daftar perubahan stok sesuai lokasi, jenis, arah, dan tanggal yang dipilih.
+    // Menampilkan detail barang dan riwayat perubahan stoknya.
     public function show(Request $request, Product $product)
     {
         $product->load(['category', 'buyUnit', 'retailUnit', 'stocks.location', 'stockBatches.location', 'productLocations.location', 'productUnits.unit',
@@ -113,7 +111,7 @@ class ProductController extends Controller
             ->when($request->filled('from'), fn ($query) => $query->whereDate('movement_date', '>=', $request->from))
             ->when($request->filled('to'), fn ($query) => $query->whereDate('movement_date', '<=', $request->to));
 
-        // Hitung stok masuk dan keluar dari salinan pencarian yang sama. Syarat masuk dan keluar diterapkan terpisah.
+        // Hitung stok masuk dan keluar secara terpisah dengan filter yang sama.
         $totalMovementIn = (float) (clone $movementQuery)->where('quantity', '>', 0)->sum('quantity');
         $totalMovementOut = abs((float) (clone $movementQuery)->where('quantity', '<', 0)->sum('quantity'));
         $movementCount = (clone $movementQuery)->count();
@@ -126,7 +124,7 @@ class ProductController extends Controller
         ));
     }
 
-    // Klik ikon pensil memuat barang dari ID di URL. Data lama mengisi satuan, lokasi, supplier, dan sakelar kedaluwarsa.
+    // Membuka form ubah dengan data barang yang sudah tersimpan.
     public function edit(Product $product)
     {
         $categories      = Category::orderBy('name')->get();
@@ -134,13 +132,13 @@ class ProductController extends Controller
         $locations       = Location::orderBy('name')->get();
         $suppliers       = Supplier::orderBy('name')->get(['id', 'name']);
         $product->load(['productUnits.unit', 'suppliers']);
-        // Contoh: Gudang 2 punya ID 7. Form bisa membaca batas stoknya langsung dari $productLocations[7].
+        // Susun pengaturan stok minimum berdasarkan ID lokasi.
         $productLocations = $product->productLocations->keyBy('location_id');
         $expirySettingLocked = $product->isExpirySettingLocked();
         return view('master.products.form', compact('product', 'categories', 'units', 'locations', 'suppliers', 'productLocations', 'expirySettingLocked'));
     }
 
-    // Kirim data barang ke view label, yang mengubah nilai barcode menjadi gambar batang.
+    // Menyiapkan label barcode untuk barang yang dipilih.
     public function printLabel(Product $product)
     {
         $product->load(['category', 'buyUnit', 'retailUnit']);
@@ -148,8 +146,7 @@ class ProductController extends Controller
         return view('master.products.label', compact('product'));
     }
 
-    // Saat Simpan Perubahan ditekan, periksa isian dan hitung ulang satuannya. Cek stok dan riwayat terbaru
-    // karena mungkin ada transaksi sejak form edit pertama kali dibuka.
+    // Menyimpan perubahan pada barang yang sudah ada.
     public function update(Request $request, Product $product)
     {
         $this->normalizePrices($request);
@@ -195,14 +192,13 @@ class ProductController extends Controller
         return redirect()->route('master.products.index')->with('success', 'Barang berhasil diperbarui.');
     }
 
-    // Tolak penghapusan jika masih ada saldo stok, riwayat transaksi, atau catatan penilaian persediaan.
+    // Menghapus barang jika stok dan catatan yang masih terkait mengizinkan.
     public function destroy(Product $product)
     {
         try {
             $result = DB::transaction(function () use ($product) {
                 app(\App\Services\MovingAverageCostService::class)->lock();
                 $locked = Product::whereKey($product->id)->lockForUpdate()->firstOrFail();
-                // Riwayat penilaian persediaan juga dapat menahan penghapusan walaupun saldo stok nol.
                 if ($locked->costBalance()->exists()) return 'cost';
                 if ($locked->stocks()->where('quantity', '!=', 0)->exists()) return 'stock';
                 if ($locked->hasTransactionHistory()) return 'history';
@@ -226,7 +222,7 @@ class ProductController extends Controller
         return redirect()->route('master.products.index')->with('success', 'Barang berhasil dihapus.');
     }
 
-    // Barang ID 42 boleh mempertahankan barcodenya sendiri. Validasi tetap menolak barcode yang dipakai barang lain.
+    // Menyediakan aturan untuk memeriksa isian tambah dan ubah barang.
     private function rules(?int $ignoreId = null): array
     {
         return [
@@ -258,8 +254,7 @@ class ProductController extends Controller
         ];
     }
 
-    // Simpan daftar supplier yang dipilih untuk barang ini. Supplier baru mendapat harga beli awal dari barang.
-    // Jika hubungan sudah ada, harga yang tersimpan untuk supplier tersebut tetap dipakai.
+    // Mencatat supplier mana saja yang memasok barang ini.
     private function syncProductSuppliers(Product $product, Request $request): void
     {
         // Preserve supplier links for existing callers that do not submit this field.
@@ -273,8 +268,7 @@ class ProductController extends Controller
         $product->suppliers()->sync($suppliers);
     }
 
-    // Contoh: minimum Gudang 2 adalah 24 Pcs. Angka itu menjadi batas peringatan.
-    // Jika belum ada saldo untuk lokasi itu, saldo awal dibuat 0 Pcs.
+    // Menyimpan lokasi yang dipilih dan batas minimum stok di masing-masing lokasi.
     private function syncProductLocations(Product $product, Request $request): void
     {
         $activeLocationIds = collect($request->input('active_locations', []))
@@ -299,7 +293,7 @@ class ProductController extends Controller
         }
     }
 
-    // Ubah harga seperti '120.000' menjadi '120000', lalu beri nomor baris satuan mulai dari 0.
+    // Menyiapkan format harga dan posisi baris satuan sebelum validasi.
     private function normalizePrices(Request $request): void
     {
         $request->merge([
@@ -315,8 +309,7 @@ class ProductController extends Controller
         ]);
     }
 
-    // Kalau barang sudah dipakai, bandingkan satuan lama dengan isian baru berdasarkan ID satuannya.
-    // Contoh: mengganti 1 Dus dari 12 Pcs menjadi 10 Pcs ditolak agar satuan lama tetap konsisten.
+    // Cegah penghapusan satuan lama serta perubahan satuan dasar atau konversi pada barang yang sudah dipakai.
     private function validateHistoricalUnits(Product $product, Request $request): void
     {
         $hasHistory=$product->stocks()->where('quantity','>',0)->exists()
@@ -342,7 +335,7 @@ class ProductController extends Controller
         }
     }
 
-    // Simpan Pcs dan Dus dulu supaya keduanya punya ID. Setelah itu, sambungkan Dus ke baris Pcs sebagai isinya.
+    // Menyimpan daftar satuan barang beserta hubungan isi kemasannya.
     private function syncProductUnits(Product $product, Request $request): void
     {
         $baseIndex = (int) $request->base_unit_index;
@@ -367,7 +360,7 @@ class ProductController extends Controller
                 ]
             );
             $keptIds[] = $productUnit->id;
-            // Simpan pasangan posisi form dan baris database. Contoh: posisi 0 berarti konfigurasi Pcs dengan ID 81.
+            // Simpan ID satuan produk berdasarkan posisi baris di form.
             $indexedProductUnits[$index] = $productUnit;
         }
 
@@ -383,8 +376,7 @@ class ProductController extends Controller
         $product->productUnits()->whereNotIn('id', $keptIds)->delete();
     }
 
-    // Jika Beli memilih posisi 1, baris 1 harus ada. Satuan Dasar tidak memilih isi.
-    // Dus boleh berisi Pcs, tetapi Dus dan Pcs tidak boleh saling menunjuk sebagai isi.
+    // Memeriksa pilihan Dasar, Beli, Jual, dan isi setiap kemasan.
     private function validateProductUnitSelection(Request $request): void
     {
         $baseIndex = (int) $request->base_unit_index;
@@ -408,8 +400,7 @@ class ProductController extends Controller
         $this->calculateUnitConversions($request->product_units, $baseIndex);
     }
 
-    // Hitung isi sampai satuan dasar. Jika 1 Karton berisi 2 Dus dan 1 Dus berisi 12 Pcs,
-    // konversi Karton adalah 2 x 12 = 24 Pcs.
+    // Menghitung berapa banyak satuan dasar yang ada dalam setiap kemasan.
     private function calculateUnitConversions(array $units, int $baseIndex): array
     {
         $conversions = [];
@@ -432,7 +423,7 @@ class ProductController extends Controller
                 ]);
             }
 
-            // Jika Dus berisi Pak dan Pak menunjuk kembali ke Dus, hentikan hitungan agar tidak berulang terus.
+            // Tandai satuan yang sedang dihitung untuk mendeteksi rantai yang berputar.
             $visiting[$index] = true;
 
             if ($index === $baseIndex) {
@@ -460,7 +451,7 @@ class ProductController extends Controller
         return $conversions;
     }
 
-    // Masukkan hasil hitungan ke data form yang diterima. Contoh: conversion_to_base untuk Dus diisi 12.
+    // Menambahkan hasil hitung konversi ke setiap baris satuan yang akan disimpan.
     private function applyCalculatedConversions(Request $request): void
     {
         $units = $request->product_units;
@@ -473,13 +464,12 @@ class ProductController extends Controller
         $request->merge(['product_units' => $units]);
     }
 
-    // Contoh: harga beli 1 Dus Rp120.000 dan isinya 12 Pcs. Harga beli 1 Pcs menjadi Rp10.000.
+    // Menghitung harga beli setiap satuan dari harga beli utama.
     private function applyCalculatedBuyPrices(Request $request): void
     {
         $units = $request->product_units;
         $purchaseIndex = (int) $request->default_purchase_unit_index;
         $purchasePrice = (float) $units[$purchaseIndex]['buy_price'];
-        // Untuk Dus isi 12, angka 12 dipakai sebagai pembagi saat menghitung harga per Pcs.
         $purchaseConversion = (float) $units[$purchaseIndex]['conversion_to_base'];
 
         foreach ($units as $index => $unit) {
@@ -492,7 +482,7 @@ class ProductController extends Controller
         $request->merge(['product_units' => $units]);
     }
 
-    // Kalau pengguna memasukkan batas minimum 2 Dus, simpan 24 Pcs ketika 1 Dus = 12 Pcs.
+    // Mengubah batas minimum yang diisi pengguna menjadi jumlah dalam satuan dasar.
     private function applyMinimumStockConversions(Request $request): void
     {
         $units = $request->product_units;
@@ -518,7 +508,7 @@ class ProductController extends Controller
         ]);
     }
 
-    // Contoh: 'Rp 14.500,50' diubah menjadi '14500.50' supaya bisa diperiksa sebagai angka.
+    // Membersihkan format rupiah agar harga bisa diperiksa sebagai angka.
     private function normalizeCurrency(mixed $value): string
     {
         $value = preg_replace('/[^\d,\.]/', '', (string) $value);

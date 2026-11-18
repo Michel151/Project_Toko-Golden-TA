@@ -1,4 +1,4 @@
-{{-- Detail barang menggabungkan informasi barang, supplier, stok per lokasi, batch, dan riwayat mutasi. --}}
+{{-- Tampilkan satuan, supplier, stok, dan riwayat barang. --}}
 @extends('layouts.app')
 @section('title', $product->name)
 @section('page-title', 'Detail Barang')
@@ -62,7 +62,7 @@
         <div class="detail-row"><span class="detail-label">Nama Barang</span><span class="detail-value">{{ $product->name }}</span></div>
         <div class="detail-row"><span class="detail-label">Kategori</span><span class="detail-value">{{ $product->category->name ?? '-' }}</span></div>
         <div class="detail-row"><span class="detail-label">Supplier</span><div class="detail-value product-suppliers">
-            {{-- Setiap supplier dapat memiliki harga beli yang berbeda untuk barang yang sama. --}}
+            {{-- Tampilkan harga beli dari masing-masing supplier. --}}
             @forelse($product->suppliers as $supplier)
                 <span class="badge bg-light text-body border">{{ $supplier->name }}</span>
             @empty
@@ -118,7 +118,7 @@
         <span class="badge bg-warning text-dark align-self-center">30 hari = hampir kedaluwarsa</span>
     </div>
     <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Lokasi</th><th>Riwayat Masuk</th><th>Kedaluwarsa</th><th class="text-end">Masuk ke Lokasi</th><th class="text-end">Sisa Fisik / Layak Jual</th><th class="text-center">Status</th></tr></thead><tbody>
-    {{-- Tampilkan batch yang dikelompokkan oleh blok PHP sebelumnya. --}}
+    {{-- Tampilkan daftar batch stok per kelompok. --}}
     @forelse($expiryBatchGroups as $groupIndex => $group)
     @php
         $status=$group['status'];

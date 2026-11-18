@@ -1,4 +1,4 @@
-{{-- Tampilkan jumlah penggunaan satuan beli dan ecer dari dua relasi yang dihitung controller. --}}
+{{-- Tampilkan jumlah barang yang memakai tiap satuan untuk beli dan ecer. --}}
 @extends('layouts.app')
 @section('title', 'Satuan')
 @section('page-title', 'Master Satuan')
@@ -24,7 +24,6 @@
                 </tr>
             </thead>
             <tbody>
-                {{-- buy_unit_count adalah jumlah barang yang memakai satuan ini untuk beli. retail_unit_count menghitung yang memakai untuk ecer. --}}
                 @forelse($units as $unit)
                 <tr>
                     <td class="text-muted">{{ $units->firstItem() + $loop->index }}</td>

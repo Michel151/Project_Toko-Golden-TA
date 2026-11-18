@@ -16,7 +16,7 @@ class ProductImportPreviewService
         'Master Supplier' => ['kode_supplier','nama_supplier','alamat','telepon','id_supplier'],
     ];
 
-    // Periksa tab Barang, Satuan, dan Stok Awal. Jika ada kesalahan, catat nama tab dan nomor barisnya.
+    // Memeriksa data barang dan satuan di Excel untuk membuat pratinjau.
     public function preview(array $sheets, bool $canReadSuppliers = false, bool $full = false): array
     {
         $errors = []; $warnings = []; $errorCount = 0;

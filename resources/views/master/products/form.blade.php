@@ -1,4 +1,4 @@
-{{-- Form bersama untuk identitas, hubungan supplier, konfigurasi satuan, dan ambang stok per barang. --}}
+{{-- Form untuk menambah atau mengubah barang. --}}
 @extends('layouts.app')
 @section('title', isset($product) ? 'Ubah Barang' : 'Tambah Barang')
 @section('page-title', isset($product) ? 'Ubah Barang' : 'Tambah Barang')
@@ -17,8 +17,7 @@
 
 @section('content')
 @include('master._header', ['icon'=>'box-seam', 'title'=>isset($product) ? 'Ubah Barang' : 'Tambah Barang', 'description'=>'Lengkapi identitas, barcode, satuan, harga, dan batas minimum stok.'])
-{{-- Jika data lama tersedia, form mengirim perubahan ke update(). Jika tidak, form mengirim data baru ke store().
-    Saat edit, @method('PUT') memberi tahu Laravel untuk memilih route ubah. --}}
+{{-- Pilih tujuan Simpan sesuai mode tambah atau ubah. --}}
 <form method="POST" action="{{ isset($product)
     ? route('master.products.update', $product)
     : route('master.products.store') }}">
@@ -70,7 +69,7 @@
                         <div class="col-12">
                             @php $selectedSupplierIds = collect(old('supplier_ids', isset($product) ? $product->suppliers->modelKeys() : []))->map(fn ($id) => (string) $id)->all(); @endphp
                             <label for="productSuppliers" class="form-label fw-semibold">Supplier</label>
-                            {{-- Submit an empty value when all suppliers are removed. --}}
+                            {{-- Kirim pilihan kosong jika semua supplier dilepas. --}}
                             <input type="hidden" name="supplier_ids" value="">
                             <select id="productSuppliers" name="supplier_ids[]" multiple
                                     class="form-select @if($errors->has('supplier_ids') || $errors->has('supplier_ids.*')) is-invalid @endif"
@@ -115,8 +114,7 @@
         </div>
 
         @php
-            // Jika Simpan gagal karena ada isian salah, old() memakai daftar satuan yang tadi dikirim.
-            // Dengan begitu, pilihan Dus atau Pcs memakai posisi baris yang sama seperti saat pengguna mengisi form.
+            // Siapkan daftar pilihan satuan untuk kolom Stok Minimum.
             $thresholdProductUnits = old('product_units');
             if (!$thresholdProductUnits) {
                 if (isset($product) && $product->productUnits->isNotEmpty()) {
@@ -138,14 +136,14 @@
                 }
             }
 
-            // Cari posisi satuan dasar. Coba pakai pilihan dari kiriman terakhir, lalu cari baris yang bertanda is_base_unit.
+            // Cari posisi satuan dasar, yaitu satuan acuan untuk menyimpan stok.
             $thresholdBaseIndex = old('base_unit_index');
             foreach ($thresholdProductUnits as $i => $unitRow) {
                 if ($thresholdBaseIndex === null && !empty($unitRow['is_base_unit'])) $thresholdBaseIndex = $i;
             }
             $thresholdBaseIndex = $thresholdBaseIndex ?? count($thresholdProductUnits) - 1;
 
-            // Contoh: 24 Pcs bisa dibagi 12 tanpa sisa, jadi tampilkan 2 Dus. Jika 25 Pcs, coba satuan berikutnya.
+            // Pilih angka dan satuan yang ditampilkan untuk batas stok minimum.
             $thresholdUnitChoice = function ($baseQty) use ($thresholdProductUnits, $thresholdBaseIndex) {
                 $qty = (float) $baseQty;
                 if ($qty <= 0) return [$thresholdBaseIndex, 0];
@@ -153,7 +151,6 @@
                 foreach ($thresholdProductUnits as $i => $unitRow) {
                     $conversion = (float) ($unitRow['conversion_to_base'] ?? 1);
                     if ($conversion > 0 && abs(fmod($qty, $conversion)) < 0.0001) {
-                        // Contoh: Dus di baris 0 berisi 12 Pcs. Untuk 24 Pcs, hasilnya [0, 2].
                         return [$i, $qty / $conversion];
                     }
                 }
@@ -161,13 +158,13 @@
                 return [$thresholdBaseIndex, $qty];
             };
 
-            // Contoh: [0, 2] berarti dropdown memilih Dus di baris 0 dan input $minTotalDisplayQty menampilkan angka 2.
+            // Isi angka dan pilihan satuan untuk stok minimum total.
             [$minTotalUnitIndex, $minTotalDisplayQty] = old('min_stock_total') !== null
                 ? [old('min_stock_total_unit_index', $thresholdBaseIndex), old('min_stock_total')]
                 : $thresholdUnitChoice($product->min_stock_total ?? 0);
 
             $locationThresholds = $productLocations ?? collect();
-            // Untuk Gudang 2, tampilkan pilihan yang terakhir dikirim. Jika belum ada, baca batas dari database.
+            // Ambil angka dan satuan stok minimum untuk satu gudang.
             $locationThresholdChoice = function ($locationId) use ($thresholdUnitChoice, $locationThresholds, $thresholdBaseIndex) {
                 if (old("locations.{$locationId}") !== null) {
                     return [
@@ -178,13 +175,12 @@
 
                 return $thresholdUnitChoice($locationThresholds[$locationId]->min_stock ?? 0);
             };
-            // Tentukan lokasi mana yang dicentang. Pakai pilihan terakhir di form atau lokasi yang sebelumnya tersimpan.
+            // Tentukan lokasi yang sudah dicentang saat form dibuka.
             $activeLocationIds = collect(old('active_locations', isset($product) ? $locationThresholds->keys()->all() : []))
                 ->map(fn ($locationId) => (int) $locationId)
                 ->all();
         @endphp
 
-        {{-- Jika tampil 2 Dus, kotak angka mengirim 2 dan dropdown mengirim posisi baris Dus. Controller menghitung jumlah Pcs. --}}
         {{-- Min Stok Total --}}
         <div class="col-md-4">
             <div class="card table-card">
@@ -211,7 +207,7 @@
         </div>
 
         @php
-            // Siapkan data lengkap untuk tabel harga dan isi kemasan, termasuk cadangan untuk barang lama.
+            // Isi baris tabel Multi Satuan & Harga dari isian terakhir atau data yang tersimpan.
             $existingProductUnits = old('product_units');
             if (!$existingProductUnits) {
                 if (isset($product) && $product->productUnits->isNotEmpty()) {
@@ -257,11 +253,12 @@
                     ]];
                 }
             }
-            // Contoh: konfigurasi Pcs dengan ID 81 berada di baris 1. Ubah rujukan ke ID 81 menjadi pilihan baris 1.
+            // Cocokkan ID satuan produk yang tersimpan dengan posisi barisnya di form.
             $unitIdToRowIndex = [];
             foreach ($existingProductUnits as $i => $unitRow) {
                 if (!empty($unitRow['id'])) $unitIdToRowIndex[$unitRow['id']] = $i;
             }
+            // Pilih baris yang menjadi isi kemasan.
             foreach ($existingProductUnits as $i => $unitRow) {
                 if (!array_key_exists('contains_unit_index', $existingProductUnits[$i])) {
                     $existingProductUnits[$i]['contains_unit_index'] = !empty($unitRow['contains_unit_id']) && array_key_exists($unitRow['contains_unit_id'], $unitIdToRowIndex)
@@ -269,7 +266,7 @@
                         : '';
                 }
             }
-            // Centang tombol Dasar, Beli, dan Jual berdasarkan kiriman terakhir atau data barang. Gunakan pilihan awal jika belum ada.
+            // Tentukan pilihan satuan Dasar, Beli, dan Jual.
             $baseIndex = old('base_unit_index');
             $purchaseIndex = old('default_purchase_unit_index');
             $saleIndex = old('default_sale_unit_index');
@@ -380,7 +377,6 @@
         </div>
         </div>
 
-        {{-- Untuk lokasi ID 7, centang mengirim 7. Batas dan pilihan satuannya dikirim sebagai locations[7] dan location_units[7]. --}}
         {{-- Min Stok per Lokasi --}}
         <div class="col-12">
             <div class="card table-card">
@@ -437,6 +433,7 @@
 @push('scripts')
 <script>{!! file_get_contents(public_path('vendor/tom-select-2.4.3/tom-select.complete.min.js')) !!}</script>
 <script>
+// Aktifkan pencarian dan pilihan lebih dari satu supplier.
 new TomSelect('#productSuppliers', {
     plugins: {remove_button: {title: 'Hapus supplier'}},
     create: false,
@@ -453,7 +450,7 @@ new TomSelect('#productSuppliers', {
 const unitOptionsHtml = `@foreach($units as $unit)<option value="{{ $unit->id }}">{{ $unit->name }}</option>@endforeach`;
 let productUnitIndex = {{ count($existingProductUnits) }};
 
-// Jika baris satuan ditambah atau dibuang, beri nomor baru dan sesuaikan isian yang menunjuk ke nomor baris itu.
+// Susun ulang nomor baris dan pilihan isi kemasan saat daftar satuan berubah.
 function refreshProductUnitRows() {
     const rows = [...document.querySelectorAll('.product-unit-row')];
     const newIndexes = new Map(rows.map((row, index) => [row.querySelector('.base-radio').value, index]));
@@ -497,7 +494,7 @@ function refreshProductUnitRows() {
     updateUnitPreview();
 }
 
-// Salin pilihan satuan dari tabel ke dropdown minimum total dan per lokasi.
+// Perbarui pilihan satuan pada kolom stok minimum.
 function refreshThresholdUnitSelects(rows = [...document.querySelectorAll('.product-unit-row')]) {
     document.querySelectorAll('.threshold-unit-select').forEach(select => {
         const currentValue = select.value;
@@ -510,7 +507,7 @@ function refreshThresholdUnitSelects(rows = [...document.querySelectorAll('.prod
     });
 }
 
-// Hitung konversi kemasan untuk umpan balik di browser; controller menghitungnya kembali saat simpan.
+// Tampilkan hasil konversi satuan sebelum form disimpan.
 function updateUnitPreview() {
     const domRows = [...document.querySelectorAll('.product-unit-row')];
     const rows = domRows
@@ -530,6 +527,7 @@ function updateUnitPreview() {
     const resolving = new Set();
     const baseIndex = Number(document.getElementById('baseUnitIndex').value);
 
+    // Hitung isi satu kemasan dalam satuan dasar.
     function resolve(index) {
         const row = byIndex.get(index);
         if (!row) return 0;
@@ -561,6 +559,7 @@ function updateUnitPreview() {
     updateBuyPrices(domRows, rows);
 }
 
+// Ubah teks harga menjadi angka untuk dihitung.
 function parseBuyPrice(value) {
     const cleaned = String(value ?? '').replace(/[^\d,.]/g, '');
     if (cleaned.includes(',')) return Number(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
@@ -568,11 +567,12 @@ function parseBuyPrice(value) {
     return Number(cleaned.replace(/\./g, '')) || 0;
 }
 
+// Tampilkan harga dengan format angka Indonesia.
 function formatBuyPrice(value) {
     return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value);
 }
 
-// Isi harga beli baris lain dari harga beli acuan dan konversi masing-masing.
+// Hitung harga beli satuan lain dari harga satuan yang dipilih untuk beli.
 function updateBuyPrices(domRows, rows) {
     const purchaseIndex = Number(document.getElementById('purchaseUnitIndex').value);
     const purchaseRow = domRows[purchaseIndex];
@@ -592,6 +592,7 @@ function updateBuyPrices(domRows, rows) {
     });
 }
 
+// Tambahkan baris baru pada tabel satuan.
 function addProductUnitRow() {
     const tbody = document.querySelector('#productUnitsTable tbody');
     const row = document.createElement('tr');
@@ -649,7 +650,7 @@ document.querySelectorAll('.buy-price-input').forEach(input => {
 refreshProductUnitRows();
 
 document.querySelectorAll('.location-active-check').forEach(checkbox => {
-    // Aktifkan input batas minimum hanya ketika lokasi tersebut dicentang.
+    // Aktifkan isian stok minimum untuk lokasi yang dicentang.
     function syncLocationInputs() {
         const wrapper = checkbox.closest('.col-md-4');
         wrapper.querySelectorAll('.location-threshold-input, .location-threshold-unit').forEach(input => {

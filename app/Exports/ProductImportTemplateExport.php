@@ -7,7 +7,7 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
 class ProductImportTemplateExport implements WithMultipleSheets
 {
-    // Susun sheet yang harus diisi pada template impor barang.
+    // Membuat lembar yang disertakan dalam template Excel barang.
     public function sheets(): array
     {
         $expiry=now('Asia/Jakarta')->addMonths(6)->toDateString();
