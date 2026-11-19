@@ -101,7 +101,7 @@
             </td>
             <td class="text-end">{{ rtrim(rtrim(number_format($item->receivableQuantity(), 4, ',', '.'),'0'),',') }}<br><small class="text-muted">{{ $unit }}</small></td>
             @foreach(['received' => 'Baik', 'damaged' => 'Rusak', 'wrong' => 'Tidak sesuai', 'missing' => 'Kurang'] as $field => $label)
-            <td class="quantity"><input type="number" aria-label="{{ $label }} {{ $item->product->name }}" class="form-control form-control-sm inspection-qty {{ $field === 'received' ? 'good-qty' : 'exception-qty' }}" name="items[{{ $i }}][quantity_{{ $field }}]" value="{{ old("items.$i.quantity_$field", 0) }}" min="0" max="{{ $item->receivableQuantity() }}" step="0.0001" required></td>
+            <td class="quantity"><input type="number" aria-label="{{ $label }} {{ $item->product->name }}" class="form-control form-control-sm inspection-qty {{ $field === 'received' ? 'good-qty' : 'exception-qty' }}" name="items[{{ $i }}][quantity_{{ $field }}]" value="{{ old("items.$i.quantity_$field", 0) }}" min="0" max="{{ $item->receivableQuantity() }}" step="1" required></td>
             @endforeach
             <td class="receiving-summary small" aria-live="polite"></td>
         </tr>
