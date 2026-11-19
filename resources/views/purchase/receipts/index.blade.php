@@ -180,7 +180,13 @@
             <tbody>
                 @forelse($receipts as $receipt)
                 <tr>
-                    <td class="font-monospace fw-semibold">{{ $receipt->purchaseOrder->po_number }}</td>
+                    <td class="font-monospace fw-semibold">
+                        @if(auth()->user()->canAccessRoute('purchase.orders.show'))
+                        <a href="{{ route('purchase.orders.show', $receipt->purchaseOrder) }}" class="text-decoration-none">{{ $receipt->purchaseOrder->po_number }}</a>
+                        @else
+                        {{ $receipt->purchaseOrder->po_number }}
+                        @endif
+                    </td>
                     <td>{{ $receipt->purchaseOrder->supplier->name }}</td>
                     <td>{{ $receipt->receipt_date?->format('d/m/Y')??'-' }}</td>
                     <td class="text-center">

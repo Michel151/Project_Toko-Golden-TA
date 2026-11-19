@@ -63,6 +63,40 @@ class PurchaseReceiptAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_receipt_history_links_purchase_orders_only_with_view_permission(): void
+    {
+        $owner = User::create([
+            'name' => 'Owner', 'email' => 'history-owner@example.com',
+            'password' => 'password', 'role' => 'owner',
+        ]);
+        $staff = User::create([
+            'name' => 'Gudang', 'email' => 'history-staff@example.com',
+            'password' => 'password', 'role' => 'staf_gudang',
+        ]);
+        $supplier = Supplier::create(['name' => 'Supplier Riwayat']);
+        $order = PurchaseOrder::create([
+            'po_number' => 'PO-HISTORY-LINK', 'supplier_id' => $supplier->id,
+            'order_date' => today(), 'status' => 'completed', 'created_by' => $owner->id,
+        ]);
+        \App\Models\PurchaseReceipt::create([
+            'purchase_order_id' => $order->id, 'receipt_date' => today(), 'received_by' => $staff->id,
+        ]);
+        $link = 'href="'.route('purchase.orders.show', $order).'"';
+
+        $this->actingAs($owner)->get(route('purchase.receipts.index'))
+            ->assertOk()->assertSee($order->po_number)->assertSee($link, false);
+        $this->actingAs($staff)->get(route('purchase.receipts.index'))
+            ->assertOk()->assertSee($order->po_number)->assertDontSee($link, false);
+        $this->get(route('purchase.orders.show', $order))->assertForbidden();
+
+        \Illuminate\Support\Facades\DB::table('role_permissions')->insertOrIgnore([
+            'role' => 'staf_gudang', 'permission' => 'purchase.orders.view',
+        ]);
+        $this->get(route('purchase.receipts.index'))
+            ->assertOk()->assertSee($link, false);
+        $this->get(route('purchase.orders.show', $order))->assertOk();
+    }
+
     public function test_purchase_receipts_index_shows_receivable_purchase_orders(): void
     {
         $owner = User::create([
