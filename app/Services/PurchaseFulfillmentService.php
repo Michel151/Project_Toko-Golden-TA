@@ -259,14 +259,18 @@ class PurchaseFulfillmentService
                 if ($code !== null) {
                     $codes[$code] = $batch['expired_date'];
                 }
-                $allocations[] = ['quantity' => (float) $batch['quantity'], 'location_id' => $batch['location_id'],
+                // This method handles one PO item (product/unit) within one receipt.
+                // Preserve distinct supplier lot codes even when their expiry dates match.
+                $key = json_encode([(int) $batch['location_id'], $batch['expired_date'], $code]);
+                $allocations[$key] ??= ['quantity' => 0.0, 'location_id' => $batch['location_id'],
                     'expired_date' => $batch['expired_date'], 'batch_code' => $code];
+                $allocations[$key]['quantity'] = round($allocations[$key]['quantity'] + (float) $batch['quantity'], 4);
             }
             if (abs(array_sum(array_column($allocations, 'quantity')) - $good) > 0.00001) {
                 $this->invalid("items.$index.batches", 'Total rincian kedaluwarsa harus sama dengan jumlah barang baik yang diterima.');
             }
 
-            return $allocations;
+            return array_values($allocations);
         }
 
         if ($good > 0 && $product->is_expirable && empty($row['expired_date'])) {

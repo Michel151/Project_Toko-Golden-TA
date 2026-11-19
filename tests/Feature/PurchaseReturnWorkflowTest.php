@@ -255,6 +255,58 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->assertEquals(20, $this->order->items()->first()->quantity_received);
     }
 
+    public function test_identical_expiry_details_merge_only_within_the_same_receipt(): void
+    {
+        $this->setupOrder();
+        $other = Location::create(['name' => 'Toko']);
+        $expiry = today()->addMonths(2)->toDateString();
+        $later = today()->addMonths(3)->toDateString();
+        $this->post(route('purchase.receipts.store'), $this->batchPayload($this->order, [
+            ['quantity' => 25, 'location_id' => $this->location->id, 'expired_date' => $expiry],
+            ['quantity' => 25, 'location_id' => (string) $this->location->id, 'expired_date' => $expiry],
+            ['quantity' => 10, 'location_id' => $this->location->id, 'expired_date' => $later],
+            ['quantity' => 5, 'location_id' => $other->id, 'expired_date' => $expiry],
+            ['quantity' => 0, 'location_id' => $other->id, 'expired_date' => null],
+        ]))->assertSessionHasNoErrors();
+
+        $receipt = PurchaseReceipt::firstOrFail();
+        $this->assertEquals(3, $receipt->items()->count());
+        $merged = $receipt->items()->where('location_id', $this->location->id)->whereDate('expired_date', $expiry)->firstOrFail();
+        $this->assertEquals(50, $merged->quantity_received);
+        $this->assertEquals(300, $merged->stockBatch->quantity_initial);
+        $this->assertEquals(300, $merged->stockBatch->quantity_remaining);
+        $this->assertDatabaseCount('stock_batches', 3);
+        $this->assertEquals(390, Stock::sum('quantity'));
+        $this->assertEquals(65, $this->order->items()->first()->quantity_received);
+
+        $this->post(route('purchase.receipts.store'), $this->batchPayload($this->order, [
+            ['quantity' => 5, 'location_id' => $this->location->id, 'expired_date' => $expiry],
+        ]))->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('purchase_receipts', 2);
+        $this->assertDatabaseCount('stock_batches', 4);
+        $this->assertEquals(3, $receipt->items()->count());
+        $this->assertEquals(50, $merged->fresh()->quantity_received);
+        $this->assertEquals(420, Stock::sum('quantity'));
+        $this->assertEquals(70, $this->order->items()->first()->quantity_received);
+        $this->assertEquals(840000, \App\Models\InventoryCostBalance::sum('inventory_value'));
+    }
+
+    public function test_matching_expiry_dates_preserve_different_supplier_lot_codes(): void
+    {
+        $this->setupOrder();
+        $expiry = today()->addMonths(2)->toDateString();
+        $this->post(route('purchase.receipts.store'), $this->batchPayload($this->order, [
+            ['quantity' => 2, 'location_id' => $this->location->id, 'expired_date' => $expiry, 'batch_code' => ' LOT-A '],
+            ['quantity' => 3, 'location_id' => $this->location->id, 'expired_date' => $expiry, 'batch_code' => 'LOT-A'],
+            ['quantity' => 4, 'location_id' => $this->location->id, 'expired_date' => $expiry, 'batch_code' => 'LOT-B'],
+        ]))->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('stock_batches', 2);
+        $this->assertDatabaseCount('purchase_receipt_items', 2);
+        $this->assertDatabaseHas('stock_batches', ['batch_code' => 'LOT-A', 'quantity_remaining' => 30]);
+        $this->assertDatabaseHas('stock_batches', ['batch_code' => 'LOT-B', 'quantity_remaining' => 24]);
+        $this->assertEquals(54, Stock::sum('quantity'));
+    }
+
     public function test_batch_totals_expiry_location_and_code_consistency_are_validated_atomically(): void
     {
         $this->setupOrder();
