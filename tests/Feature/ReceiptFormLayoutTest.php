@@ -47,6 +47,17 @@ class ReceiptFormLayoutTest extends TestCase
         file_put_contents($dir.'/'.$name.'.html',$response->getContent());
     }
 
+    public function test_date_picker_is_embedded_in_receipt_filters_and_empty_receipt_form(): void
+    {
+        foreach (['date-index' => 'purchase.receipts.index', 'date-form' => 'purchase.receipts.create'] as $name => $route) {
+            $response = $this->get(route($route))->assertOk()
+                ->assertSee('altFormat: \'d/m/Y\'', false)
+                ->assertSee(file_get_contents(public_path('vendor/flatpickr/flatpickr.min.js')), false)
+                ->assertDontSee('src="'.asset('vendor/flatpickr/flatpickr.min.js').'"', false);
+            $this->capture($name, $response);
+        }
+    }
+
     public function test_many_items_have_collapsed_details_search_and_stable_submission_fields(): void
     {
         $response = $this->page()->assertSee('Cari Barang')->assertSee('Status Pemeriksaan')->assertSee('Siap Disimpan');

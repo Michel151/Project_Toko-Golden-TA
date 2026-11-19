@@ -54,6 +54,29 @@ const path = require('node:path');
             assert.deepEqual(errors, []);
             await page.close();
         }
+        if (process.argv.includes('--rendered')) {
+            const fs = require('node:fs');
+            for (const width of [1440, 390]) {
+                for (const name of ['date-index', 'date-form']) {
+                    const page = await browser.newPage({ viewport: { width, height: 900 }, locale: 'en-US' });
+                    // Reproduce hosting where separate JS/CSS assets fail to load.
+                    await page.route('**/*', route => route.abort());
+                    const html = fs.readFileSync(path.resolve(__dirname, '../storage/framework/testing/receiving', name + '.html'), 'utf8');
+                    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+                    const fields = name === 'date-index' ? ['from', 'to'] : ['receipt_date'];
+                    for (const field of fields) {
+                        const canonical = page.locator('input[name="' + field + '"]');
+                        const display = canonical.locator('xpath=following-sibling::input[1]');
+                        assert.equal(await canonical.getAttribute('type'), 'hidden');
+                        const iso = await canonical.inputValue();
+                        assert.equal(await display.inputValue(), iso.split('-').reverse().join('/'));
+                        assert.equal(await display.getAttribute('placeholder'), 'dd/mm/yyyy');
+                    }
+                    await page.close();
+                }
+            }
+            console.log('PASS: actual receipt filter and empty form render dd/mm/yyyy at desktop/mobile sizes with every external asset blocked.');
+        }
         console.log('PASS: dd/mm/yyyy in desktop/mobile with en-US browser; ISO submission, strict date/range validation, required fields, dynamic expiry inputs, labels and unchanged selectors.');
     } finally {
         await browser.close();
