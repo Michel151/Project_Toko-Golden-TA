@@ -95,7 +95,7 @@
         return count;
     }
     form.addEventListener('input', event => {
-        if (event.target.matches('[data-receipt-filter]')) return;
+        if (event.target.id === 'poSelect' || event.target.matches('[data-receipt-filter]')) return;
         edited = true;
         updateAll(event.target.matches('.good-qty') ? event.target.closest('.inspection-row') : null);
         const row = event.target.closest('.inspection-row');
@@ -161,7 +161,8 @@
     const initialPo = poSelect.value;
     poSelect.addEventListener('change', async () => {
         const selected = poSelect.value;
-        if ((edited || rows.some(row => [...row.querySelectorAll('.inspection-qty')].some(input => number(input) > 0))) &&
+        if (selected === initialPo) return;
+        if (initialPo && (edited || rows.some(row => [...row.querySelectorAll('.inspection-qty')].some(input => number(input) > 0))) &&
             !await window.appDialog.confirm({ title: 'Ganti Purchase Order?', text: 'Hasil pemeriksaan yang belum disimpan akan dikosongkan.', confirmText: 'Ganti PO' })) {
             poSelect.value = initialPo;
             return;

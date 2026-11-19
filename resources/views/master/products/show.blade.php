@@ -62,7 +62,7 @@
         <div class="detail-row"><span class="detail-label">Nama Barang</span><span class="detail-value">{{ $product->name }}</span></div>
         <div class="detail-row"><span class="detail-label">Kategori</span><span class="detail-value">{{ $product->category->name ?? '-' }}</span></div>
         <div class="detail-row"><span class="detail-label">Supplier</span><div class="detail-value product-suppliers">
-            {{-- Tampilkan harga beli dari masing-masing supplier. --}}
+            {{-- Tampilkan daftar supllier barang . --}}
             @forelse($product->suppliers as $supplier)
                 <span class="badge bg-light text-body border">{{ $supplier->name }}</span>
             @empty

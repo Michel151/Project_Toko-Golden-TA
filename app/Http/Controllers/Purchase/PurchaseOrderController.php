@@ -120,6 +120,7 @@ class PurchaseOrderController extends Controller
                          ->with('success', $po->fresh()->status === 'draft' ? 'Draf PO berhasil disimpan.' : 'PO berhasil dikonfirmasi dan siap untuk penerimaan barang.');
     }
 
+
     public function show(PurchaseOrder $order)
     {
         $order->load(['supplier', 'createdBy', 'confirmedBy', 'cancelledBy', 'closedBy', 'items.product.buyUnit', 'items.productUnit.unit', 'receipts.items.location', 'receipts.receivedBy', 'replacementOrders', 'rootOrder']);
@@ -253,7 +254,7 @@ class PurchaseOrderController extends Controller
             ->orderBy('name')
             ->get()
             ->map(fn ($product) => app(\App\Services\PurchasePriceService::class)->supplierProduct($product))
-            ->values());
+            ->values()); 
     }
 
     private function supplierProductsJson(): array
