@@ -10,6 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ asset('vendor/flatpickr/flatpickr.min.css') }}" rel="stylesheet">
 
     <style>
         :root {
@@ -968,6 +969,9 @@
 </script>
 @include('layouts.partials.decimal-currency')
 @include('layouts.partials.presentation-scripts')
+<script src="{{ asset('vendor/flatpickr/flatpickr.min.js') }}"></script>
+<script src="{{ asset('vendor/flatpickr/id.js') }}"></script>
+<script>{!! file_get_contents(public_path('js/date-inputs.js')) !!}</script>
 <script>window.returnNavigationPatterns = {{ \Illuminate\Support\Js::from(\App\Support\ReturnNavigation::childPatterns()) }};</script>
 <script>{!! file_get_contents(public_path('js/return-navigation.js')) !!}</script>
 @stack('scripts')

@@ -60,7 +60,11 @@
         const physicalReturn = exceptions[0] + exceptions[1] > 0;
         detail.querySelector('.receiving-issues').hidden = !hasIssues;
         detail.querySelector('.receiving-issues').classList.add('missing-only');
-        const valid = [...row.querySelectorAll('.inspection-qty'), ...detail.querySelectorAll('input,select')].every(input => input.validity.valid)
+        const valid = [...row.querySelectorAll('.inspection-qty'), ...detail.querySelectorAll('input,select')].every(input => {
+            const visibleInput = input._flatpickr?.altInput;
+            if (visibleInput) visibleInput.required = input.required;
+            return (visibleInput || input).validity.valid;
+        })
             && (good <= 0 || receiptLocation.validity.valid)
             && (!physicalReturn || quarantineLocation.validity.valid);
         row.dataset.status = total === 0 ? 'uninspected' : valid ? 'ready' : 'incomplete';
