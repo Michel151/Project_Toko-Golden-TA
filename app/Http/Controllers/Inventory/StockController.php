@@ -25,7 +25,9 @@ class StockController extends Controller
         $locations  = Location::orderBy('name')->get();
         $categories = \App\Models\Category::orderBy('name')->get();
 
-        $allProducts = Product::with(['costBalance', 'stocks', 'stockBatches', 'productUnits.unit'])->get();
+        $canViewInventoryValue = $request->user()->isOwner();
+        $allProducts = Product::with(['stocks', 'stockBatches', 'productUnits.unit'])
+            ->when($canViewInventoryValue, fn ($query) => $query->with('costBalance'))->get();
         $totalProducts = $allProducts->count();
         $lowStockCount = $allProducts->filter(fn ($product) => $product->stockAvailability()['sellable'] > 0 && $product->stockAvailability()['sellable'] <= (float) $product->min_stock_total)->count();
         $outOfStockCount = $allProducts->filter(fn ($product) => $product->stockAvailability()['sellable'] <= 0)->count();
@@ -36,9 +38,9 @@ class StockController extends Controller
             ->whereDate('expired_date', '>=', today())
             ->whereDate('expired_date', '<=', today()->addDays(30))
             ->count();
-        $inventoryValue = $allProducts->sum(function ($product) {
+        $inventoryValue = $canViewInventoryValue ? $allProducts->sum(function ($product) {
             return $product->inventoryValue();
-        });
+        }) : null;
 
         $query = Product::with([
             'buyUnit',
@@ -144,7 +146,7 @@ class StockController extends Controller
 
         return view('inventory.stock.index', compact(
             'products', 'locations', 'categories', 'totalProducts',
-            'lowStockCount', 'outOfStockCount', 'inventoryValue',
+            'lowStockCount', 'outOfStockCount', 'inventoryValue', 'canViewInventoryValue',
             'expiredBatchCount', 'expiringBatchCount', 'priorityCount', 'priorityBatches'
         ));
     }

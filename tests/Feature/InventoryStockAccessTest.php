@@ -66,6 +66,39 @@ class InventoryStockAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_only_owner_sees_inventory_value_in_stock_monitoring(): void
+    {
+        $product = $this->makeProduct('Barang Uji Akses', Category::create(['name' => 'Tes Nilai']), Unit::create(['name' => 'Pcs']));
+        $product->update(['is_expirable' => false]);
+        Stock::create([
+            'product_id' => $product->id,
+            'location_id' => Location::create(['name' => 'Toko'])->id,
+            'quantity' => 17,
+        ]);
+        $value = $product->fresh()->inventoryValue();
+        $this->assertGreaterThan(0, $value);
+        $formatted = 'Rp '.number_format($value, 0, ',', '.');
+
+        foreach (['owner', 'staf_gudang', 'kasir'] as $role) {
+            $user = User::create([
+                'name' => $role, 'email' => $role.'-inventory-value@example.com',
+                'password' => 'password', 'role' => $role,
+            ]);
+            foreach (['stock', 'priorities'] as $view) {
+                $response = $this->actingAs($user)->get(route('inventory.stock.index', ['view' => $view]))
+                    ->assertOk()->assertSee('Jenis Barang')->assertSee('Layak Jual Rendah')
+                    ->assertViewHas('canViewInventoryValue', $role === 'owner');
+                if ($role === 'owner') {
+                    $response->assertSee('Nilai Persediaan')->assertSee($formatted)
+                        ->assertViewHas('inventoryValue', $value);
+                } else {
+                    $response->assertDontSee('Nilai Persediaan')->assertDontSee($formatted)
+                        ->assertViewHas('inventoryValue', fn ($value) => $value === null);
+                }
+            }
+        }
+    }
+
     public function test_stock_card_links_only_available_documents_the_user_can_open(): void
     {
         $cashier = User::create(['name' => 'Kasir', 'email' => 'references-cashier@test.com', 'password' => 'password', 'role' => 'kasir']);

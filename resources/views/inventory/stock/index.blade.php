@@ -48,7 +48,9 @@
     <div class="col-6 col-xl"><div class="card stock-stat h-100" style="--accent:#dc3545;--soft:#fdecef"><div class="card-body d-flex gap-3 align-items-center"><div class="stock-stat-icon"><i class="bi bi-exclamation-triangle"></i></div><div><div class="text-muted small">Layak Jual Rendah</div><div class="fs-5 fw-bold text-danger">{{ $lowStockCount }}</div></div></div></div></div>
     <div class="col-6 col-xl"><div class="card stock-stat h-100" style="--accent:#6c757d;--soft:#f0f1f2"><div class="card-body d-flex gap-3 align-items-center"><div class="stock-stat-icon"><i class="bi bi-box2"></i></div><div><div class="text-muted small">Layak Jual Habis</div><div class="fs-5 fw-bold">{{ $outOfStockCount }}</div></div></div></div></div>
     <div class="col-6 col-xl"><div class="card stock-stat h-100" style="--accent:#fd7e14;--soft:#fff0e6"><div class="card-body d-flex gap-3 align-items-center"><div class="stock-stat-icon"><i class="bi bi-calendar-x"></i></div><div><div class="text-muted small">Kedaluwarsa</div><div class="fs-5 fw-bold text-danger">{{ $expiredBatchCount }}</div><div class="small text-muted">{{ $expiringBatchCount }} hampir</div></div></div></div></div>
+    @if($canViewInventoryValue)
     <div class="col-6 col-xl"><div class="card stock-stat h-100" style="--accent:#c8960c;--soft:#fff7df"><div class="card-body d-flex gap-3 align-items-center"><div class="stock-stat-icon"><i class="bi bi-wallet2"></i></div><div><div class="text-muted small">Nilai Persediaan</div><div class="fw-bold">Rp {{ number_format($inventoryValue,0,',','.') }}</div></div></div></div></div>
+    @endif
 </div>
 
 <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Tampilan persediaan">
