@@ -41,6 +41,7 @@
     <h5 class="fw-bold mb-0"><i class="bi bi-box-arrow-in-down me-2"></i>Pemeriksaan Penerimaan</h5>
     @if($selectedOrder)<span class="badge bg-warning text-dark">{{ $selectedOrder->po_number }}</span>@endif
 </div>
+{{-- Mengirim pemeriksaan barang dari PO terpilih untuk dicatat sebagai penerimaan. --}}
 <form method="POST" action="{{ route('purchase.receipts.store') }}" id="receivingForm">
 @csrf
 <input type="hidden" name="submission_token" value="{{ old('submission_token', (string) Str::uuid()) }}">
@@ -72,6 +73,7 @@
         </div>
     </div>
 </div>
+{{-- Penerimaan PO Retur memakai form yang sama dan memenuhi pesanan pengganti. --}}
 @if($selectedOrder?->root_purchase_order_id)
 <div class="alert alert-info">PO Retur dari {{ $selectedOrder->rootOrder->po_number }}. Tidak menambah tagihan pembelian.</div>
 @endif
@@ -117,6 +119,7 @@
             </tr>
         </thead>
         <tbody>
+        {{-- Hanya menampilkan baris PO yang masih memiliki sisa untuk diperiksa. --}}
         @foreach($selectedOrder->items as $item)
         @if($item->receivableQuantity() > 0)
         @php $i = $loop->index; $unit = $item->productUnit?->unit?->name ?? $item->product->buyUnit->name; @endphp
@@ -140,6 +143,7 @@
                 <input type="hidden" name="items[{{ $i }}][product_unit_id]" value="{{ $item->product_unit_id }}">
             </td>
             <td class="text-end">{{ rtrim(rtrim(number_format($item->receivableQuantity(), 4, ',', '.'),'0'),',') }}<br><small class="text-muted">{{ $unit }}</small></td>
+            {{-- Memisahkan jumlah baik, rusak, tidak sesuai, dan kurang pada setiap barang. --}}
             @foreach(['received' => 'Baik', 'damaged' => 'Rusak', 'wrong' => 'Tidak sesuai', 'missing' => 'Kurang'] as $field => $label)
             <td class="quantity">
                 <input type="number" aria-label="{{ $label }} {{ $item->product->name }}"
@@ -161,6 +165,7 @@
             </div>
             @if($item->product->is_expirable)
             @php
+                // Memulihkan rincian batch sebelumnya atau menyiapkan satu rincian kedaluwarsa awal.
                 $batchRows = array_values(old("items.$i.batches", [[
                     'quantity' => old("items.$i.quantity_received", 0),
                     'expired_date' => old("items.$i.expired_date"),

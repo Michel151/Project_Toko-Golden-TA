@@ -10,10 +10,12 @@
     const number = input => Number(input?.value) || 0;
     const format = value => value.toLocaleString('id-ID', { maximumFractionDigits: 4 });
     let edited = false;
+    // Membuka atau menutup rincian pemeriksaan satu barang.
     function setExpanded(row, expanded) {
         row.querySelector('.receiving-toggle').setAttribute('aria-expanded', String(expanded));
         document.getElementById(row.dataset.details).hidden = row.hidden || !expanded;
     }
+    // Menyaring barang berdasarkan pencarian dan status pemeriksaan.
     function filterRows() {
         const query = (search?.value || '').trim().toLocaleLowerCase('id-ID');
         let visible = 0;
@@ -27,6 +29,7 @@
         const empty = document.getElementById('receiptNoResults');
         if (empty) empty.hidden = visible > 0 || rows.length === 0;
     }
+    // Memeriksa total jumlah, rincian batch, dan kelengkapan input satu barang.
     function update(row, syncSingleBatch = false) {
         const detail = document.getElementById(row.dataset.details);
         const good = number(row.querySelector('.good-qty'));
@@ -86,6 +89,7 @@
         } else preview.textContent = good > 0 ? `Lokasi: ${receiptLocation.value ? receiptLocation.selectedOptions[0].textContent : 'Belum dipilih'}` : '';
         return total;
     }
+    // Memperbarui semua pemeriksaan dan mewajibkan karantina jika ada retur fisik.
     function updateAll(syncRow = null) {
         const hasPhysicalReturn = rows.some(row => [...row.querySelectorAll('.exception-qty')].slice(0, 2).some(input => number(input) > 0));
         quarantineLocation.required = hasPhysicalReturn;
@@ -110,6 +114,7 @@
         if (event.target.id !== 'poSelect') edited = true;
         updateAll();
     });
+    // Menangani buka rincian serta tambah dan hapus baris batch.
     form.addEventListener('click', event => {
         const toggle = event.target.closest('.receiving-toggle');
         const close = event.target.closest('.detail-close');
@@ -137,6 +142,7 @@
         edited = true;
         updateAll();
     });
+    // Mengisi sisa pesanan sebagai barang baik setelah dikurangi jumlah masalah.
     document.getElementById('fillGood')?.addEventListener('click', async () => {
         if (!await window.appDialog.confirm({ title: 'Isi Sisa sebagai Barang Baik?', text: 'Jumlah rusak, tidak sesuai, dan kurang tetap dipertahankan.', confirmText: 'Isi Barang Baik' })) return;
         for (const row of rows) {
@@ -147,6 +153,7 @@
         edited = true;
         updateAll();
     });
+    // Mencegah pengiriman form jika belum ada jumlah pemeriksaan.
     form.addEventListener('submit', event => {
         if (!updateAll()) {
             event.preventDefault();
@@ -163,6 +170,7 @@
     }, true);
     const poSelect = document.getElementById('poSelect');
     const initialPo = poSelect.value;
+    // Meminta konfirmasi sebelum mengganti PO jika pemeriksaan sudah diisi.
     poSelect.addEventListener('change', async () => {
         const selected = poSelect.value;
         if (selected === initialPo) return;

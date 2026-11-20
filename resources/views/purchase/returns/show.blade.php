@@ -5,6 +5,7 @@
 <style>.supplier-return-table { min-width:850px; } .supplier-return-table th { white-space:nowrap; }</style>
 @endpush
 @section('content')
+{{-- Mengambil PO asal untuk menampilkan supplier dan nomor pesanan. --}}
 @php $order=$return->purchaseReceipt->purchaseOrder; @endphp
 <div class="mb-3"><x-back-link :fallback="route('purchase.returns.index')" /></div>
 <div class="procurement-heading mb-3 d-flex flex-wrap justify-content-between gap-2">
@@ -56,6 +57,7 @@
             </tr>
         </thead>
         <tbody>
+            {{-- Menampilkan jumlah pada pengajuan ini beserta pemeriksaan asalnya. --}}
             @foreach($return->items as $row)
             @php
                 $inspection=$row->purchaseInspection;
@@ -74,6 +76,7 @@
     </table>
 </div>
 </section>
+{{-- Menampilkan form persetujuan dan penolakan untuk draf sesuai akses pengguna. --}}
 @if($return->status==='draft' && auth()->user()->canAccessRoute('purchase.returns.approve'))
 <div class="bg-white p-3 mb-3 border-bottom">
     <form method="POST" action="{{ route('purchase.returns.approve',$return) }}"
@@ -97,6 +100,7 @@
     </form>
 </div>
 @endif
+{{-- Penyerahan fisik hanya berlaku untuk pengajuan disetujui yang memiliki barang rusak atau tidak sesuai. --}}
 @if($return->status === 'approved' && $return->items->contains(fn ($item) => in_array($item->kind, ['damaged', 'wrong'], true)))
     <section class="bg-white p-3 mb-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
@@ -108,6 +112,7 @@
                 <span class="small text-muted">Belum diserahkan ke supplier</span>
             @endif
         </div>
+        {{-- Tombol penyerahan tersedia jika belum dicatat dan pengguna memiliki akses. --}}
         @if(! $return->dispatched_at && auth()->user()->canAccessRoute('purchase.returns.dispatch'))
             <form method="POST" action="{{ route('purchase.returns.dispatch', $return) }}"
                   data-confirm="Pastikan barang retur sudah diserahkan ke supplier sebelum mencatat penyerahan."
@@ -118,6 +123,7 @@
         @endif
     </section>
 @endif
+{{-- Menampilkan PO pengganti dan jumlah barang baik yang telah diterima. --}}
 @if($return->replacementOrder)
 <section class="bg-white p-3 mb-3 border-bottom">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">

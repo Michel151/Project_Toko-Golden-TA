@@ -7,6 +7,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 
 class PurchaseOrderExport extends ReportExport
 {
+    // Menyiapkan identitas dan rincian PO untuk Excel; harga PO Retur ditampilkan nol.
     public function __construct(PurchaseOrder $order)
     {
         $rows=$order->items->values()->map(function ($item, $index) use ($order) {
@@ -38,6 +39,7 @@ class PurchaseOrderExport extends ReportExport
             showGridlines: true, reportPeriod: 'Tanggal PO: '.($order->order_date?->format('d/m/Y') ?? '-'));
     }
 
+    // Menambahkan waktu ekspor dan identitas dokumen ke baris keterangan.
     public function array(): array
     {
         $rows=parent::array();
@@ -45,6 +47,7 @@ class PurchaseOrderExport extends ReportExport
         return $rows;
     }
 
+    // Mengatur ukuran kolom, tinggi keterangan, dan format jumlah pada lembar Excel.
     public function registerEvents(): array
     {
         $format=parent::registerEvents()[AfterSheet::class];

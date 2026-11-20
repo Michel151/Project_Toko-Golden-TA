@@ -1,3 +1,4 @@
+{{-- Satu rincian barang baik dengan jumlah, tanggal kedaluwarsa, dan kode batch. --}}
 <div class="receipt-batch-grid batch-row">
     <input type="number" class="form-control form-control-sm batch-quantity" name="items[{{ $i }}][batches][{{ $batchIndex }}][quantity]" value="{{ $batchValues['quantity'] ?? 0 }}" min="0" max="{{ $item->receivableQuantity() }}" step="1" aria-label="Jumlah per kedaluwarsa {{ $item->product->name }}" required>
     <input type="date" class="form-control form-control-sm batch-expiry" name="items[{{ $i }}][batches][{{ $batchIndex }}][expired_date]" value="{{ $batchValues['expired_date'] ?? '' }}" aria-label="Tanggal kedaluwarsa {{ $item->product->name }}">

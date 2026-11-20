@@ -17,6 +17,7 @@ class StockService
 {
     public function __construct(private MovingAverageCostService $costs) {}
 
+    // Menjalankan perubahan stok dan nilai persediaan dalam satu transaksi dengan kunci bersama.
     private function atomic(callable $work): mixed
     {
         return DB::transaction(function () use ($work) {
@@ -62,6 +63,7 @@ class StockService
         $this->atomic(fn () => $this->receiveStockInternal($product, $location, $quantity, $reference, $movementDate, $referenceNumber, $expiredDate, $receiptItem));
     }
 
+    // Mengubah jumlah satuan beli ke stok dasar, lalu mencatat stok, batch, mutasi, dan nilainya.
     private function receiveStockInternal(Product $product, Location $location, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $expiredDate = null, ?PurchaseReceiptItem $receiptItem = null): void
     {
         $this->costs->prepare($product);
@@ -74,11 +76,13 @@ class StockService
         $this->receiveValuation($product, $product->defaultPurchaseUnit, $quantity, $stockQty, $reference, $movementDate, $receiptItem);
     }
 
+    // Menjalankan penerimaan dengan satuan produk pilihan dalam transaksi stok.
     public function receiveStockUsingUnit(Product $product, ProductUnit $productUnit, Location $location, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $expiredDate = null, ?PurchaseReceiptItem $receiptItem = null): void
     {
         $this->atomic(fn () => $this->receiveStockUsingUnitInternal($product, $productUnit, $location, $quantity, $reference, $movementDate, $referenceNumber, $expiredDate, $receiptItem));
     }
 
+    // Mengonversi jumlah ke satuan dasar dan mencatat penambahan stok beserta nilainya.
     private function receiveStockUsingUnitInternal(Product $product, ProductUnit $productUnit, Location $location, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $expiredDate = null, ?PurchaseReceiptItem $receiptItem = null): void
     {
         $this->costs->prepare($product);
@@ -91,6 +95,7 @@ class StockService
         $this->receiveValuation($product, $productUnit, $quantity, $stockQty, $reference, $movementDate, $receiptItem);
     }
 
+    // Menghitung nilai barang masuk dari harga dokumen sumber dan meneruskannya ke saldo biaya.
     private function receiveValuation(Product $product, ?ProductUnit $unit, float $quantity, float $baseQuantity, ?Model $reference, mixed $date, ?PurchaseReceiptItem $receiptItem): void
     {
         $orderItem = $receiptItem?->purchaseOrderItem;
@@ -285,6 +290,7 @@ class StockService
             ->sum('quantity_remaining');
     }
 
+    // Mencatat perubahan jumlah stok beserta saldo sebelum, saldo sesudah, dan dokumen asal.
     private function recordMovement(
         Product $product,
         Location $location,
@@ -312,6 +318,7 @@ class StockService
         ]);
     }
 
+    // Menambah stok barang di satu lokasi dan mengembalikan jumlah sebelum penambahan.
     private function increaseAggregateStock(Product $product, Location $location, float $stockQty): float
     {
         $stock = Stock::where('product_id', $product->id)
@@ -335,6 +342,7 @@ class StockService
         return $balanceBefore;
     }
 
+    // Membuat rincian batch stok untuk barang yang dilacak kedaluwarsanya.
     private function createBatch(Product $product, Location $location, float $stockQty, $movementDate, ?string $expiredDate, ?PurchaseReceiptItem $receiptItem): void
     {
         if (! $product->is_expirable) {
@@ -449,6 +457,7 @@ class StockService
         return $product->can_retail ? $buyQty * $product->conversion_factor : $buyQty;
     }
 
+    // Mengubah jumlah dari satuan produk atau satuan beli menjadi satuan dasar.
     public function toBaseQuantity(Product $product, float $quantity, ?ProductUnit $productUnit = null): float
     {
         if ($productUnit) {
@@ -458,6 +467,7 @@ class StockService
         return $product->can_retail ? $quantity * (float) $product->conversion_factor : $quantity;
     }
 
+    // Mengubah jumlah satuan dasar menjadi jumlah pada satuan produk yang dipilih.
     public function fromBaseQuantity(float $baseQuantity, ProductUnit $productUnit): float
     {
         $conversion = (float) $productUnit->conversion_to_base;

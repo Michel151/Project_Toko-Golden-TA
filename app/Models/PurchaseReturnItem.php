@@ -12,11 +12,13 @@ class PurchaseReturnItem extends Model
 
     protected $casts = ['quantity' => 'decimal:4'];
 
+    // Mengambil dokumen retur pemilik rincian ini.
     public function purchaseReturn()
     {
         return $this->belongsTo(PurchaseReturn::class);
     }
 
+    // Mengambil hasil pemeriksaan yang menjadi dasar pengajuan ini.
     public function purchaseInspection()
     {
         return $this->belongsTo(PurchaseInspection::class);

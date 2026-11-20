@@ -2,6 +2,7 @@
 @section('title','Purchase Order')
 @section('page-title','Purchase Order')
 
+{{-- Menampilkan ringkasan, filter, dan daftar PO yang disiapkan controller. --}}
 @section('content')
 <div class="procurement-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
     <div class="d-flex align-items-center gap-3">

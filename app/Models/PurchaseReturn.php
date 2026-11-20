@@ -11,6 +11,7 @@ class PurchaseReturn extends Model
 
     protected $casts = ['approved_at' => 'datetime', 'dispatched_at' => 'datetime'];
 
+    // Membuat nomor retur berdasarkan bulan dan urutan terakhir.
     public static function generateReturnNumber(?\DateTimeInterface $issuedAt = null): string
     {
         $date = $issuedAt ? Carbon::instance($issuedAt)->setTimezone('Asia/Jakarta') : now('Asia/Jakarta');
@@ -21,31 +22,37 @@ class PurchaseReturn extends Model
         return $prefix.str_pad($seq, 6, '0', STR_PAD_LEFT);
     }
 
+    // Mengambil dokumen penerimaan asal data ini.
     public function purchaseReceipt()
     {
         return $this->belongsTo(PurchaseReceipt::class);
     }
 
+    // Mengambil rincian jenis masalah dan jumlah yang diajukan pada retur ini.
     public function items()
     {
         return $this->hasMany(PurchaseReturnItem::class);
     }
 
+    // Mengambil PO pengganti yang diterbitkan dari persetujuan retur ini.
     public function replacementOrder()
     {
         return $this->belongsTo(PurchaseOrder::class, 'replacement_purchase_order_id');
     }
 
+    // Mengambil pengguna yang membuat pengajuan retur.
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    // Mengambil pengguna yang menyetujui pengajuan retur.
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
 
+    // Mengambil pengguna yang mencatat penyerahan barang retur ke supplier.
     public function dispatchedBy()
     {
         return $this->belongsTo(User::class, 'dispatched_by');

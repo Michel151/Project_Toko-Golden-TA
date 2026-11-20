@@ -1,3 +1,4 @@
+{{-- Menampilkan status dan tindakan konfirmasi, pembatalan, atau penutupan sesuai kelayakan PO. --}}
 @if($order->status === 'draft')
 <div class="alert alert-secondary">PO ini masih berupa draf dan belum dapat digunakan untuk penerimaan barang.</div>
 @endif

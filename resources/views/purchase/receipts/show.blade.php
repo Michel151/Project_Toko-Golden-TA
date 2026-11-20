@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title','Detail Penerimaan')
 @section('page-title','Detail Penerimaan Barang')
+{{-- Menampilkan identitas penerimaan dan ringkasan alokasi barang baik. --}}
 @section('content')
 <div class="mb-3"><x-back-link :fallback="route('purchase.receipts.index')" /></div>
 <div class="procurement-heading mb-3">
@@ -73,6 +74,7 @@
                 </tr>
             </thead>
             <tbody>
+                {{-- Setiap baris menunjukkan alokasi barang baik pada lokasi dan kedaluwarsa tertentu. --}}
                 @foreach($receipt->items as $item)
                 <tr>
                     <td class="fw-semibold">{{ $item->product->name }}</td>
@@ -92,6 +94,7 @@
         </table>
     </div>
 </div>
+{{-- Menampilkan hasil pemeriksaan, termasuk barang bermasalah yang tidak masuk stok jual. --}}
 @if($receipt->inspections->isNotEmpty())
 <section class="bg-white border-bottom mt-3" data-detail-list>
     <div class="p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -144,6 +147,7 @@
     </div>
 </section>
 @endif
+{{-- Menampilkan pengajuan retur yang berasal dari penerimaan ini. --}}
 @if($receipt->returns->isNotEmpty() && auth()->user()->canAccessRoute('purchase.returns.show'))
 <section class="bg-white p-3 mt-3 border-bottom">
     <h6 class="fw-bold">Retur/Klaim Terkait</h6>

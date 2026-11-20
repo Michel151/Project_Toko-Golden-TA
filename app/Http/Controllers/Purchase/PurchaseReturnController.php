@@ -16,14 +16,17 @@ use Illuminate\Validation\ValidationException;
 
 class PurchaseReturnController extends Controller
 {
+    // Menyiapkan service yang menangani pengajuan dan tindak lanjut retur.
     public function __construct(private PurchaseFulfillmentService $fulfillment) {}
 
+    // Menampilkan halaman utama daftar pengajuan retur beserta penerimaan bermasalah yang dapat diajukan.
     public function index(Request $request)
     {
         ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
         $history = PurchaseReturn::query()
             ->when($from, fn ($query)=>$query->whereDate('created_at', '>=', $from))
             ->when($to, fn ($query)=>$query->whereDate('created_at', '<=', $to));
+        // Menghitung kartu per status dari periode tanggal sebelum filter status daftar diterapkan.
         $statusCounts = (clone $history)->selectRaw('status, COUNT(*) AS total')->groupBy('status')->pluck('total', 'status');
         if (in_array($request->status, ['draft', 'approved', 'rejected'], true)) {
             $history->where('status', $request->status);
@@ -32,6 +35,7 @@ class PurchaseReturnController extends Controller
         $returns = $history->with(['purchaseReceipt.purchaseOrder.supplier', 'replacementOrder'])
             ->latest('id')->paginate(25)->withQueryString()->appends($period)->fragment('return-history');
 
+        // Daftar penerimaan bermasalah berasal dari semua tanggal, terpisah dari filter riwayat.
         $readyReceipts = $this->claimableReceipts()
             ->with(['inspections' => fn ($query) => $query->withClaimableIssues()->withClaimedQuantities()
                 ->with(['purchaseOrderItem.product', 'purchaseOrderItem.productUnit.unit', 'quarantineLocation'])])
@@ -44,6 +48,7 @@ class PurchaseReturnController extends Controller
         return view('purchase.returns.index', compact('returns', 'from', 'to', 'statusCounts', 'readyReceipts', 'openIssues'));
     }
 
+    // Menyiapkan pilihan penerimaan dan masalahnya untuk form pengajuan retur.
     public function create(Request $request)
     {
         $receipts = $this->claimableReceipts()->latest('id')->get();
@@ -61,6 +66,7 @@ class PurchaseReturnController extends Controller
         return view('purchase.returns.form', compact('receipt', 'receipts'));
     }
 
+    // Mencari penerimaan yang PO-nya belum selesai dan masih memiliki sisa masalah untuk diajukan.
     private function claimableReceipts(): Builder
     {
         return PurchaseReceipt::with('purchaseOrder.supplier')
@@ -68,6 +74,7 @@ class PurchaseReturnController extends Controller
             ->whereHas('inspections', fn ($query) => $query->withClaimableIssues());
     }
 
+    // Menyusun nama barang, jenis masalah, dan sisa jumlah pengajuan untuk ditampilkan.
     private function openIssues(PurchaseReceipt $receipt): Collection
     {
         return $receipt->inspections->flatMap(function ($inspection) {
@@ -90,6 +97,7 @@ class PurchaseReturnController extends Controller
         });
     }
 
+    // Memvalidasi form dan meminta service menyimpan draf retur beserta rinciannya.
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -109,6 +117,7 @@ class PurchaseReturnController extends Controller
         return redirect()->route('purchase.returns.show', $return)->with('success', 'Draf retur/klaim berhasil disimpan dan menunggu persetujuan untuk penerbitan PO Retur.');
     }
 
+    // Menampilkan rincian retur, persetujuan, penyerahan fisik, dan PO pengganti.
     public function show(PurchaseReturn $return)
     {
         $return->load(['purchaseReceipt.purchaseOrder.supplier', 'items.purchaseInspection.purchaseOrderItem.product',
@@ -118,6 +127,7 @@ class PurchaseReturnController extends Controller
         return view('purchase.returns.show', compact('return'));
     }
 
+    // Meminta service menyetujui retur dan menerbitkan PO pengganti.
     public function approve(PurchaseReturn $return)
     {
         $this->fulfillment->approve($return, (int) auth()->id());
@@ -125,6 +135,7 @@ class PurchaseReturnController extends Controller
         return back()->with('success', 'Pengajuan retur/klaim disetujui. PO Retur telah diterbitkan tanpa tagihan tambahan.');
     }
 
+    // Memvalidasi alasan dan meminta service menolak pengajuan retur.
     public function reject(Request $request, PurchaseReturn $return)
     {
         $request->validate(['rejection_reason' => 'required|string|max:2000']);
@@ -133,6 +144,7 @@ class PurchaseReturnController extends Controller
         return back()->with('success', 'Pengajuan retur/klaim ditolak. Pengajuan baru dapat dibuat setelah data dikoreksi.');
     }
 
+    // Meminta service mencatat penyerahan barang retur fisik kepada supplier.
     public function dispatch(PurchaseReturn $return)
     {
         $this->fulfillment->dispatch($return, (int) auth()->id());

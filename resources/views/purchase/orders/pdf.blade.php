@@ -2,6 +2,7 @@
 @section('report-header-centered', '1')
 @section('report-title', $order->root_purchase_order_id ? 'PO RETUR' : 'PURCHASE ORDER')
 @section('report-period', 'Tanggal PO: '.($order->order_date?->format('d/m/Y') ?? '-').' | Kota Weda, Halmahera Tengah')
+{{-- Menyusun dokumen cetak PO; PO Retur ditampilkan tanpa tagihan tambahan. --}}
 @section('report-body')
 <style>
     .order-info { width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:16px; }

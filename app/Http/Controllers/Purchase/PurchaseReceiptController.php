@@ -10,8 +10,10 @@ use Illuminate\Http\Request;
 
 class PurchaseReceiptController extends Controller
 {
+    // Menyiapkan service yang menangani penyimpanan penerimaan barang.
     public function __construct(protected \App\Services\PurchaseFulfillmentService $fulfillment) {}
 
+    // Menampilkan PO yang dapat diterima serta riwayat dan ringkasan penerimaan.
     public function index(Request $request)
     {
         ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
@@ -44,6 +46,7 @@ class PurchaseReceiptController extends Controller
         ));
     }
 
+    // Menyiapkan pilihan PO, lokasi, dan rincian barang untuk form penerimaan.
     public function create(Request $request)
     {
         // Bisa dari detail PO atau pilih sendiri
@@ -66,6 +69,7 @@ class PurchaseReceiptController extends Controller
         return view('purchase.receipts.form', compact('pendingOrders', 'selectedOrder', 'locations'));
     }
 
+    // Memvalidasi pemeriksaan dan lokasi, lalu meminta service mencatat penerimaan.
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -101,6 +105,7 @@ class PurchaseReceiptController extends Controller
             'items.*.batches.*.expired_date' => 'nullable|date_format:Y-m-d',
             'items.*.batches.*.batch_code' => 'nullable|string|max:100',
         ]);
+        // Memakai lokasi pilihan form untuk semua alokasi atau batch barang baik.
         if (($data['location_mode'] ?? null) === 'single') {
             foreach ($data['items'] as &$row) {
                 if (array_key_exists('batches', $row)) {
@@ -124,6 +129,7 @@ class PurchaseReceiptController extends Controller
             ->with('success', 'Pemeriksaan penerimaan dicatat. Hanya barang baik yang masuk stok jual.');
     }
 
+    // Menampilkan alokasi barang baik, hasil pemeriksaan, dan retur terkait.
     public function show(PurchaseReceipt $receipt)
     {
         $receipt->load([
@@ -141,7 +147,7 @@ class PurchaseReceiptController extends Controller
         return view('purchase.receipts.show', compact('receipt'));
     }
 
-    // AJAX: get PO items untuk form penerimaan
+    // Mengirim rincian dan sisa barang PO untuk kebutuhan form penerimaan.
     public function getOrderItems(PurchaseOrder $order)
     {
         abort_unless(in_array($order->status, ['pending', 'partial'], true), 409, 'PO ini tidak dapat diproses penerimaan.');

@@ -13,6 +13,7 @@
 @endpush
 @section('content')
 <h5 class="fw-bold mb-3">Buat Retur/Klaim Supplier</h5>
+{{-- Memilih penerimaan dan menampilkan masalahnya; tahap ini belum menyimpan pengajuan. --}}
 <form method="GET" class="bg-white p-3 mb-3 d-flex flex-wrap gap-2 align-items-end">
     <div class="flex-grow-1">
         <label for="receiptSelect" class="form-label">Referensi Penerimaan</label>
@@ -31,6 +32,7 @@
     </button>
 </form>
 @if($receipt)
+{{-- Mengirim pengajuan retur berdasarkan penerimaan yang sudah dipilih. --}}
 <form method="POST" action="{{ route('purchase.returns.store') }}">
     @csrf
     <input type="hidden" name="purchase_receipt_id" value="{{ $receipt->id }}">
@@ -53,9 +55,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {{-- Nomor baris mengelompokkan pemeriksaan, jenis masalah, dan jumlah dalam items. --}}
                     @php $rowIndex=0; @endphp
                     @foreach($receipt->inspections as $inspection)
                     @foreach(\App\Models\PurchaseReturnItem::KINDS as $kind=>$label)
+                    {{-- Menghitung sisa masalah setelah dikurangi pengajuan berstatus draft atau approved. --}}
                     @php $max=$inspection->claimable($kind); @endphp
                     @if($max>0)
                     <tr>
@@ -75,6 +79,7 @@
                         </td>
                         <td class="text-end">{{ \App\Support\DisplayNumber::quantity($max) }}</td>
                         <td style="min-width:130px">
+                            {{-- Input tersembunyi mengenali pemeriksaan dan jenis masalah; input angka menentukan jumlah pengajuan. --}}
                             <input type="hidden" name="items[{{ $rowIndex }}][purchase_inspection_id]"
                                 value="{{ $inspection->id }}">
                             <input type="hidden" name="items[{{ $rowIndex }}][kind]" value="{{ $kind }}">

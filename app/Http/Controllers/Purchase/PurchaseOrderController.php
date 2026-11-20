@@ -14,6 +14,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class PurchaseOrderController extends Controller
 {
+    // Menampilkan daftar PO dan ringkasannya sesuai filter pengguna.
     public function index(Request $request)
     {
         ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
@@ -32,6 +33,7 @@ class PurchaseOrderController extends Controller
             $query->whereDate('order_date', '<=', $to);
         }
 
+        // Menghitung ringkasan dari seluruh hasil filter sebelum daftar dibagi per halaman.
         $summaryOrders = (clone $query)->get();
         $totalOrderValue = $summaryOrders->whereNotIn('status', ['draft', 'cancelled'])->sum(fn ($order) => $order->totalValue());
         $draftCount = $summaryOrders->where('status', 'draft')->count();
@@ -49,6 +51,7 @@ class PurchaseOrderController extends Controller
         ));
     }
 
+    // Menyiapkan supplier dan barang untuk form PO baru.
     public function create(Request $request)
     {
         $request->validate(['product_id' => 'nullable|integer|exists:products,id,is_active,1']);
@@ -63,6 +66,7 @@ class PurchaseOrderController extends Controller
         return view('purchase.orders.form', compact('suppliers', 'products', 'supplierProductsJson', 'notificationProduct', 'selectedSupplierId'));
     }
 
+    // Memvalidasi dan menyimpan PO baru, lalu mengonfirmasinya jika diminta.
     public function store(Request $request)
     {
         $this->normalizeItemPrices($request);
@@ -91,6 +95,7 @@ class PurchaseOrderController extends Controller
         }
 
         if (($validated['intent'] ?? 'draft') === 'confirm') abort_unless(auth()->user()->canAccessRoute('purchase.orders.confirm'), 403);
+        // Menyimpan dokumen dan rincian dalam satu transaksi agar tidak tersimpan sebagian.
         $po = DB::transaction(function () use ($validated) {
             $po = PurchaseOrder::create([
                 'po_number'   => PurchaseOrder::generatePoNumber(),
@@ -121,12 +126,14 @@ class PurchaseOrderController extends Controller
     }
 
 
+    // Menampilkan rincian PO, penerimaan, dan pesanan penggantinya.
     public function show(PurchaseOrder $order)
     {
         $order->load(['supplier', 'createdBy', 'confirmedBy', 'cancelledBy', 'closedBy', 'items.product.buyUnit', 'items.productUnit.unit', 'receipts.items.location', 'receipts.receivedBy', 'replacementOrders', 'rootOrder']);
         return view('purchase.orders.show', compact('order'));
     }
 
+    // Menyiapkan form perubahan untuk PO yang masih boleh diedit.
     public function edit(PurchaseOrder $order)
     {
         if (! $order->canModify()) {
@@ -141,6 +148,7 @@ class PurchaseOrderController extends Controller
         return view('purchase.orders.form', compact('order', 'suppliers', 'products', 'supplierProductsJson'));
     }
 
+    // Memperbarui identitas dan seluruh rincian barang pada draf PO.
     public function update(Request $request, PurchaseOrder $order)
     {
         if (! $order->canModify()) {
@@ -181,6 +189,7 @@ class PurchaseOrderController extends Controller
                 'order_date'  => $validated['order_date'],
             ]);
 
+            // Mengganti seluruh rincian draf dengan baris terbaru yang dikirim dari form.
             $order->items()->delete();
 
             foreach ($validated['items'] as $item) {
@@ -202,18 +211,21 @@ class PurchaseOrderController extends Controller
                          ->with('success', 'Purchase Order berhasil diperbarui.');
     }
 
+    // Meneruskan permintaan ke pembatalan PO agar riwayat dokumen tetap tersimpan.
     public function destroy(PurchaseOrder $order)
     {
         if (!$order->canCancel()) return back()->with('error', 'PO yang sudah diproses tidak dapat dibatalkan.');
         return $this->cancel(request(), $order);
     }
 
+    // Meminta service mengonfirmasi PO agar dapat diproses penerimaan.
     public function confirm(PurchaseOrder $order)
     {
         app(\App\Services\PurchaseOrderLifecycleService::class)->confirm($order, auth()->user());
         return back()->with('success', 'PO berhasil dikonfirmasi. Rincian PO sudah dikunci.');
     }
 
+    // Memvalidasi alasan, lalu meminta service membatalkan PO.
     public function cancel(Request $request, PurchaseOrder $order)
     {
         $data = $request->validate(['reason'=>'required|string|max:2000']);
@@ -221,6 +233,7 @@ class PurchaseOrderController extends Controller
         return redirect()->route('purchase.orders.show', $order)->with('success', 'PO dibatalkan. Dokumen dan riwayat tetap tersimpan.');
     }
 
+    // Memvalidasi alasan, lalu menutup sisa pesanan yang tidak dilanjutkan.
     public function closeRemainder(Request $request, PurchaseOrder $order)
     {
         $data = $request->validate(['reason'=>'required|string|max:2000']);
@@ -228,6 +241,7 @@ class PurchaseOrderController extends Controller
         return redirect()->route('purchase.orders.show', $order)->with('success', 'Sisa pesanan ditutup. Penerimaan yang sudah tercatat tetap dipertahankan.');
     }
 
+    // Membuat tampilan PDF dari dokumen PO.
     public function generatePdf(PurchaseOrder $order)
     {
         $order->load(['supplier', 'createdBy', 'rootOrder', 'items.product.buyUnit', 'items.productUnit.unit']);
@@ -236,6 +250,7 @@ class PurchaseOrderController extends Controller
         return $pdf->stream(str_replace('/', '-', $order->po_number).'.pdf');
     }
 
+    // Mengunduh rincian PO dalam file Excel.
     public function generateExcel(PurchaseOrder $order)
     {
         $order->load(['supplier', 'createdBy', 'rootOrder', 'items.product.buyUnit', 'items.productUnit.unit']);
@@ -246,6 +261,7 @@ class PurchaseOrderController extends Controller
         );
     }
 
+    // Mengirim daftar barang aktif dan satuannya dari satu supplier dalam bentuk JSON.
     public function productsBySupplier(Supplier $supplier)
     {
         return response()->json($supplier->products()
@@ -257,6 +273,7 @@ class PurchaseOrderController extends Controller
             ->values()); 
     }
 
+    // Menyiapkan pilihan barang dan harga setiap supplier untuk form PO.
     private function supplierProductsJson(): array
     {
         return Supplier::with(['products' => fn ($query) => $query->where('products.is_active', true)->with(['buyUnit', 'productUnits.unit', 'defaultPurchaseUnit.unit'])])
@@ -271,6 +288,7 @@ class PurchaseOrderController extends Controller
             ->all();
     }
 
+    // Memastikan semua barang pesanan terdaftar pada supplier yang dipilih.
     private function itemsBelongToSupplier(int $supplierId, array $items): bool
     {
         $productIds = collect($items)
@@ -291,6 +309,7 @@ class PurchaseOrderController extends Controller
         return $matchedCount === $productIds->count();
     }
 
+    // Memastikan satuan yang dipilih memang milik barang pada baris tersebut.
     private function unitsBelongToProducts(array $items): bool
     {
         $pairs = collect($items)
@@ -313,6 +332,7 @@ class PurchaseOrderController extends Controller
         return true;
     }
 
+    // Merapikan seluruh harga dari form sebelum diperiksa oleh validasi.
     private function normalizeItemPrices(Request $request): void
     {
         $items = $request->input('items', []);
@@ -326,6 +346,7 @@ class PurchaseOrderController extends Controller
         $request->merge(['items' => $items]);
     }
 
+    // Mengubah teks harga dengan pemisah ribuan dan desimal menjadi angka yang dapat disimpan.
     private function normalizeCurrency(mixed $value): string
     {
         $value = preg_replace('/[^\d,\.]/', '', (string) $value);

@@ -16,26 +16,31 @@ class PurchaseInspection extends Model
         'quantity_wrong' => 'decimal:4', 'quantity_missing' => 'decimal:4',
     ];
 
+    // Mengambil dokumen penerimaan asal data ini.
     public function purchaseReceipt()
     {
         return $this->belongsTo(PurchaseReceipt::class);
     }
 
+    // Mengambil baris PO yang menjadi asal rincian atau pemeriksaan ini.
     public function purchaseOrderItem()
     {
         return $this->belongsTo(PurchaseOrderItem::class);
     }
 
+    // Mengambil lokasi penahanan barang rusak atau tidak sesuai.
     public function quarantineLocation()
     {
         return $this->belongsTo(Location::class, 'quarantine_location_id');
     }
 
+    // Mengambil rincian pengajuan retur yang menggunakan hasil pemeriksaan ini.
     public function returnItems()
     {
         return $this->hasMany(PurchaseReturnItem::class);
     }
 
+    // Menyaring pemeriksaan yang masih memiliki sisa masalah untuk diajukan.
     public function scopeWithClaimableIssues(Builder $query): Builder
     {
         return $query->where(function (Builder $issues) {
@@ -45,6 +50,7 @@ class PurchaseInspection extends Model
         });
     }
 
+    // Menambahkan jumlah klaim aktif tiap jenis masalah ke hasil query pemeriksaan.
     public function scopeWithClaimedQuantities(Builder $query): Builder
     {
         foreach (array_keys(PurchaseReturnItem::KINDS) as $kind) {
@@ -54,6 +60,7 @@ class PurchaseInspection extends Model
         return $query;
     }
 
+    // Menghitung jumlah masalah yang sudah diajukan dalam retur draft atau approved.
     private static function claimedQuantityQuery(string $kind): QueryBuilder
     {
         return DB::table('purchase_return_items')
@@ -64,6 +71,7 @@ class PurchaseInspection extends Model
             ->whereIn('purchase_returns.status', ['draft', 'approved']);
     }
 
+    // Menghitung sisa masalah yang boleh diajukan setelah dikurangi klaim aktif.
     public function claimable(string $kind): float
     {
         if (! array_key_exists($kind, PurchaseReturnItem::KINDS)) {

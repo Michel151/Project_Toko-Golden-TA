@@ -64,12 +64,13 @@ class MovingAverageCostService
         return $result;
     }
 
-    // All stock/cost writers take this gate before changing quantities or valuation.
+    // Mengunci proses perubahan stok dan nilai persediaan agar perhitungannya tidak bertabrakan.
     public function lock(): void
     {
         DB::table('inventory_cost_settings')->where('id', 1)->lockForUpdate()->firstOrFail();
     }
 
+    // Membulatkan nilai uang menjadi dua tempat desimal.
     public static function money(mixed $value): string
     {
         return (string) BigDecimal::of((string) $value)->toScale(2, RoundingMode::HalfUp);
@@ -88,6 +89,7 @@ class MovingAverageCostService
         return (string) BigDecimal::of((string) $stock->sum('quantity'))->plus((string) $reserved->sum('base_quantity'))->toScale(4, RoundingMode::HalfUp);
     }
 
+    // Menyiapkan saldo jumlah dan nilai persediaan barang sebelum transaksi biaya dicatat.
     public function prepare(Product $product): ?InventoryCostBalance
     {
         if (!$this->enabled()) return null;
@@ -154,11 +156,13 @@ class MovingAverageCostService
         }, 3);
     }
 
+    // Menghitung biaya rata-rata per satuan dasar dari nilai dan jumlah persediaan.
     private function average(string $value, string $quantity): string
     {
         return (float) $quantity > 0 ? (string) BigDecimal::of($value)->dividedBy($quantity, 10, RoundingMode::HalfUp) : '0.0000000000';
     }
 
+    // Menambahkan jumlah dan nilai barang masuk ke perhitungan biaya rata-rata.
     public function receive(Product $product, float $quantity, string $value, ?Model $reference, mixed $date, string $key): void
     {
         if (!$this->enabled()) return;
@@ -207,6 +211,7 @@ class MovingAverageCostService
         $this->post($state, $difference, $value, $difference < 0 ? 'stock_loss' : 'stock_gain', $key, $date, $reference);
     }
 
+    // Memeriksa urutan transaksi, memperbarui saldo biaya, lalu mencatat riwayat perubahannya.
     private function post(InventoryCostBalance $state, float $quantity, string $value, string $kind, string $key, mixed $date, ?Model $reference): void
     {
         $date = \Carbon\Carbon::parse($date ?? today())->toDateString();
@@ -222,6 +227,7 @@ class MovingAverageCostService
         $this->entry($state, $kind, $key, (string) $quantity, $value, $date, $reference);
     }
 
+    // Menyimpan riwayat perubahan jumlah, nilai, biaya rata-rata, dan dokumen sumber.
     private function entry(InventoryCostBalance $state, string $kind, string $key, string $quantity, string $value, string $date, ?Model $reference, ?string $notes = null): void
     {
         DB::table('inventory_cost_entries')->insert(['product_id' => $state->product_id, 'event_key' => $key, 'kind' => $kind, 'event_date' => $date,
@@ -230,6 +236,7 @@ class MovingAverageCostService
             'notes' => $notes, 'created_by' => auth()->id(), 'created_at' => now()]);
     }
 
+    // Menghentikan pencatatan nilai persediaan dengan pesan validasi.
     private function invalid(string $message): never
     {
         throw ValidationException::withMessages(['costing' => $message]);

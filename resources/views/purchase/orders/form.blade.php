@@ -23,6 +23,7 @@
 <div class="alert alert-info">Membuat PO untuk <strong>{{ $notificationProduct->name }}</strong>. {{ $suppliers->isEmpty() ? 'Produk belum terhubung ke supplier. Atur supplier produk sebelum membuat PO.' : 'Pilih supplier, lalu periksa satuan, jumlah, dan harga sebelum menyimpan.' }}</div>
 @endif
 <div class="procurement-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="heading-icon"><i class="bi bi-cart-plus"></i></div><div><h5 class="fw-bold mb-1">{{ isset($order) ? 'Ubah Purchase Order' : 'Purchase Order Baru' }}</h5><div class="small text-white-50">Pilih supplier dan susun daftar barang yang akan dipesan</div></div></div>@isset($order)<span class="badge bg-warning text-dark font-monospace">{{ $order->po_number }}</span>@endisset</div>
+{{-- Form yang sama digunakan untuk membuat PO baru atau memperbarui draf. --}}
 <form method="POST" action="{{ isset($order) ? route('purchase.orders.update', $order) : route('purchase.orders.store') }}">
     @csrf @isset($order) @method('PUT') @endisset
 
@@ -74,6 +75,7 @@
                             </thead>
                             <tbody id="itemsBody">
                                 @php
+                                    // Memakai input sebelumnya, rincian PO saat edit, atau satu baris awal untuk form baru.
                                     $formItems = old('items', isset($order) ? $order->items->map(fn ($item) => $item->only(['product_id', 'product_unit_id', 'quantity_ordered', 'buy_price']))->all() : []);
                                     $formItems = is_array($formItems) ? array_values(array_filter($formItems, 'is_array')) : [];
                                     if (!$formItems && ($notificationProduct ?? null) && $products->contains('id', $notificationProduct->id)) $formItems = [['product_id'=>$notificationProduct->id, 'product_unit_id'=>'', 'quantity_ordered'=>1, 'buy_price'=>0]];
@@ -116,6 +118,7 @@
         </div>
 
         <div class="col-12 d-flex flex-wrap gap-2">
+            {{-- Nilai intent menentukan apakah PO disimpan sebagai draf atau langsung dikonfirmasi. --}}
             <button type="submit" name="intent" value="draft" class="btn btn-outline-primary">
                 <i class="bi bi-save me-1"></i>Simpan Draf
             </button>
@@ -138,10 +141,12 @@ let rowIndex = {{ count($formItems) }};
 let activeSupplierId = supplierSelect.value;
 let changingSupplier = false;
 
+// Mengambil pilihan barang milik supplier yang sedang dipilih.
 function currentProducts() {
     return productsBySupplier[supplierSelect.value] || [];
 }
 
+// Mengubah karakter khusus agar nama barang aman dimasukkan ke HTML.
 function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (char) => ({
         '&': '&amp;',
@@ -152,12 +157,14 @@ function escapeHtml(value) {
     }[char]));
 }
 
+// Membuat pilihan barang untuk dropdown dari daftar supplier aktif.
 function buildProductOptions(selectedId = '') {
     return currentProducts().map(p =>
         `<option value="${p.id}" ${p.id == selectedId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
     ).join('');
 }
 
+// Membuat pilihan satuan dan memilih satuan beli default jika belum ada pilihan.
 function buildUnitOptions(product, selectedId = '') {
     if (!product || !product.units || !product.units.length) {
         return '<option value="">Pilih satuan</option>';
@@ -169,11 +176,13 @@ function buildUnitOptions(product, selectedId = '') {
     }).join('');
 }
 
+// Mencari data barang yang dipilih pada satu baris form.
 function selectedProduct(row) {
     const productId = row.querySelector('select.product-select').value;
     return currentProducts().find(product => String(product.id) === String(productId));
 }
 
+// Menyesuaikan pilihan satuan dan harga ketika barang berubah.
 function updateUnitOptions(row, selectedUnitId = '') {
     const product = selectedProduct(row);
     const unitSelect = row.querySelector('.product-unit-select');
@@ -183,12 +192,14 @@ function updateUnitOptions(row, selectedUnitId = '') {
     showPriceSource(row, product?.price_source === 'master' ? 'Acuan Master Barang' : 'Harga supplier');
 }
 
+// Memberi keterangan asal harga pada kolom harga beli.
 function showPriceSource(row, text) {
     const input = row.querySelector('[name$="[buy_price]"]');
     input.title = text;
     input.setAttribute('aria-description', text);
 }
 
+// Membuat satu baris input barang dengan nomor items yang baru.
 function createItemRow(index) {
     const row = document.createElement('tr');
     row.className = 'item-row';
@@ -214,6 +225,7 @@ function createItemRow(index) {
     return row;
 }
 
+// Menambahkan baris barang setelah supplier dipilih.
 function addItemRow() {
     if (! supplierSelect.value) {
         return;
@@ -226,6 +238,7 @@ function addItemRow() {
 }
 addItemBottomButton.addEventListener('click', addItemRow);
 
+// Memasang tindakan saat barang, satuan, harga, atau tombol hapus berubah.
 function bindEvents(container = document) {
     container.querySelectorAll('select.product-select').forEach(sel => {
         let previousProductId = sel.value;
@@ -275,6 +288,7 @@ function bindEvents(container = document) {
     });
 }
 
+// Meminta konfirmasi sebelum mengganti supplier dan mengosongkan daftar barang lama.
 supplierSelect.addEventListener('change', async () => {
     const next = supplierSelect.value;
     window.purchaseSearch.setValue(supplierSelect, activeSupplierId);
@@ -300,6 +314,7 @@ supplierSelect.addEventListener('change', async () => {
 });
 
 bindEvents();
+// Mengaktifkan pencarian barang sesuai pilihan supplier.
 function initializeProductSearch() {
     document.querySelectorAll('select.product-select').forEach(select => {
         select.disabled = !supplierSelect.value;
@@ -321,6 +336,7 @@ initializeProductSearch();
 const orderForm = supplierSelect.closest('form');
 let confirmationAccepted = false;
 let confirmingOrder = false;
+// Meminta konfirmasi tambahan ketika pengguna memilih Konfirmasi PO.
 orderForm.addEventListener('submit', async event => {
     if (confirmationAccepted) return;
     if (confirmingOrder) { event.preventDefault(); return; }

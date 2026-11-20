@@ -8,6 +8,7 @@ use Illuminate\Validation\ValidationException;
 
 class PurchaseOrderLifecycleService
 {
+    // Memeriksa kelayakan draf, lalu mengonfirmasi PO dan mencatat penyetujuannya.
     public function confirm(PurchaseOrder $order, User $user): void
     {
         abort_unless($user->canAccessRoute('purchase.orders.confirm'), 403);
@@ -30,6 +31,7 @@ class PurchaseOrderLifecycleService
         });
     }
 
+    // Membatalkan PO yang memenuhi syarat sambil menyimpan alasan dan riwayatnya.
     public function cancel(PurchaseOrder $order, User $user, string $reason): void
     {
         abort_unless($user->canAccessRoute('purchase.orders.cancel'), 403);
@@ -42,6 +44,7 @@ class PurchaseOrderLifecycleService
         });
     }
 
+    // Menutup sisa pesanan oleh owner setelah seluruh masalah retur selesai.
     public function closeRemainder(PurchaseOrder $order, User $user, string $reason): void
     {
         abort_unless($user->role === 'owner', 403);

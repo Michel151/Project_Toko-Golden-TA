@@ -3,6 +3,7 @@
 @section('page-title', 'Retur dan Klaim Supplier')
 
 @section('content')
+{{-- Menyiapkan hak akses, teks status, warna, dan angka kartu ringkasan. --}}
 @php
     $user = auth()->user();
     $canCreate = $user->canAccessRoute('purchase.returns.create');
@@ -45,6 +46,7 @@
 
 <div class="procurement-filter mb-3">
     <div class="small fw-semibold mb-2">Filter Riwayat Retur/Klaim</div>
+    {{-- Filter tanggal dan status berlaku untuk riwayat dokumen retur. --}}
     <form method="GET" action="{{ route('purchase.returns.index') }}" class="app-unified-filter app-filter-bar border-0 p-0" aria-label="Filter Riwayat Retur/Klaim">
         @include('components.date-range', ['prefix' => 'returnList', 'fromValue' => $from, 'toValue' => $to])
         <div class="app-unified-field">
@@ -63,6 +65,7 @@
     </form>
 </div>
 
+{{-- Menampilkan penerimaan dari semua tanggal yang masih memiliki masalah untuk diajukan. --}}
 <section class="card table-card mb-3" id="ready-returns" style="scroll-margin-top:80px">
     <div class="card-header bg-white border-0 py-3">
         <h6 class="fw-bold mb-1">Penerimaan Perlu Retur/Klaim</h6>
@@ -87,6 +90,7 @@
                         <td>{{ $receipt->purchaseOrder->supplier->name }}</td>
                         <td class="text-nowrap">{{ $receipt->receipt_date->format('d/m/Y') }}</td>
                         <td>
+                            {{-- Menampilkan tiga masalah pertama dan menyimpan sisanya dalam bagian yang bisa dibuka. --}}
                             @foreach([$issues->take(3), $issues->skip(3)] as $group)
                                 @continue($group->isEmpty())
                                 @if(!$loop->first)
@@ -126,6 +130,7 @@
     @endif
 </section>
 
+{{-- Menampilkan dokumen retur yang sudah dibuat sesuai filter riwayat. --}}
 <section class="card table-card" id="return-history" style="scroll-margin-top:80px">
     <div class="card-header bg-white border-0 py-3">
         <h6 class="fw-bold mb-1">Riwayat Retur/Klaim</h6>

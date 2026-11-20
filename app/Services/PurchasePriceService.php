@@ -8,6 +8,7 @@ use Illuminate\Validation\ValidationException;
 
 class PurchasePriceService
 {
+    // Menyiapkan pilihan satuan dan harga barang, dengan harga supplier sebagai acuan jika tersedia.
     public function supplierProduct(Product $product): array
     {
         $purchase = $product->productUnits->firstWhere('is_default_purchase', true);
@@ -27,6 +28,7 @@ class PurchasePriceService
         ];
     }
 
+    // Memperbarui harga beli master dari penerimaan biasa terbaru sesuai konversi satuan.
     public function updateMaster(PurchaseOrderItem $item, PurchaseReceipt $receipt): void
     {
         $product = Product::whereKey($item->product_id)->lockForUpdate()->firstOrFail();
@@ -45,6 +47,7 @@ class PurchasePriceService
         $product->update(['buy_price'=>$prices[$purchase->id]]);
     }
 
+    // Menghitung harga pada satuan tujuan berdasarkan perbandingan konversinya.
     private function convert(string|float|int $price, string|float|int $from, string|float|int $to): string
     {
         if ((float) $from <= 0 || (float) $to <= 0) throw ValidationException::withMessages(['items'=>'Konversi satuan barang harus lebih besar dari nol.']);

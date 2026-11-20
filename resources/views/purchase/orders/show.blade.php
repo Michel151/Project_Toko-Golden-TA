@@ -2,6 +2,7 @@
 @section('title',$order->po_number)
 @section('page-title','Detail Purchase Order')
 @section('content')
+{{-- Menyiapkan teks status, warna, dan rata-rata persentase pemenuhan barang. --}}
 @php $colors=\App\Models\PurchaseOrder::STATUS_COLORS;$labels=\App\Models\PurchaseOrder::STATUS_LABELS;$progress=$order->items->count()?round($order->items->avg(fn($item)=>(float)$item->quantity_ordered>0?min(100,((float)$item->quantity_received/(float)$item->quantity_ordered)*100):0)):0; @endphp
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <x-back-link :fallback="route('purchase.orders.index')" />
@@ -93,6 +94,7 @@
                 </tr>
             </thead>
             <tbody>
+                {{-- Menampilkan jumlah pesanan, barang baik yang diterima, dan sisa pemenuhannya. --}}
                 @foreach($order->items as $item)
                 @php
                     $itemProgress = (float)$item->quantity_ordered > 0
@@ -131,6 +133,7 @@
         </table>
     </div>
 </div>
+{{-- Menampilkan dokumen penerimaan yang telah dicatat untuk PO ini. --}}
 @if($order->receipts->count())
 <div class="card table-card">
     <div class="card-header bg-white border-0 py-3">
@@ -171,6 +174,7 @@
 @endif
 <section class="bg-white p-3 mt-3 border-bottom">
 <h6 class="fw-bold">Tindak Lanjut Penerimaan</h6>
+{{-- Menampilkan PO asal, masalah yang belum selesai, dan pesanan penggantinya. --}}
 @if($order->rootOrder)<div class="mb-2">PO Asal: <a href="{{ route('purchase.orders.show',$order->rootOrder) }}">{{ $order->rootOrder->po_number }}</a> <span class="badge bg-success">Tanpa tagihan tambahan</span></div>@endif
 @foreach($order->items as $item)
 @if($item->quantity_reserved>0)<div class="border-top py-2 d-flex flex-wrap justify-content-between gap-2"><span>{{ $item->product->name }}</span><span class="text-warning">{{ \App\Support\DisplayNumber::quantity($item->quantity_reserved) }} {{ $item->productUnit?->unit?->name }} menunggu penyelesaian masalah</span><span>Sisa penerimaan: {{ number_format($item->receivableQuantity(),4,',','.') }}</span></div>@endif
