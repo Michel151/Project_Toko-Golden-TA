@@ -65,7 +65,7 @@
                     <th>Tanggal / Waktu</th>
                     <th class="text-center">Pembayaran</th>
                     <th>Status</th>
-                    <th class="text-end">Total</th>
+                    <th class="text-end text-nowrap">Total (Rp)</th>
                     <th>Kasir</th>
                     <th class="text-center">Aksi</th>
                 </tr>
@@ -88,7 +88,7 @@
                         </span>
                     </td>
                     <td><span class="badge bg-{{ match($sale->status) { 'paid' => 'success', 'pending' => 'warning text-dark', default => 'secondary' } }}">{{ match($sale->status) { 'paid' => 'Lunas', 'pending' => 'Menunggu Pembayaran', 'cancelled_auto' => 'Dibatalkan Otomatis', default => 'Dibatalkan' } }}</span></td>
-                    <td class="text-end fw-semibold">Rp {{ number_format($sale->total_amount, 0, ',', '.') }}</td>
+                    <td class="text-end text-nowrap fw-medium">{{ number_format($sale->total_amount, 0, ',', '.') }}</td>
                     <td class="text-muted small">{{ $sale->createdBy->name ?? '-' }}</td>
                     <td class="text-center">
                         <div class="d-inline-flex align-items-center gap-1 text-nowrap">

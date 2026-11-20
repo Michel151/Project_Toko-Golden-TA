@@ -96,12 +96,12 @@ class PurchaseFulfillmentService
                     }
                 }
                 if ($good > 0) {
-                    // Harga master hanya diperbarui dari penerimaan biasa, bukan barang pengganti.
+                    // Harga master hanya diperbarui dari penerimaan biasa, bukan dari retur.
                     if (!$order->root_purchase_order_id && !$item->source_purchase_order_item_id) {
                         app(PurchasePriceService::class)->updateMaster($item, $receipt);
                     }
+                    // jika tidak punya sumber, maka ini adalah PO asli yang menerima barang baik, sehingga stok bertambah.
                     $item->increment('quantity_received', $good);
-                    // Barang pengganti memenuhi kewajiban yang sama pada seluruh PO induknya.
                     $sourceId = $item->source_purchase_order_item_id;
                     while ($sourceId) {
                         $source = PurchaseOrderItem::lockForUpdate()->findOrFail($sourceId);
