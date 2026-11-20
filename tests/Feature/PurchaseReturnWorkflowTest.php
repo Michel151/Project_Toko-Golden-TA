@@ -86,6 +86,29 @@ class PurchaseReturnWorkflowTest extends TestCase
             ->assertDontSee(e($create), false);
     }
 
+    public function test_ready_return_po_number_links_to_receipt_only_with_receipt_access(): void
+    {
+        $this->setupOrder();
+        $this->post(route('purchase.receipts.store'), $this->payload($this->order, 8, 2))->assertSessionHasNoErrors();
+        $receipt = PurchaseReceipt::firstOrFail();
+        $staff = User::create(['name' => 'Gudang', 'email' => 'return-link@test.com', 'password' => 'password', 'role' => 'staf_gudang']);
+        $url = route('purchase.receipts.show', $receipt);
+        $response = $this->actingAs($staff)->get(route('purchase.returns.index'))->assertOk()
+            ->assertDontSee('Penerimaan #'.$receipt->id);
+        $dom = new \DOMDocument;
+        @$dom->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $this->assertCount(1, $xpath->query('//a[@href="'.$url.'" and normalize-space(.)="'.$this->order->po_number.'"]'));
+        $this->get($url)->assertOk();
+
+        \Illuminate\Support\Facades\DB::table('role_permissions')->where('role', 'staf_gudang')
+            ->where('permission', 'purchase.receipts.view')->delete();
+        $this->get(route('purchase.returns.index'))->assertOk()
+            ->assertSee($this->order->po_number)->assertDontSee('href="'.$url.'"', false)
+            ->assertDontSee('Penerimaan #'.$receipt->id);
+        $this->get($url)->assertForbidden();
+    }
+
     public function test_large_receipt_and_return_details_have_searchable_bounded_lists(): void
     {
         $this->setupOrder();

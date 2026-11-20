@@ -78,11 +78,10 @@
                     @php $issues = $openIssues[$receipt->id]; @endphp
                     <tr>
                         <td class="text-nowrap">
-                            <div class="font-monospace fw-semibold">{{ $receipt->purchaseOrder->po_number }}</div>
                             @if($canViewReceipt)
-                                <a class="small text-decoration-none" href="{{ route('purchase.receipts.show', $receipt) }}">Penerimaan #{{ $receipt->id }}</a>
+                                <a class="font-monospace fw-semibold text-decoration-none" href="{{ route('purchase.receipts.show', $receipt) }}" title="Detail penerimaan">{{ $receipt->purchaseOrder->po_number }}</a>
                             @else
-                                <div class="small text-muted">Penerimaan #{{ $receipt->id }}</div>
+                                <span class="font-monospace fw-semibold">{{ $receipt->purchaseOrder->po_number }}</span>
                             @endif
                         </td>
                         <td>{{ $receipt->purchaseOrder->supplier->name }}</td>
@@ -97,7 +96,7 @@
                                 <ul class="list-unstyled mb-0">
                                     @foreach($group as $issue)
                                         <li class="py-1">
-                                            <span class="fw-semibold">{{ $issue['product'] }}</span>
+                                            <span class="fw-medium">{{ $issue['product'] }}</span>
                                             <span class="badge bg-warning bg-opacity-10 text-warning-emphasis">{{ $issue['label'] }} · {{ \App\Support\DisplayNumber::quantity($issue['quantity']) }} {{ $issue['unit'] }}</span>
                                             @if($issue['location'])<span class="small text-muted">Ditahan di {{ $issue['location'] }}</span>@endif
                                         </li>

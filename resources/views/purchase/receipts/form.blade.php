@@ -77,23 +77,63 @@
 @endif
 @if($selectedOrder)
 <div class="bg-white border-bottom mb-3">
-    <div class="p-3 d-flex flex-wrap gap-2 justify-content-between align-items-center"><h6 class="fw-bold mb-0">Hasil Pemeriksaan Barang</h6><div class="d-flex flex-wrap gap-3 align-items-center"><span id="inspectionCount" class="small text-muted" aria-live="polite">0 barang diperiksa</span><button class="btn btn-sm btn-outline-secondary" type="button" id="fillGood"><i class="bi bi-check2-all me-1"></i>Isi Sisa Barang Baik</button></div></div>
+    <div class="p-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0">Hasil Pemeriksaan Barang</h6>
+        <div class="d-flex flex-wrap gap-3 align-items-center">
+            <span id="inspectionCount" class="small text-muted" aria-live="polite">0 barang diperiksa</span>
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="fillGood">
+                <i class="bi bi-check2-all me-1"></i>Isi Sisa Barang Baik
+            </button>
+        </div>
+    </div>
     <div class="receiving-tools">
-        <div class="receiving-search"><label class="form-label small mb-1" for="receiptSearch">Cari Barang</label><input type="search" id="receiptSearch" class="form-control form-control-sm" placeholder="Nama barang atau barcode" data-receipt-filter></div>
-        <div class="receiving-filter"><label class="form-label small mb-1" for="receiptFilter">Status Pemeriksaan</label><select id="receiptFilter" class="form-select form-select-sm" data-receipt-filter><option value="all">Semua Barang</option><option value="uninspected">Belum Diperiksa</option><option value="incomplete">Perlu Dilengkapi</option><option value="ready">Siap Disimpan</option></select></div>
+        <div class="receiving-search">
+            <label class="form-label small mb-1" for="receiptSearch">Cari Barang</label>
+            <input type="search" id="receiptSearch" class="form-control form-control-sm"
+                placeholder="Nama barang atau barcode" data-receipt-filter>
+        </div>
+        <div class="receiving-filter">
+            <label class="form-label small mb-1" for="receiptFilter">Status Pemeriksaan</label>
+            <select id="receiptFilter" class="form-select form-select-sm" data-receipt-filter>
+                <option value="all">Semua Barang</option>
+                <option value="uninspected">Belum Diperiksa</option>
+                <option value="incomplete">Perlu Dilengkapi</option>
+                <option value="ready">Siap Disimpan</option>
+            </select>
+        </div>
         <span id="receiptVisibleCount" class="small text-muted ms-auto" aria-live="polite"></span>
     </div>
     <div class="table-responsive receiving-scroll">
     <table class="table align-middle receiving-table mb-0">
-        <thead><tr><th>Barang / Satuan</th><th class="text-end">Sisa Penerimaan</th><th>Baik</th><th>Rusak</th><th>Tidak Sesuai</th><th>Kurang</th><th>Hasil</th></tr></thead>
+        <thead>
+            <tr>
+                <th>Barang / Satuan</th>
+                <th class="text-end">Sisa Penerimaan</th>
+                <th>Baik</th>
+                <th>Rusak</th>
+                <th>Tidak Sesuai</th>
+                <th>Kurang</th>
+                <th>Hasil</th>
+            </tr>
+        </thead>
         <tbody>
         @foreach($selectedOrder->items as $item)
         @if($item->receivableQuantity() > 0)
         @php $i = $loop->index; $unit = $item->productUnit?->unit?->name ?? $item->product->buyUnit->name; @endphp
-        <tr class="inspection-row" data-max="{{ $item->receivableQuantity() }}" data-details="inspection-{{ $i }}" data-search="{{ mb_strtolower($item->product->name.' '.$item->product->barcode) }}" data-start-open="{{ $errors->has("items.$i.*") ? 'true' : 'false' }}">
+        <tr class="inspection-row"
+            data-max="{{ $item->receivableQuantity() }}"
+            data-details="inspection-{{ $i }}"
+            data-search="{{ mb_strtolower($item->product->name.' '.$item->product->barcode) }}"
+            data-start-open="{{ $errors->has("items.$i.*") ? 'true' : 'false' }}">
             <td>
                 <div class="fw-semibold">{{ $item->product->name }}</div>
-                <div class="d-flex align-items-center gap-3"><small class="text-muted">{{ $unit }}</small><button type="button" class="receiving-toggle" aria-expanded="false" aria-controls="inspection-{{ $i }}" aria-label="Rincian {{ $item->product->name }}"><i class="bi bi-chevron-right" aria-hidden="true"></i>Rincian</button></div>
+                <div class="d-flex align-items-center gap-3">
+                    <small class="text-muted">{{ $unit }}</small>
+                    <button type="button" class="receiving-toggle" aria-expanded="false"
+                        aria-controls="inspection-{{ $i }}" aria-label="Rincian {{ $item->product->name }}">
+                        <i class="bi bi-chevron-right" aria-hidden="true"></i>Rincian
+                    </button>
+                </div>
                 <div class="receiving-detail-preview"></div>
                 <input type="hidden" name="items[{{ $i }}][purchase_order_item_id]" value="{{ $item->id }}">
                 <input type="hidden" name="items[{{ $i }}][product_id]" value="{{ $item->product_id }}">
@@ -101,12 +141,24 @@
             </td>
             <td class="text-end">{{ rtrim(rtrim(number_format($item->receivableQuantity(), 4, ',', '.'),'0'),',') }}<br><small class="text-muted">{{ $unit }}</small></td>
             @foreach(['received' => 'Baik', 'damaged' => 'Rusak', 'wrong' => 'Tidak sesuai', 'missing' => 'Kurang'] as $field => $label)
-            <td class="quantity"><input type="number" aria-label="{{ $label }} {{ $item->product->name }}" class="form-control form-control-sm inspection-qty {{ $field === 'received' ? 'good-qty' : 'exception-qty' }}" name="items[{{ $i }}][quantity_{{ $field }}]" value="{{ old("items.$i.quantity_$field", 0) }}" min="0" max="{{ $item->receivableQuantity() }}" step="1" required></td>
+            <td class="quantity">
+                <input type="number" aria-label="{{ $label }} {{ $item->product->name }}"
+                    class="form-control form-control-sm inspection-qty {{ $field === 'received' ? 'good-qty' : 'exception-qty' }}"
+                    name="items[{{ $i }}][quantity_{{ $field }}]"
+                    value="{{ old("items.$i.quantity_$field", 0) }}"
+                    min="0" max="{{ $item->receivableQuantity() }}" step="1" required>
+            </td>
             @endforeach
             <td class="receiving-summary small" aria-live="polite"></td>
         </tr>
         <tr id="inspection-{{ $i }}" class="receiving-details" hidden><td colspan="7"><div class="receiving-detail-content">
-            <div class="receiving-detail-title"><strong class="small">{{ $item->product->name }}</strong><button type="button" class="btn btn-sm btn-outline-secondary detail-close" title="Tutup rincian" aria-label="Tutup rincian {{ $item->product->name }}"><i class="bi bi-chevron-up" aria-hidden="true"></i></button></div>
+            <div class="receiving-detail-title">
+                <strong class="small">{{ $item->product->name }}</strong>
+                <button type="button" class="btn btn-sm btn-outline-secondary detail-close"
+                    title="Tutup rincian" aria-label="Tutup rincian {{ $item->product->name }}">
+                    <i class="bi bi-chevron-up" aria-hidden="true"></i>
+                </button>
+            </div>
             @if($item->product->is_expirable)
             @php
                 $batchRows = array_values(old("items.$i.batches", [[
@@ -116,7 +168,15 @@
                 if (!$batchRows) $batchRows = [['quantity' => 0]];
             @endphp
             <div class="batch-panel mb-3" data-item-index="{{ $i }}" data-next-index="{{ count($batchRows) }}">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2"><strong class="small">Rincian Kedaluwarsa</strong><div class="d-flex flex-wrap gap-3 align-items-center"><span class="batch-summary small" aria-live="polite"></span><button type="button" class="btn btn-sm btn-outline-primary batch-add"><i class="bi bi-plus-lg me-1"></i>Tambah Kedaluwarsa</button></div></div>
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <strong class="small">Rincian Kedaluwarsa</strong>
+                    <div class="d-flex flex-wrap gap-3 align-items-center">
+                        <span class="batch-summary small" aria-live="polite"></span>
+                        <button type="button" class="btn btn-sm btn-outline-primary batch-add">
+                            <i class="bi bi-plus-lg me-1"></i>Tambah Kedaluwarsa
+                        </button>
+                    </div>
+                </div>
                 <div class="receipt-batch-grid small text-muted mb-1"><span>Jumlah ({{ $unit }})</span><span>Kedaluwarsa</span><span></span></div>
                 <div class="batch-list">
                 @foreach($batchRows as $batchIndex => $batchValues)
@@ -127,7 +187,11 @@
             </div>
             @endif
             <div class="receiving-issues" hidden>
-                <div><label class="form-label small" for="reason-{{ $i }}">Keterangan Masalah</label><input id="reason-{{ $i }}" class="form-control form-control-sm inspection-reason" name="items[{{ $i }}][reason]" maxlength="2000" value="{{ old("items.$i.reason") }}"></div>
+                <div>
+                    <label class="form-label small" for="reason-{{ $i }}">Keterangan Masalah</label>
+                    <input id="reason-{{ $i }}" class="form-control form-control-sm inspection-reason"
+                        name="items[{{ $i }}][reason]" maxlength="2000" value="{{ old("items.$i.reason") }}">
+                </div>
             </div>
         </div></td></tr>
         @endif
@@ -141,7 +205,14 @@
     </div>
 </div>
 @endif
-<div class="receiving-footer">@if($selectedOrder)<button class="btn btn-primary" type="submit"><i class="bi bi-check-circle me-1"></i>Simpan Penerimaan</button>@endif<x-back-link :fallback="route('purchase.receipts.index')" label="Batal" :small="false" /></div>
+<div class="receiving-footer">
+    @if($selectedOrder)
+    <button class="btn btn-primary" type="submit">
+        <i class="bi bi-check-circle me-1"></i>Simpan Penerimaan
+    </button>
+    @endif
+    <x-back-link :fallback="route('purchase.receipts.index')" label="Batal" :small="false" />
+</div>
 </form>
 @push('scripts')
 @include('purchase.receipts.scripts')

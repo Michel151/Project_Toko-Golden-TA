@@ -141,14 +141,14 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
         Route::resource('receipts', PurchaseReceiptController::class)->only(['index', 'create', 'store', 'show']);
     });
 
-    // ── Penjualan (owner & kasir) ──────────────────────────────────────────────
+    
     Route::prefix('purchase')->name('purchase.')->middleware('permission:purchase.returns')->group(function () {
         Route::post('returns/{return}/approve', [\App\Http\Controllers\Purchase\PurchaseReturnController::class, 'approve'])->name('returns.approve');
         Route::post('returns/{return}/reject', [\App\Http\Controllers\Purchase\PurchaseReturnController::class, 'reject'])->name('returns.reject');
         Route::post('returns/{return}/dispatch', [\App\Http\Controllers\Purchase\PurchaseReturnController::class, 'dispatch'])->name('returns.dispatch');
         Route::resource('returns', \App\Http\Controllers\Purchase\PurchaseReturnController::class)->only(['index', 'create', 'store', 'show']);
     });
-
+    // ── Penjualan (owner & kasir) ──────────────────────────────────────────────
     Route::get('sale/drafts', [\App\Http\Controllers\Sale\SaleDraftController::class, 'index'])->middleware('permission:sale.sales')->name('sale.drafts.index');
     Route::put('sale/drafts/{id}', [\App\Http\Controllers\Sale\SaleDraftController::class, 'update'])->middleware('permission:sale.sales')->name('sale.drafts.update');
     Route::prefix('sale')->name('sale.')->middleware('permission:sale.sales')->group(function () {
