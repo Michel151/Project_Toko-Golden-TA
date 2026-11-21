@@ -87,7 +87,20 @@
                             {{ ucfirst($sale->payment_method) }}
                         </span>
                     </td>
-                    <td><span class="badge bg-{{ match($sale->status) { 'paid' => 'success', 'pending' => 'warning text-dark', default => 'secondary' } }}">{{ match($sale->status) { 'paid' => 'Lunas', 'pending' => 'Menunggu Pembayaran', 'cancelled_auto' => 'Dibatalkan Otomatis', default => 'Dibatalkan' } }}</span></td>
+                    <td>
+                        <span class="badge bg-{{ match($sale->status) {
+                            'paid' => 'success',
+                            'pending' => 'warning text-dark',
+                            default => 'secondary'
+                        } }}">
+                            {{ match($sale->status) {
+                                'paid' => 'Lunas',
+                                'pending' => 'Menunggu Pembayaran',
+                                'cancelled_auto' => 'Dibatalkan Otomatis',
+                                default => 'Dibatalkan'
+                            } }}
+                        </span>
+                    </td>
                     <td class="text-end text-nowrap fw-medium">{{ number_format($sale->total_amount, 0, ',', '.') }}</td>
                     <td class="text-muted small">{{ $sale->createdBy->name ?? '-' }}</td>
                     <td class="text-center">

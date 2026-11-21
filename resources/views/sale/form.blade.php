@@ -58,7 +58,9 @@
 .pos-entry-controls .input-group { min-width:0; flex:1; }
 .pos-cart-toolbar { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.65rem .75rem; }
 .pos-cart-toolbar input { width:210px; max-width:100%; }
-.pos-items-scroll { height:calc(100dvh - 360px); min-height:280px; max-height:none; padding:0 .5rem .5rem; overflow:auto; }
+.pos-items-scroll { height:calc(100dvh - 360px); min-height:280px; max-height:none; padding:0 .5rem .5rem; overflow:auto; scroll-padding-bottom:clamp(3rem,8dvh,5rem); }
+.pos-items-card { margin-bottom:1.5rem; }
+.pos-items-scroll #itemsContainer { padding-bottom:clamp(3rem,8dvh,5rem); }
 .pos-items-scroll.product-search-open { overflow:auto; }
 .cart-list-header, .item-block { grid-template-columns:minmax(165px,1fr) 100px 70px 120px 110px 68px; gap:.4rem; }
 .cart-list-header { padding:.55rem .5rem; margin-bottom:0 !important; border-radius:0; background:#eef2ec; }
@@ -93,14 +95,38 @@
     @if($editing) @method('PUT') @endif
     <div class="pos-heading d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
         <div><h5 class="fw-bold mb-0"><i class="bi bi-cart3 text-warning me-2"></i>{{ $editing ? 'Ubah '.$sale->sale_number : 'Transaksi Penjualan' }}</h5></div>
-        <div class="d-flex align-items-center flex-wrap gap-2"><span class="small text-white-50" id="draftSaveStatus" role="status" aria-live="polite">Belum ada draft</span><button type="button" class="btn btn-sm btn-outline-light" id="showSaleDrafts"><i class="bi bi-clock-history me-1"></i>Draf</button><span class="badge bg-warning text-dark" id="itemCounter">0 Barang</span></div>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <span class="small text-white-50" id="draftSaveStatus" role="status" aria-live="polite">Belum ada draft</span>
+            <button type="button" class="btn btn-sm btn-outline-light" id="showSaleDrafts">
+                <i class="bi bi-clock-history me-1"></i>Draf
+            </button>
+            <span class="badge bg-warning text-dark" id="itemCounter">0 Barang</span>
+        </div>
     </div>
     <div class="pos-workspace">
         <div>
             <div class="pos-entry mb-2">
-                <div class="pos-entry-controls"><div class="input-group"><span class="input-group-text bg-white"><i class="bi bi-upc-scan"></i></span><input type="text" id="barcodeScanner" class="form-control" autocomplete="off" placeholder="Nama barang atau barcode" aria-label="Cari barang atau scan barcode" aria-controls="entryResults" aria-expanded="false"><button type="button" id="barcodeSearch" class="btn btn-primary" title="Tambahkan barang" aria-label="Tambahkan barang"><i class="bi bi-plus-lg"></i></button></div><button type="button" class="btn btn-outline-secondary" id="openCatalog"><i class="bi bi-grid me-1"></i>Katalog</button></div>
+                <div class="pos-entry-controls">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-upc-scan"></i></span>
+                        <input type="text" id="barcodeScanner" class="form-control" autocomplete="off"
+                            placeholder="Nama barang atau barcode" aria-label="Cari barang atau scan barcode"
+                            aria-controls="entryResults" aria-expanded="false">
+                        <button type="button" id="barcodeSearch" class="btn btn-primary"
+                            title="Tambahkan barang" aria-label="Tambahkan barang">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary" id="openCatalog">
+                        <i class="bi bi-grid me-1"></i>Katalog
+                    </button>
+                </div>
                 <div id="entryResults" class="product-results d-none"></div>
-                <div class="d-flex flex-wrap align-items-center gap-2 mt-2"><label for="defaultSourceLocation" class="small text-muted">Lokasi barang baru</label><select id="defaultSourceLocation" class="form-select form-select-sm" style="width:155px"></select><div id="scannerStatus" class="small scanner-status" role="status" aria-live="polite"></div></div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                    <label for="defaultSourceLocation" class="small text-muted">Lokasi barang baru</label>
+                    <select id="defaultSourceLocation" class="form-select form-select-sm" style="width:155px"></select>
+                    <div id="scannerStatus" class="small scanner-status" role="status" aria-live="polite"></div>
+                </div>
             </div>
             <div class="card pos-items-card">
                 <div class="d-flex flex-wrap align-items-center gap-2 px-3 py-2 border-bottom">
@@ -112,7 +138,12 @@
                     <input type="search" id="cartSearch" class="form-control form-control-sm" placeholder="Cari di keranjang" aria-label="Cari barang di keranjang">
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="addItem" title="Tambah baris barang" aria-label="Tambah baris barang"><i class="bi bi-plus-lg"></i></button>
                 </div>
-                <div id="stockOverview" class="stock-overview d-none" role="status" aria-live="polite"><span id="stockOverviewText"></span><button type="button" id="reviewStock" class="btn btn-sm btn-outline-danger ms-2">Periksa Stok</button></div>
+                <div id="stockOverview" class="stock-overview d-none" role="status" aria-live="polite">
+                    <span id="stockOverviewText"></span>
+                    <button type="button" id="reviewStock" class="btn btn-sm btn-outline-danger ms-2">
+                        Periksa Stok
+                    </button>
+                </div>
                 <div class="card-body pt-1 pos-items-scroll">
                     <div class="cart-list-header mb-2" aria-hidden="true">
                         <span>Barang</span>
@@ -130,13 +161,52 @@
         </div>
         <div>
             <div class="card pos-checkout">
-                <div class="pos-total"><div class="small text-white-50 text-uppercase mb-1">Total Pembayaran</div><div class="d-flex align-items-center"><span class="fs-5 me-2">Rp</span><input type="text" id="grandTotal" class="form-control" value="0" readonly></div></div>
+                <div class="pos-total">
+                    <div class="small text-white-50 text-uppercase mb-1">Total Pembayaran</div>
+                    <div class="d-flex align-items-center">
+                        <span class="fs-5 me-2">Rp</span>
+                        <input type="text" id="grandTotal" class="form-control" value="0" readonly>
+                    </div>
+                </div>
                 <div class="card-body">
                     <h6 class="fw-bold mb-3"><i class="bi bi-receipt me-2 text-primary"></i>Informasi Transaksi</h6>
                     <div class="row g-2 mb-3">
-                        <div class="col-6"><label class="form-label small fw-semibold">Tanggal <span class="text-danger">*</span></label><input type="date" name="sale_date" class="form-control form-control-sm @error('sale_date') is-invalid @enderror" value="{{ old('sale_date', $editing ? $sale->sale_date->format('Y-m-d') : now('Asia/Jakarta')->toDateString()) }}" max="{{ now('Asia/Jakarta')->toDateString() }}" required>@error('sale_date')<div class="invalid-feedback">{{ $message }}</div>@enderror @if($editing)<div class="small text-muted mt-1">{{ $sale->transaction_time_label }}</div>@endif</div>
-                        <div class="col-6"><label class="form-label small fw-semibold">Pembayaran <span class="text-danger">*</span></label><select name="payment_method" class="form-select form-select-sm" required><option value="tunai" @selected(old('payment_method', $editing ? $sale->payment_method : 'tunai') === 'tunai')>Tunai</option><option value="transfer" @selected(old('payment_method', $editing ? $sale->payment_method : 'tunai') === 'transfer')>Transfer</option></select></div>
-                        <div class="col-12"><label class="form-label small fw-semibold">Nama Pelanggan</label><input type="text" name="customer_name" class="form-control form-control-sm" value="{{ old('customer_name', $editing ? $sale->customer_name : '') }}" placeholder="Pelanggan umum (opsional)"></div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Tanggal <span class="text-danger">*</span></label>
+                            <input type="date" name="sale_date"
+                                class="form-control form-control-sm @error('sale_date') is-invalid @enderror"
+                                value="{{ old('sale_date', $editing
+                                    ? $sale->sale_date->format('Y-m-d')
+                                    : now('Asia/Jakarta')->toDateString()) }}"
+                                max="{{ now('Asia/Jakarta')->toDateString() }}" required>
+                            @error('sale_date')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            @if($editing)
+                            <div class="small text-muted mt-1">{{ $sale->transaction_time_label }}</div>
+                            @endif
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">
+                                Pembayaran <span class="text-danger">*</span>
+                            </label>
+                            <select name="payment_method" class="form-select form-select-sm" required>
+                                <option value="tunai"
+                                    @selected(old('payment_method', $editing ? $sale->payment_method : 'tunai') === 'tunai')>
+                                    Tunai
+                                </option>
+                                <option value="transfer"
+                                    @selected(old('payment_method', $editing ? $sale->payment_method : 'tunai') === 'transfer')>
+                                    Transfer
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Nama Pelanggan</label>
+                            <input type="text" name="customer_name" class="form-control form-control-sm"
+                                value="{{ old('customer_name', $editing ? $sale->customer_name : '') }}"
+                                placeholder="Pelanggan umum (opsional)">
+                        </div>
                     </div>
                     @if($editing)
                     <div class="alert alert-warning py-2 small">Status saat ini: <strong>Menunggu Pembayaran</strong>. Batas pembayaran {{ $sale->hold_until->format('H:i') }} WIB.</div>
@@ -150,9 +220,31 @@
                     </div>
                     <div class="small text-muted mb-3" id="pendingNotice" hidden>Stok langsung berkurang. Jika belum dibayar pukul 18.00 WIB, transaksi dibatalkan otomatis dan stok dikembalikan.</div>
                     <label class="form-label small fw-semibold">Jumlah Bayar <span class="text-danger">*</span></label>
-                    <div class="input-group mb-3"><span class="input-group-text">Rp</span><input type="text" name="amount_paid" id="amountPaid" class="form-control fw-semibold js-currency-input" value="{{ number_format((float) old('amount_paid', 0), 0, ',', '.') }}" inputmode="numeric" required><button type="button" id="exactPayment" class="btn btn-outline-success" title="Isi pembayaran sejumlah total">Uang Pas</button></div>
+                    <div class="input-group mb-3">
+                        <span class="input-group-text">Rp</span>
+                        <input type="text" name="amount_paid" id="amountPaid"
+                            class="form-control fw-semibold js-currency-input"
+                            value="{{ number_format((float) old('amount_paid', 0), 0, ',', '.') }}"
+                            inputmode="numeric" required>
+                        <button type="button" id="exactPayment" class="btn btn-outline-success"
+                            title="Isi pembayaran sejumlah total">
+                            Uang Pas
+                        </button>
+                    </div>
                     @error('amount_paid')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
-                    <div class="pos-change d-flex justify-content-between align-items-center mb-3"><div><div class="small text-muted">Kembalian</div><div class="small text-success"><i class="bi bi-check-circle me-1"></i>Hitung otomatis</div></div><div class="d-flex align-items-center"><span class="text-success me-1">Rp</span><input type="text" id="changeAmount" class="form-control text-end" value="0" readonly style="width:120px"></div></div>
+                    <div class="pos-change d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <div class="small text-muted">Kembalian</div>
+                            <div class="small text-success">
+                                <i class="bi bi-check-circle me-1"></i>Hitung otomatis
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="text-success me-1">Rp</span>
+                            <input type="text" id="changeAmount" class="form-control text-end"
+                                value="0" readonly style="width:120px">
+                        </div>
+                    </div>
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" name="transaction_confirmed" value="1" id="transactionConfirmed" required>
                         <label class="form-check-label small" for="transactionConfirmed" id="transactionConfirmationLabel">Saya sudah memeriksa transaksi ini</label>
@@ -170,7 +262,14 @@
 <div class="modal" id="saleDraftModal" tabindex="-1" aria-labelledby="saleDraftTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
         <div class="modal-header"><h5 class="modal-title" id="saleDraftTitle">Keranjang Belum Selesai</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button></div>
-        <div class="modal-body"><div class="small text-muted mb-2">Draf otomatis direset setiap pukul 18.00 WIB. Draf yang dibuat setelahnya berlaku sampai pukul 18.00 WIB keesokan hari.</div><div id="saleDraftMessage" class="small text-muted mb-2"></div><div id="saleDraftList"></div></div>
+        <div class="modal-body">
+            <div class="small text-muted mb-2">
+                Draf otomatis direset setiap pukul 18.00 WIB.
+                Draf yang dibuat setelahnya berlaku sampai pukul 18.00 WIB keesokan hari.
+            </div>
+            <div id="saleDraftMessage" class="small text-muted mb-2"></div>
+            <div id="saleDraftList"></div>
+        </div>
         <div class="modal-footer"><button type="button" id="startNewSaleDraft" class="btn btn-outline-secondary"><i class="bi bi-plus-lg me-1"></i>{{ $editing ? 'Kembali ke Transaksi' : 'Keranjang Baru' }}</button></div>
     </div></div>
 </div>
@@ -681,6 +780,29 @@ function renderSource(div, idx, product, saleType) {
     updateSaveState();
 }
 
+function positionProductResults(input, results) {
+    const bounds = input.closest('.input-group').getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const viewportTop = viewport?.offsetTop || 0;
+    const viewportLeft = viewport?.offsetLeft || 0;
+    const viewportHeight = viewport?.height || window.innerHeight;
+    const viewportWidth = viewport?.width || window.innerWidth;
+    const gap = 6;
+    const padding = 12;
+    const spaceAbove = Math.max(0, bounds.top - viewportTop - padding - gap);
+    const spaceBelow = Math.max(0, viewportTop + viewportHeight - bounds.bottom - padding - gap);
+    const openAbove = spaceBelow < 260 && spaceAbove > spaceBelow;
+    const width = Math.min(bounds.width, Math.max(0, viewportWidth - padding * 2));
+    Object.assign(results.style, {
+        position: 'fixed',
+        left: `${Math.max(viewportLeft + padding, Math.min(bounds.left, viewportLeft + viewportWidth - padding - width))}px`,
+        right: 'auto', width: `${width}px`, marginTop: '0',
+        top: openAbove ? 'auto' : `${bounds.bottom + gap}px`,
+        bottom: openAbove ? `${window.innerHeight - bounds.top + gap}px` : 'auto',
+        maxHeight: `${Math.min(260, openAbove ? spaceAbove : spaceBelow)}px`,
+    });
+}
+
 function addItem(reveal = true) {
     if (reveal) {
         document.querySelectorAll('#itemsContainer .item-block').forEach(item => {
@@ -812,11 +934,7 @@ function bindItemEvents(div, idx) {
         });
         div.closest('.pos-items-scroll').classList.add('product-search-open');
         productResults.classList.remove('d-none');
-        const bounds = productSearch.closest('.input-group').getBoundingClientRect();
-        Object.assign(productResults.style, {
-            position: 'fixed', left: `${bounds.left}px`, right: 'auto', width: `${bounds.width}px`,
-            top: `${bounds.bottom}px`, maxHeight: `${Math.max(100, Math.min(260, window.innerHeight - bounds.bottom - 12))}px`
-        });
+        positionProductResults(productSearch, productResults);
 
         if (!matches.length) {
             productResults.innerHTML = '<div class="product-results-empty">Barang tidak ditemukan.</div>';
@@ -1201,7 +1319,15 @@ document.getElementById('barcodeScanner').addEventListener('input', function() {
     const results = document.getElementById('entryResults');
     results.innerHTML = matches.map((product, index) => {
         const unit = product.product_units.find(u => u.is_default_sale) || product.product_units[0];
-        return `<button type="button" class="product-result ${index === 0 ? 'is-active' : ''}" data-product-id="${escapeHtml(product.id)}"><span class="product-result-name">${escapeHtml(product.name)}</span><span class="product-result-meta">${escapeHtml(product.barcode || '-')} · ${escapeHtml(unit?.unit_name || '')} · Rp ${formatNumber(unit?.sell_price ?? product.sell_price_wholesale)}</span></button>`;
+        return `
+            <button type="button" class="product-result ${index === 0 ? 'is-active' : ''}"
+                data-product-id="${escapeHtml(product.id)}">
+                <span class="product-result-name">${escapeHtml(product.name)}</span>
+                <span class="product-result-meta">
+                    ${escapeHtml(product.barcode || '-')} · ${escapeHtml(unit?.unit_name || '')} · Rp ${formatNumber(unit?.sell_price ?? product.sell_price_wholesale)}
+                </span>
+            </button>
+        `;
     }).join('') || '<div class="product-results-empty">Barang tidak ditemukan</div>';
     results.classList.remove('d-none');
     this.setAttribute('aria-expanded', 'true');
@@ -1251,6 +1377,14 @@ document.getElementById('saleForm').addEventListener('keydown', event => {
 window.addEventListener('resize', () => {
     document.querySelectorAll('.product-results').forEach(results => results.classList.add('d-none'));
 });
+function repositionOpenProductResults() {
+    document.querySelectorAll('.product-search-wrap .product-results:not(.d-none)').forEach(results => {
+        positionProductResults(results.closest('.product-search-wrap').querySelector('.product-search'), results);
+    });
+}
+window.addEventListener('scroll', repositionOpenProductResults, true);
+window.visualViewport?.addEventListener('resize', repositionOpenProductResults);
+window.visualViewport?.addEventListener('scroll', repositionOpenProductResults);
 </script>
 <script>
 window.saleDraftConfig = {
