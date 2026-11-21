@@ -35,7 +35,7 @@ class OpnameParticipantsTest extends TestCase
 
     private function payload(): array
     {
-        return ['location_id'=>$this->location->id,'opname_date'=>'2026-10-23','participant_ids'=>[$this->cashier->id,$this->staff->id]];
+        return ['location_id'=>$this->location->id,'opname_date'=>'2026-10-23','participant_ids'=>[$this->owner->id,$this->staff->id]];
     }
 
     private function capture(string $name, $page): void
@@ -50,7 +50,7 @@ class OpnameParticipantsTest extends TestCase
     {
         $this->staff->forceFill(['deactivated_at' => now()])->save();
         $this->get(route('inventory.opnames.create'))->assertOk()
-            ->assertViewHas('users', fn ($users) => ! $users->contains('id', $this->staff->id) && $users->contains('id', $this->cashier->id));
+            ->assertViewHas('users', fn ($users) => ! $users->contains('id', $this->staff->id) && $users->contains('id', $this->owner->id) && ! $users->contains('id', $this->cashier->id));
         $this->postJson(route('inventory.opnames.store'), $this->payload())
             ->assertUnprocessable()->assertJsonValidationErrors('participant_ids.1');
         $this->assertDatabaseCount('stock_opnames', 0);
@@ -98,6 +98,19 @@ class OpnameParticipantsTest extends TestCase
         }
     }
 
+    public function test_cashier_is_excluded_from_participant_filter_and_cannot_be_submitted(): void
+    {
+        $this->get(route('inventory.opnames.index'))->assertOk()
+            ->assertViewHas('users', fn ($users) => $users->pluck('id')->all() === [$this->staff->id, $this->owner->id]);
+        $this->getJson(route('inventory.opnames.index', ['participant_id' => $this->cashier->id]))
+            ->assertUnprocessable()->assertJsonValidationErrors('participant_id');
+        $payload = $this->payload();
+        $payload['participant_ids'] = [$this->cashier->id, $this->staff->id];
+        $this->postJson(route('inventory.opnames.store'), $payload)->assertUnprocessable()
+            ->assertJsonValidationErrors('participant_ids.0');
+        $this->assertDatabaseCount('stock_opnames', 0);
+    }
+
     public function test_form_has_multiple_select_with_sorted_names_and_defaults_to_current_user(): void
     {
         $page = $this->get(route('inventory.opnames.create'))->assertOk()->assertSee('Petugas Opname');
@@ -106,7 +119,7 @@ class OpnameParticipantsTest extends TestCase
         $xpath = new \DOMXPath($document);
         $this->assertSame(1, $xpath->query('//select[@name="participant_ids[]" and @multiple and @required]')->length);
         $this->assertSame((string) $this->owner->id, $xpath->query('//select[@id="opnameParticipants"]/option[@selected]')->item(0)->getAttribute('value'));
-        $this->assertSame([$this->staff->id,$this->cashier->id,$this->owner->id], $page->viewData('users')->pluck('id')->all());
+        $this->assertSame([$this->staff->id,$this->owner->id], $page->viewData('users')->pluck('id')->all());
         $this->capture('create', $page);
         $page = $this->withSession(['_old_input'=>$this->payload()])->get(route('inventory.opnames.create'))->assertOk();
         $document = new \DOMDocument;
@@ -123,14 +136,14 @@ class OpnameParticipantsTest extends TestCase
         $opname = StockOpname::firstOrFail();
         $this->assertSame([
             ['user_id'=>$this->staff->id,'name'=>'Andi Gudang'],
-            ['user_id'=>$this->cashier->id,'name'=>'Budi Kasir'],
+            ['user_id'=>$this->owner->id,'name'=>'Owner Golden'],
         ], $opname->participants);
         $this->assertEquals(7, Stock::first()->quantity);
         $this->assertDatabaseCount('stock_movements', 0);
         $this->assertSame($permissions, DB::table('role_permissions')->orderBy('id')->get()->toJson());
-        $page = $this->get(route('inventory.opnames.edit', $opname))->assertOk()->assertSee('Andi Gudang, Budi Kasir')->assertDontSee('Nama Palsu');
+        $page = $this->get(route('inventory.opnames.edit', $opname))->assertOk()->assertSee('Andi Gudang, Owner Golden')->assertDontSee('Nama Palsu');
         $this->capture('edit', $page);
-        $page = $this->get(route('inventory.opnames.show', $opname))->assertOk()->assertSee('Andi Gudang, Budi Kasir');
+        $page = $this->get(route('inventory.opnames.show', $opname))->assertOk()->assertSee('Andi Gudang, Owner Golden');
         $this->capture('show', $page);
         $this->actingAs($this->cashier)->get(route('inventory.opnames.show', $opname))->assertForbidden();
     }
@@ -161,6 +174,11 @@ class OpnameParticipantsTest extends TestCase
     {
         $this->post(route('inventory.opnames.store'), $this->payload())->assertSessionHasNoErrors();
         $opname = StockOpname::firstOrFail();
+        // Reproduce an older document that recorded a cashier before the role restriction.
+        $opname->update(['participants' => [
+            ['user_id' => $this->staff->id, 'name' => $this->staff->name],
+            ['user_id' => $this->cashier->id, 'name' => $this->cashier->name],
+        ]]);
         $original = $opname->participants;
         $this->staff->update(['name'=>'Nama Baru']);
         $this->cashier->delete();
