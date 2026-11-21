@@ -73,4 +73,18 @@ class SaleCashierFilterTest extends TestCase
                 ->assertUnprocessable()->assertJsonValidationErrors('cashier_id');
         }
     }
+
+    public function test_inactive_cashier_is_labelled_and_historical_sales_remain_filterable(): void
+    {
+        $owner = $this->user('Owner', 'owner');
+        $cashier = $this->user('KasirLama', 'kasir');
+        $this->sale($cashier, 1000);
+        $cashier->forceFill(['deactivated_at' => now()])->save();
+        $this->actingAs($owner);
+        $filters = ['cashier_id' => $cashier->id, 'from' => '2026-10-31', 'to' => '2026-10-31'];
+        $this->get(route('sale.sales.index', $filters))->assertOk()->assertSee('KasirLama (Nonaktif)')
+            ->assertViewHas('sales', fn ($sales) => $sales->total() === 1)
+            ->assertViewHas('totalAmount', 1000);
+        $this->get(route('report.sale', $filters))->assertOk()->assertSee('KasirLama (Nonaktif)');
+    }
 }

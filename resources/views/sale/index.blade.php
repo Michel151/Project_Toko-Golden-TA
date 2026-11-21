@@ -39,7 +39,7 @@
         <div class="app-filter-field"><label for="saleCashier">Kasir</label><select id="saleCashier" name="cashier_id" class="form-select form-select-sm">
             <option value="">Semua Kasir</option>
             @foreach($cashiers as $cashier)
-                <option value="{{ $cashier->id }}" @selected((string) request('cashier_id') === (string) $cashier->id)>{{ $cashier->name }}</option>
+                <option value="{{ $cashier->id }}" @selected((string) request('cashier_id') === (string) $cashier->id)>{{ $cashier->name }}{{ $cashier->isActive() ? '' : ' (Nonaktif)' }}</option>
             @endforeach
         </select></div>
         @endif

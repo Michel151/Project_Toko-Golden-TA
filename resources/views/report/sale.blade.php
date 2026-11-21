@@ -22,7 +22,7 @@
         @if(auth()->user()->isOwner())
         <div><label for="saleReportCashier" class="d-block">Kasir</label><select id="saleReportCashier" name="cashier_id" class="form-select form-select-sm">
             <option value="">Semua Kasir</option>
-            @foreach($cashiers as $option)<option value="{{ $option->id }}" @selected($cashierId === $option->id)>{{ $option->name }}</option>@endforeach
+            @foreach($cashiers as $option)<option value="{{ $option->id }}" @selected($cashierId === $option->id)>{{ $option->name }}{{ $option->isActive() ? '' : ' (Nonaktif)' }}</option>@endforeach
         </select></div>
         @endif
         <div><label for="saleReportPerPage" class="d-block">Per Halaman</label><select id="saleReportPerPage" name="per_page" class="form-select form-select-sm">

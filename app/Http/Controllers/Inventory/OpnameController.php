@@ -26,18 +26,26 @@ class OpnameController extends Controller
 
     public function index(Request $request)
     {
+        $request->validate([
+            'location_id' => 'nullable|integer|exists:locations,id',
+            'participant_id' => 'nullable|integer|exists:users,id',
+        ]);
         ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
+        $locations = Location::orderBy('name')->get(['id', 'name']);
+        $users = User::orderBy('name')->orderBy('id')->get(['id', 'name', 'deactivated_at']);
         $opnames = StockOpname::with(['location', 'createdBy'])
+            ->when($request->filled('location_id'), fn ($query) => $query->where('location_id', $request->integer('location_id')))
+            ->when($request->filled('participant_id'), fn ($query) => $query->forParticipant($request->integer('participant_id')))
             ->when($from, fn ($query)=>$query->whereDate('opname_date', '>=', $from))
             ->when($to, fn ($query)=>$query->whereDate('opname_date', '<=', $to))
             ->latest()->latest('id')->paginate(25)->withQueryString()->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
-        return view('inventory.opnames.index', compact('opnames', 'from', 'to'));
+        return view('inventory.opnames.index', compact('opnames', 'from', 'to', 'locations', 'users'));
     }
 
     public function create()
     {
         $locations = Location::orderBy('name')->get();
-        $users = User::orderBy('name')->orderBy('id')->get(['id', 'name', 'role']);
+        $users = User::whereNull('deactivated_at')->orderBy('name')->orderBy('id')->get(['id', 'name', 'role']);
         return view('inventory.opnames.create', compact('locations', 'users'));
     }
 
@@ -47,13 +55,13 @@ class OpnameController extends Controller
             'location_id'  => 'required|exists:locations,id',
             'opname_date'  => 'required|date',
             'participant_ids' => 'sometimes|required|array|min:1|max:100',
-            'participant_ids.*' => 'required|integer|distinct|exists:users,id',
+            'participant_ids.*' => ['required', 'integer', 'distinct', \Illuminate\Validation\Rule::exists('users', 'id')->whereNull('deactivated_at')],
         ]);
 
         // Buat draft opname dengan semua produk di lokasi tersebut
         $opname = DB::transaction(function () use ($request, $validated) {
             $participantIds = $validated['participant_ids'] ?? [auth()->id()];
-            $participants = User::whereIn('id', $participantIds)->orderBy('name')->orderBy('id')->get(['id', 'name']);
+            $participants = User::whereNull('deactivated_at')->whereIn('id', $participantIds)->orderBy('name')->orderBy('id')->get(['id', 'name']);
             if ($participants->count() !== count($participantIds)) {
                 throw ValidationException::withMessages(['participant_ids'=>'Daftar petugas berubah. Silakan pilih kembali petugas opname.']);
             }

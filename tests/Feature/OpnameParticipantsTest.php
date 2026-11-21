@@ -46,6 +46,58 @@ class OpnameParticipantsTest extends TestCase
         file_put_contents($directory.'/'.$name.'.html', $page->getContent());
     }
 
+    public function test_inactive_users_cannot_be_selected_or_submitted_for_new_opnames(): void
+    {
+        $this->staff->forceFill(['deactivated_at' => now()])->save();
+        $this->get(route('inventory.opnames.create'))->assertOk()
+            ->assertViewHas('users', fn ($users) => ! $users->contains('id', $this->staff->id) && $users->contains('id', $this->cashier->id));
+        $this->postJson(route('inventory.opnames.store'), $this->payload())
+            ->assertUnprocessable()->assertJsonValidationErrors('participant_ids.1');
+        $this->assertDatabaseCount('stock_opnames', 0);
+    }
+
+    public function test_opname_location_and_participant_filters_keep_history_and_pagination(): void
+    {
+        $other = Location::create(['name' => 'Toko']);
+        $base = ['opname_date' => '2026-10-23', 'status' => 'completed', 'created_by' => $this->owner->id];
+        $participants = [['user_id' => $this->staff->id, 'name' => $this->staff->name]];
+        for ($i = 0; $i < 27; $i++) {
+            StockOpname::create($base + ['opname_number' => 'OPN-FILTER-'.$i, 'location_id' => $this->location->id, 'participants' => $participants]);
+        }
+        StockOpname::create($base + ['opname_number' => 'OPN-OTHER-LOCATION', 'location_id' => $other->id, 'participants' => $participants]);
+        StockOpname::create($base + ['opname_number' => 'OPN-OTHER-PERSON', 'location_id' => $this->location->id,
+            'participants' => [['user_id' => $this->cashier->id, 'name' => $this->cashier->name]]]);
+        StockOpname::create(array_replace($base, ['opname_number' => 'OPN-OTHER-DATE', 'opname_date' => '2026-09-01',
+            'location_id' => $this->location->id, 'participants' => $participants]));
+        $this->staff->forceFill(['deactivated_at' => now(), 'name' => 'Nama Baru'])->save();
+        $filters = ['location_id' => $this->location->id, 'participant_id' => $this->staff->id, 'from' => '2026-10-01', 'to' => '2026-10-31'];
+        $response = $this->get(route('inventory.opnames.index', $filters))->assertOk()->assertSee('Nama Baru (Nonaktif)')
+            ->assertSee('Andi Gudang')
+            ->assertViewHas('opnames', fn ($rows) => $rows->total() === 27 && $rows->count() === 25);
+        parse_str(parse_url($response->viewData('opnames')->url(2), PHP_URL_QUERY), $query);
+        foreach ($filters as $key => $value) $this->assertEquals($value, $query[$key]);
+        $this->get(route('inventory.opnames.index', $filters + ['page' => 2]))->assertOk()
+            ->assertViewHas('opnames', fn ($rows) => $rows->total() === 27 && $rows->count() === 2);
+        $this->get(route('inventory.opnames.index', ['location_id' => $other->id]))->assertOk()
+            ->assertViewHas('opnames', fn ($rows) => $rows->total() === 1);
+        $this->get(route('inventory.opnames.index', ['participant_id' => $this->owner->id]))->assertOk()
+            ->assertViewHas('opnames', fn ($rows) => $rows->total() === 0);
+    }
+
+    public function test_legacy_opname_participant_filter_uses_creator_only_without_snapshot(): void
+    {
+        foreach ([null, []] as $index => $participants) {
+            StockOpname::create(['opname_number' => 'OPN-LEGACY-'.$index, 'opname_date' => today(),
+                'location_id' => $this->location->id, 'created_by' => $this->owner->id, 'participants' => $participants]);
+        }
+        $this->get(route('inventory.opnames.index', ['participant_id' => $this->owner->id]))->assertOk()
+            ->assertViewHas('opnames', fn ($rows) => $rows->total() === 2);
+        foreach (['location_id', 'participant_id'] as $filter) {
+            $this->getJson(route('inventory.opnames.index', [$filter => 999999]))
+                ->assertUnprocessable()->assertJsonValidationErrors($filter);
+        }
+    }
+
     public function test_form_has_multiple_select_with_sorted_names_and_defaults_to_current_user(): void
     {
         $page = $this->get(route('inventory.opnames.create'))->assertOk()->assertSee('Petugas Opname');

@@ -51,7 +51,7 @@ class SaleReportController extends Controller
         $cashierId = $cashier?->id;
         $cashiers = $request->user()->isOwner()
             ? User::where(fn ($users) => $users->whereIn('role', ['owner', 'kasir'])->orWhereHas('sales'))
-                ->orderBy('name')->orderBy('id')->get(['id', 'name'])
+                ->orderBy('name')->orderBy('id')->get(['id', 'name', 'deactivated_at'])
             : collect();
         $categories = Category::orderBy('name')->get(['id', 'name']);
         $category = $categories->firstWhere('id', $categoryId);

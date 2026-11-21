@@ -32,7 +32,7 @@ class SaleController extends Controller
         if (auth()->user()->isOwner()) {
             $filters = $request->validate(['cashier_id' => 'nullable|integer|exists:users,id']);
             $cashiers = User::where(fn ($users) => $users->whereIn('role', ['owner', 'kasir'])->orWhereHas('sales'))
-                ->orderBy('name')->orderBy('id')->get(['id', 'name']);
+                ->orderBy('name')->orderBy('id')->get(['id', 'name', 'deactivated_at']);
             if (isset($filters['cashier_id'])) {
                 $query->where('created_by', $filters['cashier_id']);
             }

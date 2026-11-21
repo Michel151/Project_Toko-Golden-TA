@@ -22,6 +22,20 @@
 
 <form method="GET" class="app-unified-filter app-filter-bar mb-3">
     @include('components.date-range', ['prefix'=>'opnameList', 'fromValue'=>$from, 'toValue'=>$to])
+    <div class="app-filter-field">
+        <label for="opnameLocation">Lokasi</label>
+        <select id="opnameLocation" name="location_id" class="form-select form-select-sm">
+            <option value="">Semua Lokasi</option>
+            @foreach($locations as $location)<option value="{{ $location->id }}" @selected((string) request('location_id') === (string) $location->id)>{{ $location->name }}</option>@endforeach
+        </select>
+    </div>
+    <div class="app-filter-field">
+        <label for="opnameParticipant">Petugas Opname</label>
+        <select id="opnameParticipant" name="participant_id" class="form-select form-select-sm">
+            <option value="">Semua Petugas</option>
+            @foreach($users as $user)<option value="{{ $user->id }}" @selected((string) request('participant_id') === (string) $user->id)>{{ $user->name }}{{ $user->isActive() ? '' : ' (Nonaktif)' }}</option>@endforeach
+        </select>
+    </div>
     <div class="app-filter-actions">
         <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
         <a href="{{ route('inventory.opnames.index') }}" class="btn btn-sm btn-outline-secondary" title="Reset filter" aria-label="Reset filter"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
@@ -37,6 +51,7 @@
                     <th>Tanggal</th>
                     <th class="text-center">Status</th>
                     <th>Dibuat Oleh</th>
+                    <th>Petugas Opname</th>
                     <th class="text-center">Aksi</th>
                 </tr>
             </thead>
@@ -52,6 +67,7 @@
                         </span>
                     </td>
                     <td class="text-muted small">{{ $opname->createdBy->name ?? '-' }}</td>
+                    <td class="small">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: ($opname->createdBy->name ?? '-') }}</td>
                     <td class="text-center">
                         <a href="{{ route('inventory.opnames.show', $opname) }}" class="btn btn-sm btn-outline-info py-0 px-2"><i class="bi bi-eye"></i></a>
                         @if($opname->status === 'draft')
@@ -66,7 +82,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="6" class="text-center text-muted py-4">Belum ada stock opname</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">Tidak ada stock opname yang sesuai filter</td></tr>
                 @endforelse
             </tbody>
         </table>

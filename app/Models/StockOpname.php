@@ -36,6 +36,20 @@ class StockOpname extends Model
         return $this->hasMany(StockOpnameItem::class);
     }
 
+    public function scopeForParticipant(\Illuminate\Database\Eloquent\Builder $query, int $userId): void
+    {
+        $query->where(function ($query) use ($userId) {
+            if ($query->getConnection()->getDriverName() === 'sqlite') {
+                $query->whereRaw("EXISTS (SELECT 1 FROM json_each(stock_opnames.participants) AS participant WHERE json_extract(participant.value, '$.user_id') = ?)", [$userId]);
+            } else {
+                $query->whereJsonContains('participants', ['user_id' => $userId]);
+            }
+            // Legacy opnames have no participant snapshot; use the recorded creator.
+            $query->orWhere(fn ($legacy) => $legacy->where(fn ($empty) => $empty->whereNull('participants')->orWhereJsonLength('participants', 0))
+                ->where('created_by', $userId));
+        });
+    }
+
     public static function generateOpnameNumber(?\DateTimeInterface $issuedAt = null): string
     {
         $date = $issuedAt ? Carbon::instance($issuedAt)->setTimezone('Asia/Jakarta') : now('Asia/Jakarta');
