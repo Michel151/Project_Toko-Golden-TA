@@ -88,6 +88,7 @@
 @endpush
 
 @section('content')
+{{-- Form yang sama dipakai untuk transaksi baru dan perubahan transaksi pending. --}}
 <form method="POST" action="{{ $editing ? route('sale.sales.update', $sale) : route('sale.sales.store') }}" id="saleForm">
     @csrf
     <input type="hidden" name="draft_id" id="saleDraftId" value="{{ old('draft_id') }}">
@@ -154,6 +155,7 @@
                         <span class="text-end">Aksi</span>
                     </div>
                     <div id="cartLoading" class="cart-empty" role="status" aria-live="polite" @if(!$editing) hidden @endif>Memuat barang transaksi…</div>
+                    {{-- Baris barang dibuat JavaScript; nama input items mengelompokkan barang dan sumber stoknya. --}}
                     <div id="itemsContainer" aria-busy="{{ $editing ? 'true' : 'false' }}" @if($editing) hidden @endif></div>
                     <div id="cartEmpty" class="cart-empty" @if($editing) hidden @endif>Keranjang kosong</div>
                 </div>
@@ -213,6 +215,7 @@
                     @endif
                     <label class="form-label small fw-semibold">{{ $editing ? 'Status Setelah Disimpan' : 'Status Transaksi' }}</label>
                     <div class="btn-group w-100 mb-3" role="group" aria-label="Status transaksi">
+                        {{-- Pilihan status menentukan apakah pembayaran diselesaikan sekarang atau transaksi tetap pending. --}}
                         <input type="radio" class="btn-check" name="sale_status" id="salePaid" value="paid" @checked(old('sale_status', $editing ? 'pending' : 'paid') === 'paid')>
                         <label class="btn btn-outline-success" for="salePaid">Bayar Sekarang</label>
                         <input type="radio" class="btn-check" name="sale_status" id="salePending" value="pending" @checked(old('sale_status', $editing ? 'pending' : 'paid') === 'pending')>
@@ -322,14 +325,17 @@ let activeCatalogRow = null;
 let activeCatalogCategory = 'all';
 let cartLoading = @json($editing);
 
+// Menampilkan angka rupiah bulat dengan pemisah ribuan Indonesia.
 function formatNumber(n) {
     return new Intl.NumberFormat('id-ID').format(Math.round(n));
 }
 
+// Mengubah teks rupiah menjadi angka untuk perhitungan.
 function parseCurrency(value) {
     return Number(String(value ?? '').replace(/[^\d]/g, '')) || 0;
 }
 
+// Menjumlahkan subtotal, menghitung kembalian, dan memeriksa tombol simpan.
 function updateTotal() {
     let total = 0;
     document.querySelectorAll('.item-subtotal').forEach(el => {
@@ -342,6 +348,7 @@ function updateTotal() {
     document.dispatchEvent(new Event('sale-cart-changed'));
 }
 
+// Menghitung jenis barang berbeda yang sudah dipilih pada keranjang.
 function updateItemCounter() {
     const count = new Set([...document.querySelectorAll('.product-select')].filter(select => select.value).map(select => select.value)).size;
     document.getElementById('itemCounter').textContent = `${count} Barang`;
@@ -350,6 +357,7 @@ function updateItemCounter() {
     filterCart();
 }
 
+// Menyaring tampilan baris keranjang sesuai nama atau barcode yang dicari.
 function filterCart() {
     const query = document.getElementById('cartSearch').value.trim().toLowerCase();
     const rows = [...document.querySelectorAll('#itemsContainer .item-block')];
@@ -373,6 +381,7 @@ document.getElementById('exactPayment').addEventListener('click', () => {
 });
 
 document.getElementById('amountPaid').addEventListener('input', updateTotal);
+// Menyesuaikan pembayaran dan pernyataan konfirmasi ketika status transaksi berubah.
 function updateSaleStatus() {
     const pendingInput = document.getElementById('salePending');
     const pending = pendingInput ? pendingInput.checked : true;
@@ -392,7 +401,9 @@ function updateSaleStatus() {
 document.querySelectorAll('input[name="sale_status"]').forEach(input => input.addEventListener('change', updateSaleStatus));
 document.getElementById('transactionConfirmed').addEventListener('change', updateSaveState);
 
+// Mengaktifkan tombol simpan hanya jika total, pembayaran, konfirmasi, dan stok sudah sesuai.
 function updateSaveState() {
+    // Validasi stok memakai total kebutuhan semua baris agar produk yang sama tidak memakai stok berlebih.
     const stockValid = validateCartStock();
     const pendingInput = document.getElementById('salePending');
     const pending = pendingInput ? pendingInput.checked : true;
@@ -405,6 +416,7 @@ function updateSaveState() {
     document.getElementById('saveSaleButton').disabled = !confirmed || !enough || total <= 0 || !stockValid;
 }
 
+// Membaca pasangan lokasi dan jumlah dari input sumber stok yang tidak disabled.
 function rowStockSources(row) {
     return [...row.querySelectorAll('input[name*="[sources]"][name$="[location_id]"]:not(:disabled)')].map(input => {
         const qty = row.querySelector(`input[name="${input.name.replace('[location_id]', '[quantity]')}"]:not(:disabled)`);
@@ -412,12 +424,14 @@ function rowStockSources(row) {
     });
 }
 
+// Memeriksa kebutuhan gabungan per lokasi, kecukupan stok, serta kesesuaian pembagian jumlah.
 function validateCartStock() {
     const rows = [...document.querySelectorAll('#itemsContainer .item-block')];
     const demand = new Map();
+    // Saat edit pending, jumlah awal transaksi diperhitungkan kembali karena sebelumnya sudah mengurangi stok.
     const reserved = new Map();
     const key = (productId, locationId) => `${productId}:${locationId}`;
-    // Pending sales already deducted stock; only their original allocations are credited when editing.
+    // Hanya alokasi awal transaksi ini yang ditambahkan kembali dalam perhitungan stok edit.
     reservedItems.forEach(item => {
         const product = products.find(p => p.id == item.product_id);
         const unit = product?.product_units.find(u => u.id == item.product_unit_id);
@@ -525,6 +539,7 @@ document.getElementById('saleForm').addEventListener('submit', function (event) 
     if (button.disabled) event.preventDefault();
 });
 
+// Menampilkan ringkasan dan meminta persetujuan terakhir sebelum transaksi dikirim.
 function confirmSaleSubmission() {
     const pendingInput = document.getElementById('salePending');
     const pending = pendingInput ? pendingInput.checked : true;
@@ -553,16 +568,19 @@ document.getElementById('saleForm').addEventListener('invalid', event => {
 }, true);
 updateSaleStatus();
 
+// Mengubah karakter khusus agar nama barang aman ditampilkan dalam HTML.
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, char => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
     })[char]);
 }
 
+// Membuat pilihan ID dan nama barang untuk input produk pada setiap baris.
 function buildProductOptions() {
     return products.map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('');
 }
 
+// Menampilkan stok dasar sebagai gabungan satuan produk dari yang terbesar.
 function formatStok(rawQty, product) {
     const quantityNumber = value => Number(value).toLocaleString('id-ID', { maximumFractionDigits: 4 });
     if (product && product.product_units && product.product_units.length) {
@@ -596,6 +614,7 @@ function formatStok(rawQty, product) {
     return `${quantityNumber(rawQty)} ${product ? product.buy_unit_name : ''}`;
 }
 
+// Membuat pilihan lokasi beserta stoknya dan pilihan pembagian manual.
 function buildLocationOptions(selectedId, availableStocks, product) {
     let options = locations.map(loc => {
         const stockInfo = availableStocks ? availableStocks.find(s => s.location_id == loc.id) : null;
@@ -608,6 +627,7 @@ function buildLocationOptions(selectedId, availableStocks, product) {
     return options;
 }
 
+// Menampilkan jumlah stok pada lokasi yang sedang dipilih.
 function updateAvailableStock(content, locSelect, product) {
     const selectedOpt = locSelect.options[locSelect.selectedIndex];
     const rawQty      = parseFloat(selectedOpt?.dataset.qty || 0);
@@ -616,6 +636,7 @@ function updateAvailableStock(content, locSelect, product) {
     availEl.textContent = formatStok(rawQty, product);
 }
 
+// Menyamakan jumlah sumber ecer otomatis dengan jumlah barang pada baris.
 function syncEcerQty(div) {
     const qtyInput  = div.querySelector('.qty-input');
     const autoInput = div.querySelector('.source-auto-qty');
@@ -625,11 +646,13 @@ function syncEcerQty(div) {
     qtyInput.addEventListener('input', sync);
 }
 
+// Mengambil satuan yang dipilih atau satuan pertama sebagai cadangan.
 function selectedProductUnit(div, product) {
     const unitId = div.querySelector('.product-unit-select').value;
     return product.product_units.find(unit => unit.id == unitId) || product.product_units[0];
 }
 
+// Menyusun ringkasan jumlah barang dari satu lokasi atau beberapa lokasi.
 function updateSourceSummary(div) {
     const summary = div.querySelector('.source-summary');
     const locSelect = div.querySelector('.source-location-select');
@@ -656,6 +679,7 @@ function updateSourceSummary(div) {
     div.querySelector('.source-toggle').title = summary.textContent;
 }
 
+// Membuat input lokasi asal stok dan mengatur pergantian antara satu lokasi dan pembagian manual.
 function renderSource(div, idx, product, saleType) {
     const section = div.querySelector('.source-section');
     const label   = div.querySelector('.source-label');
@@ -704,6 +728,7 @@ function renderSource(div, idx, product, saleType) {
             ? previousLocation
             : document.getElementById('defaultSourceLocation').value;
 
+        // Input manual awalnya disabled; hanya mode sumber aktif yang boleh ikut dikirim.
         const manualRows = locations.map((loc, si) => {
             const stockInfo = product.stocks.find(s => s.location_id == loc.id);
             const rawQty    = stockInfo ? stockInfo.quantity : 0;
@@ -780,6 +805,7 @@ function renderSource(div, idx, product, saleType) {
     updateSaveState();
 }
 
+// Menempatkan hasil pencarian dekat input agar tetap terlihat dalam ruang layar.
 function positionProductResults(input, results) {
     const bounds = input.closest('.input-group').getBoundingClientRect();
     const viewport = window.visualViewport;
@@ -803,6 +829,7 @@ function positionProductResults(input, results) {
     });
 }
 
+// Membuat satu baris input barang dan memasang tindakan pada input serta tombolnya.
 function addItem(reveal = true) {
     if (reveal) {
         document.querySelectorAll('#itemsContainer .item-block').forEach(item => {
@@ -884,7 +911,8 @@ function addItem(reveal = true) {
     }
     return div;
 }
-
+// Setiap baris item dikeranjang memiliki event handler sendiri untuk mengelola input dan interaksi pengguna.
+// Memasang pencarian, perhitungan, perubahan satuan, sumber stok, dan tombol hapus pada satu baris.
 function bindItemEvents(div, idx) {
     const productSel  = div.querySelector('.product-select');
     const productSearch = div.querySelector('.product-search');
@@ -894,6 +922,7 @@ function bindItemEvents(div, idx) {
     const subtotalEl  = div.querySelector('.item-subtotal');
     const productResults = div.querySelector('.product-results');
 
+    // Menghitung jumlah dikali harga pada baris ini dan memperbarui total keranjang.
     function calcSubtotal() {
         const qty   = parseFloat(qtyInput.value) || 0;
         const price = parseCurrency(priceInput.value);
@@ -906,6 +935,7 @@ function bindItemEvents(div, idx) {
         updateTotal();
     }
 
+    // Mencari maksimal delapan barang dari nama atau barcode untuk pilihan satu baris.
     function matchingProducts(query) {
         const keyword = query.trim().toLowerCase();
         if (!keyword) return products.slice(0, 8);
@@ -916,14 +946,17 @@ function bindItemEvents(div, idx) {
         ).slice(0, 8);
     }
 
+    // Menutup dan mengosongkan hasil pencarian pada baris ini.
     function closeProductResults() {
         productResults.classList.add('d-none');
         productResults.innerHTML = '';
         div.closest('.pos-items-scroll')?.classList.remove('product-search-open');
     }
 
+    // Menutup hasil pencarian produk saat pengguna menggulir.
     div.closest('.pos-items-scroll').addEventListener('scroll', closeProductResults);
-
+    // Render hasil pencarian produk berdasarkan input pengguna, menampilkan daftar produk yang cocok.
+    // Menampilkan hasil pencarian baris ini dan menutup hasil dari baris lain.
     function renderProductResults() {
         const matches = matchingProducts(productSearch.value);
         document.querySelectorAll('.product-results').forEach(results => {
@@ -948,7 +981,8 @@ function bindItemEvents(div, idx) {
             </button>
         `).join('');
     }
-
+    // Hapus pilihan produk dan reset semua input terkait pada baris item.
+    // Membersihkan ID barang dan data turunannya ketika teks belum menjadi pilihan yang sah.
     function clearProductSelection() {
         productSel.value = '';
         unitSel.innerHTML = '<option value="">Pilih</option>';
@@ -961,7 +995,8 @@ function bindItemEvents(div, idx) {
         updateTotal();
         updateItemCounter();
     }
-
+    // Memilih produk dan mengisi input terkait pada baris item.
+    // Menetapkan ID dan nama barang lalu memicu pengisian satuan, harga, dan sumber stok.
     function chooseProduct(product) {
         if (!product) return;
         productSel.value = product.id;
@@ -970,10 +1005,10 @@ function bindItemEvents(div, idx) {
         closeProductResults();
         productSel.dispatchEvent(new Event('change', { bubbles: true }));
     }
-
+    // jika input qty atau harga berubah, hitung subtotal dan update total transaksi.
     qtyInput.addEventListener('input', calcSubtotal);
     priceInput.addEventListener('input', calcSubtotal);
-
+    // Tombol untuk membuka katalog produk dilist keranjang, menampilkan modal dengan daftar kategori dan produk.
     div.querySelector('.open-product-catalog').addEventListener('click', function() {
         activeCatalogRow = div;
         activeCatalogCategory = 'all';
@@ -985,7 +1020,8 @@ function bindItemEvents(div, idx) {
             document.getElementById('catalogSearch').focus();
         }, { once: true });
     });
-
+    // Fungsi untuk memilih produk dari hasil pencarian.
+    // Memastikan teks yang diketik cocok dengan nama atau barcode barang yang tersedia.
     function selectProductFromSearch() {
         const query = productSearch.value.trim().toLowerCase();
         const product = products.find(p =>
@@ -1001,7 +1037,7 @@ function bindItemEvents(div, idx) {
             clearProductSelection();
         }
     }
-
+    // Event listener untuk input pencarian produk, menampilkan hasil pencarian dan validasi input.
     productSearch.addEventListener('input', function() {
         const query = this.value.trim().toLowerCase();
         const product = products.find(p =>
@@ -1013,7 +1049,7 @@ function bindItemEvents(div, idx) {
             chooseProduct(product);
             return;
         }
-
+    // Jika tidak ada produk yang cocok, hapus pilihan produk dan tampilkan pesan validasi.
         clearProductSelection();
         productSearch.setCustomValidity('Pilih barang dari daftar pencarian.');
         renderProductResults();
@@ -1089,11 +1125,13 @@ document.getElementById('addItem').addEventListener('click', () => {
     row.querySelector('.product-search').focus();
 });
 
+// Mengubah daftar dari input lama menjadi array yang dapat dipulihkan.
 function normalizeOldList(value) {
     if (!value) return [];
     return Array.isArray(value) ? value : Object.values(value);
 }
 
+// Mengisi kembali produk, satuan, jumlah, harga, dan pembagian lokasi pada satu baris.
 function restoreItemFromOld(div, item) {
     const productSel = div.querySelector('.product-select');
     const unitSel = div.querySelector('.product-unit-select');
@@ -1153,6 +1191,7 @@ document.getElementById('itemsContainer').setAttribute('aria-busy', 'false');
 document.getElementById('cartLoading').hidden = true;
 updateItemCounter();
 
+// Membuat pilihan kategori dari produk yang tersedia pada form.
 function renderCatalogCategories() {
     const categories = [...new Map(products.map(product => [
         String(product.category_id ?? 'uncategorized'),
@@ -1167,6 +1206,7 @@ function renderCatalogCategories() {
     ].join('');
 }
 
+// Menampilkan barang katalog sesuai pencarian dan kategori terpilih.
 function renderCatalogProducts() {
     const query = document.getElementById('catalogSearch').value.trim().toLowerCase();
     const filtered = products.filter(product => {
@@ -1210,6 +1250,7 @@ document.getElementById('catalogCategories').addEventListener('click', function(
 
 let catalogFeedbackTimer;
 let highlightedCatalogCard;
+// Memberi tanda dan pesan saat barang ditambahkan dari katalog.
 function showCatalogFeedback(product, row, stockError) {
     clearTimeout(catalogFeedbackTimer);
     highlightedCatalogCard?.classList.remove('catalog-added', 'catalog-stock-warning');
@@ -1246,6 +1287,7 @@ document.getElementById('catalogProducts').addEventListener('click', function(ev
     bootstrap.Modal.getInstance(document.getElementById('productCatalogModal')).hide();
 });
 
+// Mencari nama atau barcode yang sama persis, lalu memakai hasil aktif jika diperlukan.
 function addProductByBarcode() {
     const scanner = document.getElementById('barcodeScanner');
     const status  = document.getElementById('scannerStatus');
@@ -1268,12 +1310,15 @@ function addProductByBarcode() {
     addProductToCart(product);
 }
 
+// Menambah jumlah pada baris yang cocok atau memasukkan barang ke baris baru.
 function addProductToCart(product) {
     if (!product) return;
     document.getElementById('cartSearch').value = '';
+    // Baris hanya digabung jika produk, satuan default, harga, dan pilihan lokasinya sesuai.
     const defaultUnit = product.product_units.find(unit => unit.is_default_sale) || product.product_units[0];
     const rows = [...document.querySelectorAll('#itemsContainer .item-block')];
-    // Merge only the default unit, price and single-location allocation.
+    // Penggabungan hanya untuk baris dengan satuan default, harga, dan sumber satu lokasi yang sama.
+    // Mencari baris yang memiliki produk, satuan, harga dan lokasi sumber stok yg sama untuk ditambahkan jumlahnya.
     let target = rows.find(row =>
         row.querySelector('.product-select').value == product.id &&
         row.querySelector('.product-unit-select').value == defaultUnit?.id &&
@@ -1305,6 +1350,7 @@ function addProductToCart(product) {
     }
 }
 
+// Menutup dan membersihkan hasil pencarian utama.
 function closeEntryResults() {
     const results = document.getElementById('entryResults');
     results.classList.add('d-none');
@@ -1377,6 +1423,7 @@ document.getElementById('saleForm').addEventListener('keydown', event => {
 window.addEventListener('resize', () => {
     document.querySelectorAll('.product-results').forEach(results => results.classList.add('d-none'));
 });
+// Menyesuaikan posisi daftar pencarian yang masih terbuka saat tampilan berubah.
 function repositionOpenProductResults() {
     document.querySelectorAll('.product-search-wrap .product-results:not(.d-none)').forEach(results => {
         positionProductResults(results.closest('.product-search-wrap').querySelector('.product-search'), results);
@@ -1399,6 +1446,7 @@ window.saleDraftConfig = {
 <script>
 initializeSaleStockRefresh({
     url: @json(route('sale.stock.data')),
+    // Mengganti data stok saja lalu memeriksa keranjang; harga dan jumlah pilihan pengguna tetap dipakai.
     applySnapshot(snapshot) {
         const byId = new Map(snapshot.map(product => [String(product.id), product.stocks]));
         products.forEach(product => { product.stocks = byId.get(String(product.id)) || []; });

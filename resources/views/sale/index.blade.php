@@ -21,6 +21,7 @@
     </a> @endif
 </div>
 <div class="app-filter-bar sale-list-toolbar mb-3">
+    {{-- Mengirim filter tanggal, pembayaran, status, dan kasir melalui URL daftar. --}}
     <form class="app-unified-filter sale-list-filters" method="GET">
         @include('components.date-range',['prefix'=>'saleList', 'fromValue'=>$from, 'toValue'=>$to])
         <div class="app-filter-field"><label for="salePayment">Pembayaran</label><select id="salePayment" name="payment_method" class="form-select form-select-sm">
@@ -49,6 +50,7 @@
     </form>
 </div>
 
+{{-- Total yang ditampilkan berasal dari transaksi lunas yang memenuhi filter. --}}
 @if(request()->hasAny(['from','to','payment_method','status']) || (auth()->user()->isOwner() && request()->filled('cashier_id')))
 <div class="alert alert-info py-2 mb-3">
     Total penjualan periode ini: <strong>Rp {{ number_format($totalAmount, 0, ',', '.') }}</strong>
@@ -71,6 +73,7 @@
                 </tr>
             </thead>
             <tbody>
+                {{-- Menampilkan setiap transaksi dan tindakan sesuai status serta akses pengguna. --}}
                 @forelse($sales as $sale)
                 <tr>
                     <td class="fw-semibold">{{ $sale->sale_number }}</td>

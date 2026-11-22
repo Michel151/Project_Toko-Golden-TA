@@ -172,12 +172,14 @@ class MovingAverageCostService
         $this->post($state, $quantity, self::money($value), 'receipt', $key, $date, $reference);
     }
 
+    // Menghitung HPP saat pelunasan, mengurangi saldo biaya, dan menyimpan biaya pada rincian penjualan.
     public function finalizeSale(Sale $sale): void
     {
         if (!$this->enabled()) return;
         $this->lock();
         $sale->load(['items.sources', 'items.product']);
         $items = $this->automatic() ? $sale->items->whereIn('cost_method', ['reserved', 'moving_average']) : $sale->items;
+        // Memulihkan sumber hanya pada rincian yang dipilih untuk pemrosesan biaya.
         $costContext = clone $sale;
         $costContext->setRelation('items', $items);
         app(SaleStockSnapshotService::class)->recoverLegacySources($costContext);
@@ -188,6 +190,7 @@ class MovingAverageCostService
             $state = $this->prepare($item->product);
             if (!$state) $this->invalid('Saldo biaya nota belum tersedia. Stok lama tidak boleh dinilai nol.');
             if ((float) $state->quantity + .00001 < $quantity) $this->invalid('Saldo biaya tidak cukup untuk '.$item->product->name.'.');
+            // HPP dihitung dari nilai saldo dikali jumlah dasar terjual, lalu dibagi jumlah saldo sebelum penjualan.
             $value = BigDecimal::of($state->inventory_value)->multipliedBy((string) $quantity)->dividedBy($state->quantity, 2, RoundingMode::HalfUp);
             $average = $state->average_cost;
             $this->post($state, -$quantity, (string) $value->negated(), 'sale', 'sale-item:'.$item->id, $sale->sale_date, $sale);

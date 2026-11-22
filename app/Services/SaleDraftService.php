@@ -7,8 +7,10 @@ use Illuminate\Http\Request;
 
 class SaleDraftService
 {
+    // Menutup draf aktif yang sudah melewati batas harian dan mengosongkan isinya.
     public function expireOverdue(?int $userId = null): int
     {
+        // Memakai pukul 18.00 WIB terakhir yang sudah tercapai sebagai batas pencarian draf lama.
         $cutoff = now('Asia/Jakarta')->setTime(18, 0);
         if ($cutoff->gt(now('Asia/Jakarta'))) $cutoff->subDay();
         return SaleDraft::where('status', 'active')
@@ -17,7 +19,7 @@ class SaleDraftService
             ->update(['status' => 'expired', 'payload' => null, 'version' => \Illuminate\Support\Facades\DB::raw('version + 1')]);
     }
 
-    // Called inside the sale transaction; a failed sale also rolls back draft closure.
+    // Memeriksa dan menutup draf dalam transaksi penjualan; jika penjualan gagal, penutupan ikut dibatalkan.
     public function consume(Request $request, ?int $saleId = null): void
     {
         $id = $request->input('draft_id');
@@ -28,6 +30,7 @@ class SaleDraftService
             throw new \RuntimeException('Identitas draft tidak valid.');
         }
         $draft = SaleDraft::firstOrCreate(['id' => $id], ['user_id' => $request->user()->id, 'sale_id' => $saleId]);
+        // Pemanggil sudah membuka transaksi penjualan; kunci ini menjaga pemeriksaan dan penutupan draf.
         $draft = SaleDraft::whereKey($draft->id)->lockForUpdate()->firstOrFail();
         if ($draft->user_id !== $request->user()->id || $draft->sale_id !== $saleId) {
             throw new \RuntimeException('Draft tidak sesuai dengan kasir atau transaksi ini.');
@@ -41,6 +44,7 @@ class SaleDraftService
         if ($draft->version !== $request->integer('draft_version')) {
             throw new \RuntimeException('Draft berubah di tab lain. Muat ulang dan periksa keranjang sebelum menyimpan.');
         }
+        // Jika penyimpanan penjualan gagal, perubahan draf ini ikut di-rollback oleh transaksi pemanggil.
         $draft->update(['status' => 'consumed', 'payload' => null, 'version' => $draft->version + 1]);
     }
 }

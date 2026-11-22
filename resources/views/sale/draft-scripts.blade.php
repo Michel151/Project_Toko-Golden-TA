@@ -4,6 +4,7 @@
     const form = document.getElementById('saleForm');
     const status = document.getElementById('draftSaveStatus');
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('saleDraftModal'));
+    // Nama penyimpanan membedakan pengguna, konteks transaksi, ID draf, dan penulis halaman.
     const prefix = `golden-sale-draft:v1:${config.userId}:`;
     const writer = crypto.randomUUID();
     const scope = config.saleId || 'new';
@@ -11,12 +12,13 @@
     const serverNow = () => Date.now() + (Number.isFinite(serverOffset) ? serverOffset : 0);
     const deadlineFor = timestamp => {
         const deadline = new Date(timestamp);
-        // 18.00 WIB = 11.00 UTC, independent of the browser's timezone.
+        // Pukul 18.00 WIB sama dengan 11.00 UTC agar batas tidak mengikuti zona waktu browser.
         deadline.setUTCHours(11, 0, 0, 0);
         if (deadline.getTime() <= timestamp) deadline.setUTCDate(deadline.getUTCDate() + 1);
         return deadline.toISOString();
     };
     const expiresAt = draft => Date.parse(draft.expires_at || deadlineFor(Number(draft.client_updated_at || 0)));
+    // Masa berlaku draf mengikuti batas harian, bukan diperpanjang setiap autosave.
     const expired = draft => !Number.isFinite(expiresAt(draft)) || expiresAt(draft) <= serverNow();
     let current = { id: config.oldId || crypto.randomUUID(), version: config.oldVersion || 0, sale_id: config.saleId, expires_at: config.expiresAt };
     let ready = false;
@@ -36,6 +38,7 @@
     const setStatus = text => { status.textContent = text; };
     const storageKey = () => `${prefix}${scope}:${current.id}:${writer}`;
     const csrf = () => document.querySelector('meta[name="csrf-token"]').content;
+    // Mengirim JSON dengan sesi dan token CSRF, lalu memperbarui acuan waktu dari server.
     const request = async (url, options = {}) => {
         const response = await fetch(url, {
             credentials: 'same-origin', headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
@@ -46,10 +49,12 @@
         if (Number.isFinite(serverTime)) serverOffset = serverTime - Date.now();
         return { response, body };
     };
+    // Mengisi ID dan versi draf aktif pada input tersembunyi form transaksi.
     const updateIdentity = () => {
         document.getElementById('saleDraftId').value = current.id;
         document.getElementById('saleDraftVersion').value = current.version;
     };
+    // Menghapus salinan lokal dengan ID draf yang sama dari penyimpanan pengguna ini.
     const removeLocal = id => {
         try {
             Object.keys(localStorage).filter(key => key.startsWith(prefix)).forEach(key => {
@@ -57,10 +62,12 @@
             });
         } catch (_) { localAvailable = false; }
     };
+    // Menyimpan salinan draf aktif di perangkat sebelum mencoba sinkronisasi server.
     const writeLocal = () => {
         try { localStorage.setItem(storageKey(), JSON.stringify(current)); return true; }
         catch (_) { localAvailable = false; return false; }
     };
+    // Membaca draf lokal yang masih berlaku dan sesuai konteks transaksi baru atau edit.
     const readLocal = () => {
         try {
             return Object.keys(localStorage).filter(key => key.startsWith(prefix)).flatMap(key => {
@@ -74,6 +81,7 @@
     };
     const field = name => form.elements.namedItem(name)?.value ?? '';
     const nullableNumber = value => value === '' || value == null || !Number.isFinite(Number(value)) ? null : Number(value);
+    // Membaca isi form dan pembagian sumber stok menjadi satu objek draf.
     const snapshot = () => ({
         sale_date: field('sale_date'), payment_method: field('payment_method'),
         sale_status: field('sale_status'), customer_name: field('customer_name'),
@@ -91,6 +99,7 @@
     });
     const meaningful = payload => payload.items.length > 0 || payload.customer_name.trim() !== '' || payload.amount_paid > 0;
 
+    // Membersihkan keranjang draf yang batas waktunya sudah tercapai dan menyiapkan identitas baru.
     function resetExpiredCurrent(force = false) {
         if (!force && !expired(current)) return false;
         const hadItems = meaningful(snapshot());
@@ -122,6 +131,7 @@
         return true;
     }
 
+    // Menangkap perubahan, menyimpannya secara lokal, lalu menjadwalkan sinkronisasi setelah 700 milidetik.
     function capture() {
         if (resetExpiredCurrent()) return;
         if (!ready || restoring || closed) return;
@@ -131,6 +141,7 @@
         lastPayload = serialized;
         if (!meaningful(payload) && !current.payload) return;
         current.payload = payload;
+        // Penanda perubahan selalu meningkat agar perubahan baru saat request berjalan dapat dikenali.
         current.client_updated_at = Math.max(Date.now(), Number(current.client_updated_at || 0) + 1);
         dirty = true;
         writeLocal();
@@ -140,6 +151,7 @@
         timer = setTimeout(sync, 700);
     }
 
+    // Menyinkronkan draf ke server dan menangani konflik versi, kedaluwarsa, atau gangguan koneksi.
     async function sync() {
         if (resetExpiredCurrent()) return false;
         if (!ready || restoring || closed || !dirty) return true;
@@ -156,6 +168,7 @@
                     return false;
                 }
                 if (resetExpiredCurrent()) return false;
+                // Konflik draf aktif dipisahkan menjadi ID baru agar pekerjaan tab lain tidak tertimpa.
                 if (response.status === 409 && body.draft) {
                     if (body.draft.status !== 'active') {
                         closed = true;
@@ -164,7 +177,7 @@
                         document.getElementById('saveSaleButton').disabled = true;
                         return false;
                     }
-                    // Keep this tab's work as a separate draft instead of overwriting another tab.
+                    // Pisahkan pekerjaan tab ini menjadi draf baru saat versi server sudah berubah.
                     const previousKey = storageKey();
                     current.id = crypto.randomUUID();
                     current.version = 0;
@@ -180,6 +193,7 @@
                 if (!response.ok) throw new Error(String(response.status));
                 current.version = body.version;
                 current.expires_at = body.expires_at || sent.expires_at;
+                // Perubahan yang dibuat selama request berjalan tetap menunggu sinkronisasi berikutnya.
                 dirty = current.client_updated_at !== sent.client_updated_at;
                 writeLocal();
                 updateIdentity();
@@ -196,6 +210,7 @@
         return result;
     }
 
+    // Mengambil daftar draf server terbaru dan tetap menyediakan salinan lokal jika request gagal.
     async function loadCandidates() {
         const load = ++candidateLoad;
         try {
@@ -214,6 +229,7 @@
         return candidates;
     }
 
+    // Menggabungkan salinan lokal dan server berdasarkan ID serta waktu perubahan terbaru.
     function mergeCandidates() {
         const remote = cachedRemote.filter(draft => !expired(draft));
         const closedIds = new Set(remote.filter(draft => draft.status !== 'active').map(draft => draft.id));
@@ -229,6 +245,7 @@
         renderCandidates();
     }
 
+    // Menampilkan ringkasan draf dengan tombol lanjutkan dan hapus.
     function renderCandidates() {
         const list = document.getElementById('saleDraftList');
         list.innerHTML = candidates.map((draft, index) => {
@@ -239,11 +256,13 @@
         }).join('') || '<div class="text-muted py-3">Tidak ada draft.</div>';
     }
 
+    // Memulihkan isi draf ke keranjang lalu memeriksa kembali stok dan pembayaran.
     function restore(draft) {
         if (expired(draft)) { removeLocal(draft.id); mergeCandidates(); return; }
         restoring = true;
         const payload = draft.payload;
         const server = draft.remote;
+        // Jika isi lokal berbeda dan versi server lebih tinggi, pulihkan sebagai draf terpisah.
         const conflict = server && server.version > draft.version && JSON.stringify(server.payload) !== JSON.stringify(payload);
         current = { id: conflict ? crypto.randomUUID() : draft.id, version: conflict ? 0 : Math.max(server?.version || 0, draft.version), sale_id: config.saleId, payload, client_updated_at: Date.now(), expires_at: draft.expires_at || deadlineFor(Number(draft.client_updated_at)) };
         closed = false;
@@ -310,6 +329,7 @@
             restore(draft);
             return;
         }
+        // Tutup draf di server terlebih dahulu, lalu bersihkan salinan lokal jika respons berhasil.
         const discard = event.target.closest('[data-discard-draft]');
         if (!discard) return;
         const draft = candidates[Number(discard.dataset.discardDraft)];
@@ -356,6 +376,7 @@
         location.assign(url);
     });
     document.getElementById('saleDraftModal').addEventListener('hidden.bs.modal', () => document.getElementById('barcodeScanner').focus());
+    // Tangkap form setelah perubahan input dan perhitungan sinkron selesai.
     const scheduleCapture = () => queueMicrotask(capture);
     form.addEventListener('input', scheduleCapture);
     form.addEventListener('change', scheduleCapture);
@@ -377,6 +398,7 @@
             body: JSON.stringify({ ...current, status: 'active' })
         }).catch(() => {});
     });
+    // Tahan submit untuk sinkronisasi draf, validasi ulang, dan konfirmasi sebelum melanjutkan pengiriman.
     form.addEventListener('submit', async event => {
         if (resetExpiredCurrent()) { event.preventDefault(); event.stopImmediatePropagation(); return; }
         if (resumeSubmit) {
@@ -390,7 +412,7 @@
         submitting = true;
         capture();
         if (!await sync()) { submitting = false; setStatus('Draft belum tersinkron. Coba Simpan lagi setelah koneksi tersedia.'); return; }
-        // requestSubmit is ignored while the original submit event is still active.
+        // Tunggu event submit awal selesai sebelum meminta pengiriman ulang form.
         await new Promise(resolve => setTimeout(resolve, 0));
         if (!form.reportValidity() || document.getElementById('saveSaleButton').disabled) { submitting = false; return; }
         if (!await confirmSaleSubmission()) { submitting = false; return; }

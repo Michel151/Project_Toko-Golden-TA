@@ -29,31 +29,37 @@ class Sale extends Model
         'hold_until' => 'datetime',
     ];
 
+    // Mengambil pengguna yang membuat transaksi penjualan.
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    // Memeriksa apakah pengguna boleh mengakses transaksi ini berdasarkan kepemilikan kasir.
     public function isAccessibleBy(User $user): bool
     {
         return ! $user->isKasir() || (int) $this->created_by === (int) $user->id;
     }
 
+    // Menyiapkan teks jam transaksi atau keterangan jika jam belum tercatat.
     public function getTransactionTimeLabelAttribute(): string
     {
         return $this->sale_time ? $this->sale_time.' WIB' : 'Jam tidak tercatat';
     }
 
+    // Mengambil seluruh rincian barang pada transaksi penjualan ini.
     public function items()
     {
         return $this->hasMany(SaleItem::class);
     }
 
+    // Membatasi query penjualan ke transaksi yang sudah lunas.
     public function scopePaid($query)
     {
         return $query->where('status', 'paid');
     }
 
+    // Membuat nomor invoice berdasarkan bulan dan urutan penjualan terakhir.
     public static function generateSaleNumber(?\DateTimeInterface $issuedAt = null): string
     {
         $date = $issuedAt ? Carbon::instance($issuedAt)->setTimezone('Asia/Jakarta') : now('Asia/Jakarta');

@@ -80,6 +80,7 @@
 </style>
 </head>
 <body>
+{{-- Tombol cetak hanya ditampilkan pada halaman popup dan disembunyikan oleh CSS saat dicetak. --}}
 @if($previewMode ?? false)
 <div class="preview-toolbar">
     <button type="button" class="primary" onclick="window.print()">Print</button>
@@ -102,6 +103,7 @@
 </table>
 <div class="divider"></div>
 
+{{-- Mencetak jumlah, satuan, harga jual, dan subtotal dari rincian yang sudah tersimpan. --}}
 @foreach($sale->items as $item)
 <div class="receipt-item">
     <div class="item-name">{{ $item->product->name }}</div>

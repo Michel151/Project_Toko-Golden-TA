@@ -16,6 +16,7 @@
 <div class="inventory-heading"><h5><i class="bi bi-receipt me-2"></i>{{ $sale->sale_number }}</h5></div>
 <div class="mb-3 d-flex gap-2">
     <x-back-link :fallback="route('sale.sales.index')" />
+    {{-- Transaksi lunas menyediakan cetak nota; transaksi pending menyediakan tindakan perubahan sesuai akses. --}}
     @if($sale->status === 'paid')
         <a href="{{ route('sale.sales.print', ['sale' => $sale, 'popup' => 1]) }}" class="btn btn-sm btn-outline-secondary js-print-popup"><i class="bi bi-printer me-1"></i>Cetak Nota</a>
     @elseif($sale->status === 'pending')
@@ -41,6 +42,7 @@
                     <tr><td class="text-muted">Kasir</td><td>{{ $sale->createdBy->name ?? '-' }}</td></tr>
                 </table>
                 @if($sale->status === 'pending')
+                    {{-- Form ini melunasi transaksi pending; stok sudah dikurangi saat transaksi dibuat. --}}
                     @if(auth()->user()->canAccessRoute('sale.sales.complete')) <form method="POST" action="{{ route('sale.sales.complete', $sale) }}" class="mt-3" id="completePaymentForm" data-confirm="Pastikan pembayaran sudah diterima. Selesaikan transaksi ini?" data-confirm-title="Selesaikan Pembayaran?" data-confirm-tone="success" data-confirm-label="Selesaikan Pembayaran">
                         @csrf
                         <label class="form-label small fw-semibold">Metode Pembayaran</label>
@@ -74,6 +76,7 @@
                 <table class="table table-sm mb-0 sale-items-table">
                     <thead><tr><th>Barang</th><th class="text-center">Jenis</th><th class="text-end">Qty</th><th class="text-end">Harga</th><th class="text-end">Subtotal</th><th>Sumber Stok</th></tr></thead>
                     <tbody>
+                        {{-- Menampilkan rincian dan sumber stok yang benar-benar tercatat pada transaksi. --}}
                         @foreach($sale->items as $item)
                         <tr>
                             <td class="fw-semibold">{{ $item->product->name }}</td>
@@ -115,6 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!form || !amount || !confirmed || !button || !validation) return;
     const total = {{ (float) $sale->total_amount }};
 
+    // Mengaktifkan pelunasan hanya jika jumlah bayar cukup dan pembayaran sudah dikonfirmasi.
     function validatePayment() {
         const paid = Number(String(amount.value || '').replace(/[^\d]/g, ''));
         const enough = paid >= total;

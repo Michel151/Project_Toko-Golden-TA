@@ -111,15 +111,12 @@ class StockService
         $this->costs->receive($product, $baseQuantity, $value, $reference, $date, $key);
     }
 
-    /**
-     * Kurangi stok saat penjualan.
-     * quantity dalam satuan sesuai sale_type (grosir/ecer).
-     */
+    // Mengurangi stok penjualan dalam transaksi dan mengembalikan rincian batch yang dipakai.
     public function deductStock(Product $product, Location $location, float $quantity, string $saleType, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): array
     {
         return $this->atomic(fn () => $this->deductStockInternal($product, $location, $quantity, $saleType, $reference, $movementDate, $referenceNumber));
     }
-
+    // Mengonversi jumlah jual ke satuan dasar, mengurangi stok dan batch, lalu mencatat mutasi keluar.
     private function deductStockInternal(Product $product, Location $location, float $quantity, string $saleType, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): array
     {
         $this->costs->prepare($product);
@@ -143,11 +140,11 @@ class StockService
         if (!$stock || $stock->quantity < $stockQty) {
             throw new \Exception("Stok tidak mencukupi di lokasi {$location->name} untuk produk {$product->name}.");
         }
-
+        // Jika produk memiliki batch kedaluwarsa, kurangi stok dari batch yang layak jual terlebih dahulu.
         $batchDeductions = $product->is_expirable
             ? $this->deductSellableBatches($product, $location, $stockQty)
             : [];
-
+        // Kurangi stok agregat di lokasi dan catat mutasi stok.
         $balanceBefore = (float) $stock->quantity;
         $stock->quantity = $stock->quantity - $stockQty;
         $stock->save();
@@ -157,11 +154,13 @@ class StockService
         return $batchDeductions;
     }
 
+    // Menjalankan pengembalian stok transaksi pending dalam transaksi dan penguncian stok.
     public function restoreHeldSale(Sale $sale, string $movementType = 'sale_cancelled'): void
     {
         $this->atomic(fn () => $this->restoreHeldSaleInternal($sale, $movementType));
     }
 
+    // Mengembalikan stok ke lokasi dan batch asal berdasarkan jumlah dasar yang dahulu diambil.
     private function restoreHeldSaleInternal(Sale $sale, string $movementType = 'sale_cancelled'): void
     {
         $sale->load(['items.productUnit', 'items.product', 'items.sources']);
@@ -359,7 +358,7 @@ class StockService
             'quantity_remaining' => $stockQty,
         ]);
     }
-
+    // Mengurangi batch layak jual dari kedaluwarsa terdekat dan mengembalikan rincian jumlah yang dipakai.
     private function deductSellableBatches(Product $product, Location $location, float $stockQty): array
     {
         $remaining = $stockQty;

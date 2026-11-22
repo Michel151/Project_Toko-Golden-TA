@@ -1,3 +1,4 @@
+// Memasang pembaruan stok otomatis dan tombol manual tanpa memuat ulang form.
 function initializeSaleStockRefresh({ url, applySnapshot }) {
     const button = document.getElementById('refreshSaleStock');
     const status = document.getElementById('saleStockStatus');
@@ -5,7 +6,9 @@ function initializeSaleStockRefresh({ url, applySnapshot }) {
     let stopped = false;
     let lastAttempt = Date.now();
 
+    // Meminta stok terbaru, memeriksa respons, lalu menerapkannya ke keranjang.
     async function refresh(manual = false) {
+        // Hindari request bertumpuk; pembaruan otomatis berhenti saat tab tersembunyi atau sesi bermasalah.
         if (inFlight || (!manual && (stopped || document.hidden || Date.now() - lastAttempt < 5000))) return;
         inFlight = true;
         lastAttempt = Date.now();
@@ -31,6 +34,7 @@ function initializeSaleStockRefresh({ url, applySnapshot }) {
                     Number.isInteger(stock.location_id) && typeof stock.quantity === 'number' && Number.isFinite(stock.quantity) && stock.quantity >= 0
                 )
             )) throw new Error();
+            // Gunakan respons yang sudah valid untuk memperbarui stok dan memeriksa kelayakan simpan.
             applySnapshot(data.products);
             stopped = false;
             status.textContent = `Stok diperbarui ${new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false })} WIB · Otomatis setiap 30 detik.`;
@@ -46,6 +50,7 @@ function initializeSaleStockRefresh({ url, applySnapshot }) {
     }
 
     button.addEventListener('click', () => refresh(true));
+    // Coba perbarui setiap 30 detik dan saat pengguna kembali ke halaman atau tersambung ke jaringan.
     setInterval(() => refresh(), 30000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     window.addEventListener('focus', () => refresh());

@@ -17,8 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 class SaleController extends Controller
 {
+    // Menyiapkan service pengurangan stok dan pembatalan transaksi pending.
     public function __construct(protected StockService $stockService, protected HeldSaleService $heldSaleService) {}
 
+    // Menampilkan daftar penjualan sesuai pengguna dan filter, serta total transaksi lunas.
     public function index(Request $request)
     {
         ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
@@ -57,6 +59,7 @@ class SaleController extends Controller
         return view('sale.index', compact('sales', 'totalAmount', 'from', 'to', 'cashiers'));
     }
 
+    // Menyiapkan barang aktif, satuan, harga, dan stok lokasi untuk form transaksi baru.
     public function create()
     {
         $locations = Location::orderBy('name')->get();
@@ -117,6 +120,7 @@ class SaleController extends Controller
         return view('sale.form', compact('products', 'productsJson', 'locationsJson'));
     }
 
+    // Memvalidasi transaksi, menyimpan rincian, dan mengurangi stok sesuai sumber yang dipilih.
     public function store(Request $request)
     {
         $this->normalizeCurrencyInputs($request);
@@ -144,6 +148,7 @@ class SaleController extends Controller
             'transaction_confirmed.accepted' => 'Centang konfirmasi sebelum menyimpan transaksi.',
         ]);
 
+        // Transaksi pending belum menerima pembayaran dan hanya boleh dibuat sebelum batas 18.00 WIB.
         $pending = $request->input('sale_status') === 'pending';
         $jakartaNow = now('Asia/Jakarta');
         $holdUntil = $jakartaNow->copy()->setTime(18, 0);
@@ -153,6 +158,7 @@ class SaleController extends Controller
         if ($pending && (float) $request->amount_paid !== 0.0) {
             return back()->with('error', 'Transaksi menunggu pembayaran belum menerima pembayaran. Isi jumlah bayar 0.')->withInput();
         }
+        // Menghitung total di server dari jumlah dan harga rincian, bukan dari tampilan total browser.
         $requestedTotal = collect($request->items)->sum(fn ($item) => $item['quantity'] * $item['unit_price']);
         if (! $pending && (float) $request->amount_paid < $requestedTotal) {
             return back()->with('error', 'Jumlah bayar harus mencukupi total transaksi. Pilih Menunggu Pembayaran bila belum dibayar.')->withInput();
@@ -170,6 +176,7 @@ class SaleController extends Controller
         }
 
         try {
+            // Dokumen, rincian, stok, HPP, dan penggunaan draf dibatalkan bersama jika penyimpanan gagal.
             $sale = DB::transaction(function () use ($request, $pending, $holdUntil, $jakartaNow) {
                 app(\App\Services\MovingAverageCostService::class)->lock();
                 app(\App\Services\SaleDraftService::class)->consume($request);
@@ -205,6 +212,7 @@ class SaleController extends Controller
                         ? (float) $purchaseUnit->buy_price / (float) $purchaseUnit->conversion_to_base
                         : (float) $product->buy_price;
                     $costPrice = $baseCost * (float) $productUnit->conversion_to_base;
+                    // Biaya metode reserved diproses saat pelunasan; biaya awalnya belum ditetapkan pada rincian.
                     $costMethod = app(\App\Services\MovingAverageCostService::class)->prepare($product) ? 'reserved' : 'legacy_master';
                     if ($costMethod === 'reserved') $costPrice = 0;
                     $legacySaleType = (float) $productUnit->conversion_to_base > 1 ? 'grosir' : 'ecer';
@@ -239,6 +247,7 @@ class SaleController extends Controller
                             $sale->sale_number
                         );
 
+                        // Mencatat sumber per batch; jumlah hasil pengurangan batch sudah dalam satuan dasar.
                         if ($product->is_expirable && $batchDeductions) {
                             foreach ($batchDeductions as $batchDeduction) {
                                 SaleItemSource::create([
@@ -275,6 +284,7 @@ class SaleController extends Controller
             ->with('success', $pending ? 'Transaksi menunggu pembayaran berhasil disimpan.' : 'Transaksi penjualan berhasil disimpan.');
     }
 
+    // Melunasi transaksi pending sebelum batas waktu dan memproses HPP tanpa mengurangi stok lagi.
     public function complete(Request $request, Sale $sale)
     {
         $this->ensureSaleIsAccessible($sale);
@@ -293,6 +303,7 @@ class SaleController extends Controller
         $result = DB::transaction(function () use ($request, $sale) {
             app(\App\Services\MovingAverageCostService::class)->lock();
             $locked = Sale::whereKey($sale->id)->lockForUpdate()->firstOrFail();
+            // Membaca status terbaru setelah dikunci agar pelunasan tidak diproses ulang.
             if ($locked->status !== 'pending') {
                 return 'closed';
             }
@@ -332,6 +343,7 @@ class SaleController extends Controller
         return redirect()->route('sale.sales.show', $sale)->with('success', 'Pembayaran berhasil diselesaikan.');
     }
 
+    // Memeriksa akses dan meminta service membatalkan transaksi serta mengembalikan stok.
     public function cancel(Sale $sale)
     {
         $this->ensureSaleIsAccessible($sale);
@@ -343,6 +355,7 @@ class SaleController extends Controller
         return redirect()->route('sale.sales.show', $sale)->with('success', 'Transaksi dibatalkan dan stok dikembalikan.');
     }
 
+    // Menampilkan rincian transaksi, pembayaran, dan lokasi atau batch sumber barang.
     public function show(Sale $sale)
     {
         $this->ensureSaleIsAccessible($sale);
@@ -351,6 +364,7 @@ class SaleController extends Controller
         return view('sale.show', compact('sale'));
     }
 
+    // Menampilkan nota lunas sebagai halaman cetak popup atau dokumen PDF.
     public function printNota(Request $request, Sale $sale)
     {
         $this->ensureSaleIsAccessible($sale);
@@ -369,6 +383,7 @@ class SaleController extends Controller
         return $pdf->stream($filename);
     }
 
+    // Mengirim jumlah stok layak jual terbaru untuk memperbarui form tanpa mengganti harga keranjang.
     public function stockSnapshot()
     {
         // Only stock quantities are refreshed; cart prices and unit conversions stay intact.
@@ -391,6 +406,7 @@ class SaleController extends Controller
         ])->header('Cache-Control', 'no-store, private');
     }
 
+    // Mengirim data satu barang beserta satuan, harga, dan stoknya dalam bentuk JSON.
     public function getProductData(Product $product)
     {
         $product->load(['buyUnit', 'retailUnit', 'stocks.location', 'stockBatches', 'productUnits.unit']);
@@ -428,6 +444,7 @@ class SaleController extends Controller
         ]);
     }
 
+    // Menyiapkan isi transaksi pending yang belum terlambat untuk dipulihkan ke form edit.
     public function edit(Sale $sale)
     {
         $this->ensureSaleIsAccessible($sale);
@@ -443,6 +460,7 @@ class SaleController extends Controller
         }
 
         $sale->load(['items.sources']);
+        // Menggabungkan sumber dari lokasi yang sama untuk mengisi kembali pembagian stok pada form.
         $initialItems = $sale->items->map(fn ($item) => [
             'product_id' => $item->product_id,
             'product_unit_id' => $item->product_unit_id,
@@ -461,6 +479,7 @@ class SaleController extends Controller
         return view('sale.form', array_merge($formData, compact('sale', 'initialItems')));
     }
 
+    // Mengembalikan stok lama lalu menyimpan rincian dan pengambilan stok baru dalam satu transaksi.
     public function update(Request $request, Sale $sale)
     {
         $this->ensureSaleIsAccessible($sale);
@@ -516,6 +535,7 @@ class SaleController extends Controller
                     return 'late';
                 }
 
+                // Mengembalikan seluruh stok lama sebelum menghapus rincian dan mengambil stok sesuai perubahan.
                 $this->stockService->restoreHeldSale($locked, 'sale_edit_restore');
                 app(\App\Services\SaleDraftService::class)->consume($request, $sale->id);
                 $locked->items()->delete();
@@ -532,6 +552,7 @@ class SaleController extends Controller
 
                 $this->createSaleItems($locked, $request->items);
 
+                // Jika perubahan sekaligus dilunasi, proses HPP lalu hapus batas pembayaran.
                 if ($settlePayment) {
                     app(\App\Services\MovingAverageCostService::class)->finalizeSale($locked);
                     $locked->update([
@@ -563,16 +584,19 @@ class SaleController extends Controller
             ->with('success', $result === 'paid' ? 'Perubahan transaksi disimpan dan pembayaran berhasil diselesaikan.' : 'Transaksi menunggu pembayaran berhasil diperbarui.');
     }
 
+    // Menolak penghapusan transaksi agar dokumen penjualan tetap tersimpan.
     public function destroy(Sale $sale)
     {
         return back()->with('error', 'Transaksi penjualan tidak bisa dihapus.');
     }
 
+    // Memastikan kasir hanya mengakses transaksi yang dibuatnya sendiri.
     private function ensureSaleIsAccessible(Sale $sale): void
     {
         abort_unless($sale->isAccessibleBy(auth()->user()), 403, 'Anda tidak memiliki akses ke transaksi kasir lain.');
     }
 
+    // Merapikan jumlah bayar dan harga satuan dari format uang sebelum validasi.
     private function normalizeCurrencyInputs(Request $request): void
     {
         $items = $request->input('items', []);
@@ -589,11 +613,13 @@ class SaleController extends Controller
         ]);
     }
 
+    // Menghapus karakter selain digit agar teks rupiah menjadi angka yang dapat diproses.
     private function normalizeCurrency(mixed $value): string
     {
         return preg_replace('/[^\d]/', '', (string) $value) ?: '0';
     }
 
+    // Membuat rincian barang baru, mengurangi stok, dan mencatat sumber lokasi serta batchnya.
     private function createSaleItems(Sale $sale, array $items): void
     {
         foreach ($items as $itemData) {

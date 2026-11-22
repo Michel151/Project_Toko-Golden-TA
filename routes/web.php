@@ -149,8 +149,10 @@ Route::middleware(['auth', \App\Http\Middleware\EnsurePasswordIsCurrent::class])
         Route::resource('returns', \App\Http\Controllers\Purchase\PurchaseReturnController::class)->only(['index', 'create', 'store', 'show']);
     });
     // ── Penjualan (owner & kasir) ──────────────────────────────────────────────
+    // Endpoint draf menyimpan pekerjaan keranjang; penyimpanan transaksi dilakukan oleh route penjualan.
     Route::get('sale/drafts', [\App\Http\Controllers\Sale\SaleDraftController::class, 'index'])->middleware('permission:sale.sales')->name('sale.drafts.index');
     Route::put('sale/drafts/{id}', [\App\Http\Controllers\Sale\SaleDraftController::class, 'update'])->middleware('permission:sale.sales')->name('sale.drafts.update');
+    // Route penjualan mencakup transaksi, pelunasan, pembatalan, nota, dan pembaruan stok.
     Route::prefix('sale')->name('sale.')->middleware('permission:sale.sales')->group(function () {
         Route::get('stock-snapshot', [SaleController::class, 'stockSnapshot'])->name('stock.data');
         Route::post('sales/{sale}/complete', [SaleController::class, 'complete'])->name('sales.complete');

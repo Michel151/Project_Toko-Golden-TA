@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 class SaleDraftController extends Controller
 {
+    // Memeriksa izin pengguna dan kelayakan transaksi yang terkait dengan draf edit.
     private function authorizeContext(Request $request, ?int $saleId): void
     {
         abort_unless($request->user()->hasPermission($saleId ? 'sale.sales.edit' : 'sale.sales.create'), 403);
@@ -20,6 +21,7 @@ class SaleDraftController extends Controller
         }
     }
 
+    // Mengirim daftar draf milik pengguna sesuai konteks transaksi baru atau edit.
     public function index(Request $request)
     {
         $request->validate(['sale_id' => 'nullable|integer|min:1']);
@@ -34,6 +36,7 @@ class SaleDraftController extends Controller
             ->header('X-Draft-Server-Time', now('Asia/Jakarta')->toIso8601String());
     }
 
+    // Menyimpan atau membuang draf setelah memeriksa pemilik, masa berlaku, dan versinya.
     public function update(Request $request, string $id)
     {
         abort_unless(\Illuminate\Support\Str::isUuid($id), 404);
@@ -73,13 +76,14 @@ class SaleDraftController extends Controller
         }
 
         return DB::transaction(function () use ($request, $id, $data, $saleId) {
-            // A closed row is kept as a tombstone so delayed autosaves cannot revive it.
+            // Baris draf tertutup tetap disimpan agar autosave lama tidak membuatnya aktif kembali.
             $draft = SaleDraft::firstOrCreate(['id' => $id], ['user_id' => $request->user()->id, 'sale_id' => $saleId]);
             $draft = SaleDraft::whereKey($draft->id)->lockForUpdate()->firstOrFail();
             abort_unless($draft->user_id === $request->user()->id && $draft->sale_id === $saleId, 403);
             if ($draft->status === 'active' && $draft->isExpired()) {
                 $draft->update(['status'=>'expired', 'payload'=>null, 'version'=>$draft->version + 1]);
             }
+            // Menolak salinan lama atau draf tertutup agar perubahan dari tab lain tidak tertimpa.
             if ($draft->status !== 'active' || $draft->version !== $data['version']) {
                 return response()->json(['message' => 'Draft berubah atau sudah ditutup.', 'draft' => $draft], 409);
             }

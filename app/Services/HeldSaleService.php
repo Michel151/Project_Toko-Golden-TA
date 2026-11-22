@@ -8,8 +8,10 @@ use Illuminate\Validation\ValidationException;
 
 class HeldSaleService
 {
+    // Menyiapkan service pengembalian stok dari transaksi pending.
     public function __construct(private StockService $stockService) {}
 
+    // Mengembalikan stok transaksi yang masih pending lalu mencatat status pembatalannya.
     public function cancel(Sale $sale, bool $automatic = false): bool
     {
         return DB::transaction(function () use ($sale, $automatic) {
@@ -26,6 +28,7 @@ class HeldSaleService
         }, 3);
     }
 
+    // Membatalkan transaksi pending yang sudah mencapai batas pembayaran dan menghitung yang berhasil.
     public function cancelOverdue(): int
     {
         $count = 0;

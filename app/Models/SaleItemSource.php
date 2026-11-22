@@ -13,16 +13,19 @@ class SaleItemSource extends Model
         'base_quantity' => 'decimal:4',
     ];
 
+    // Mengambil rincian penjualan yang memakai sumber stok ini.
     public function saleItem()
     {
         return $this->belongsTo(SaleItem::class);
     }
 
+    // Mengambil lokasi asal stok yang digunakan.
     public function location()
     {
         return $this->belongsTo(Location::class);
     }
 
+    // Mengambil batch asal barang jika penjualan menggunakan pelacakan kedaluwarsa.
     public function stockBatch()
     {
         return $this->belongsTo(StockBatch::class);
