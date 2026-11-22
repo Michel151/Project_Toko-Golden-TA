@@ -283,8 +283,7 @@ class SaleController extends Controller
             ->with('completed_sale_draft', $request->input('draft_id'))
             ->with('success', $pending ? 'Transaksi menunggu pembayaran berhasil disimpan.' : 'Transaksi penjualan berhasil disimpan.');
     }
-
-    // Melunasi transaksi pending sebelum batas waktu dan memproses HPP tanpa mengurangi stok lagi.
+    // Handle transaksi yang berstatus pending (menunggu pembayaran)
     public function complete(Request $request, Sale $sale)
     {
         $this->ensureSaleIsAccessible($sale);
@@ -382,7 +381,6 @@ class SaleController extends Controller
 
         return $pdf->stream($filename);
     }
-
     // Mengirim jumlah stok layak jual terbaru untuk memperbarui form tanpa mengganti harga keranjang.
     public function stockSnapshot()
     {
@@ -534,12 +532,11 @@ class SaleController extends Controller
                     $this->heldSaleService->cancel($locked, true);
                     return 'late';
                 }
-
-                // Mengembalikan seluruh stok lama sebelum menghapus rincian dan mengambil stok sesuai perubahan.
+                // Kembalikan stok dari transaksi lama sebelum menghapus item-itemnya, agar stok bisa dikurangi lagi sesuai perubahan.
                 $this->stockService->restoreHeldSale($locked, 'sale_edit_restore');
                 app(\App\Services\SaleDraftService::class)->consume($request, $sale->id);
                 $locked->items()->delete();
-
+                // Update data transaksi penjualan
                 $customerName = trim((string) $request->input('customer_name'));
                 $locked->update([
                     'customer_name' => $customerName !== '' ? $customerName : null,

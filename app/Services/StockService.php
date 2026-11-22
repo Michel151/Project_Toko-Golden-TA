@@ -111,7 +111,7 @@ class StockService
         $this->costs->receive($product, $baseQuantity, $value, $reference, $date, $key);
     }
 
-    // Mengurangi stok penjualan dalam transaksi dan mengembalikan rincian batch yang dipakai.
+    // Kurangi stok saat penjualan dan catat mutasi stok beserta nilainya.
     public function deductStock(Product $product, Location $location, float $quantity, string $saleType, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): array
     {
         return $this->atomic(fn () => $this->deductStockInternal($product, $location, $quantity, $saleType, $reference, $movementDate, $referenceNumber));
@@ -159,8 +159,7 @@ class StockService
     {
         $this->atomic(fn () => $this->restoreHeldSaleInternal($sale, $movementType));
     }
-
-    // Mengembalikan stok ke lokasi dan batch asal berdasarkan jumlah dasar yang dahulu diambil.
+    // Mengembalikan stok dari transaksi penjualan yang dibatalkan atau kadaluarsa, termasuk batch kedaluwarsa jika ada.
     private function restoreHeldSaleInternal(Sale $sale, string $movementType = 'sale_cancelled'): void
     {
         $sale->load(['items.productUnit', 'items.product', 'items.sources']);

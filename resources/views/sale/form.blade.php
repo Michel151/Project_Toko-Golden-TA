@@ -400,7 +400,6 @@ function updateSaleStatus() {
 }
 document.querySelectorAll('input[name="sale_status"]').forEach(input => input.addEventListener('change', updateSaleStatus));
 document.getElementById('transactionConfirmed').addEventListener('change', updateSaveState);
-
 // Mengaktifkan tombol simpan hanya jika total, pembayaran, konfirmasi, dan stok sudah sesuai.
 function updateSaveState() {
     // Validasi stok memakai total kebutuhan semua baris agar produk yang sama tidak memakai stok berlebih.
@@ -431,7 +430,7 @@ function validateCartStock() {
     // Saat edit pending, jumlah awal transaksi diperhitungkan kembali karena sebelumnya sudah mengurangi stok.
     const reserved = new Map();
     const key = (productId, locationId) => `${productId}:${locationId}`;
-    // Hanya alokasi awal transaksi ini yang ditambahkan kembali dalam perhitungan stok edit.
+    // Pending sales already deducted stock; only their original allocations are credited when editing.
     reservedItems.forEach(item => {
         const product = products.find(p => p.id == item.product_id);
         const unit = product?.product_units.find(u => u.id == item.product_unit_id);
@@ -912,7 +911,6 @@ function addItem(reveal = true) {
     return div;
 }
 // Setiap baris item dikeranjang memiliki event handler sendiri untuk mengelola input dan interaksi pengguna.
-// Memasang pencarian, perhitungan, perubahan satuan, sumber stok, dan tombol hapus pada satu baris.
 function bindItemEvents(div, idx) {
     const productSel  = div.querySelector('.product-select');
     const productSearch = div.querySelector('.product-search');
@@ -956,7 +954,6 @@ function bindItemEvents(div, idx) {
     // Menutup hasil pencarian produk saat pengguna menggulir.
     div.closest('.pos-items-scroll').addEventListener('scroll', closeProductResults);
     // Render hasil pencarian produk berdasarkan input pengguna, menampilkan daftar produk yang cocok.
-    // Menampilkan hasil pencarian baris ini dan menutup hasil dari baris lain.
     function renderProductResults() {
         const matches = matchingProducts(productSearch.value);
         document.querySelectorAll('.product-results').forEach(results => {
@@ -982,7 +979,6 @@ function bindItemEvents(div, idx) {
         `).join('');
     }
     // Hapus pilihan produk dan reset semua input terkait pada baris item.
-    // Membersihkan ID barang dan data turunannya ketika teks belum menjadi pilihan yang sah.
     function clearProductSelection() {
         productSel.value = '';
         unitSel.innerHTML = '<option value="">Pilih</option>';
@@ -996,7 +992,6 @@ function bindItemEvents(div, idx) {
         updateItemCounter();
     }
     // Memilih produk dan mengisi input terkait pada baris item.
-    // Menetapkan ID dan nama barang lalu memicu pengisian satuan, harga, dan sumber stok.
     function chooseProduct(product) {
         if (!product) return;
         productSel.value = product.id;
@@ -1021,7 +1016,6 @@ function bindItemEvents(div, idx) {
         }, { once: true });
     });
     // Fungsi untuk memilih produk dari hasil pencarian.
-    // Memastikan teks yang diketik cocok dengan nama atau barcode barang yang tersedia.
     function selectProductFromSearch() {
         const query = productSearch.value.trim().toLowerCase();
         const product = products.find(p =>
@@ -1057,6 +1051,7 @@ function bindItemEvents(div, idx) {
     productSearch.addEventListener('focus', renderProductResults);
     productSearch.addEventListener('blur', () => setTimeout(closeProductResults, 120));
     productSearch.addEventListener('change', selectProductFromSearch);
+    // Menangani event keydown pada input pencarian produk, memungkinkan pengguna memilih produk dengan menekan Enter.
     productSearch.addEventListener('keydown', function(event) {
         if (event.key !== 'Enter') return;
         event.preventDefault();
@@ -1069,7 +1064,6 @@ function bindItemEvents(div, idx) {
         qtyInput.focus();
         qtyInput.select();
     });
-
     productResults.addEventListener('mousedown', event => event.preventDefault());
     productResults.addEventListener('click', function(event) {
         const button = event.target.closest('[data-product-id]');
@@ -1092,6 +1086,7 @@ function bindItemEvents(div, idx) {
         updateItemCounter();
     });
 
+    // Menangani event klik pada tombol toggle sumber stok, menampilkan atau menyembunyikan bagian sumber stok.
     div.querySelector('.source-toggle').addEventListener('click', function() {
         const section = div.querySelector('.source-section');
         const collapsed = section.classList.toggle('is-collapsed');
@@ -1099,7 +1094,7 @@ function bindItemEvents(div, idx) {
         this.setAttribute('aria-expanded', String(!collapsed));
         this.title = collapsed ? 'Tampilkan sumber stok' : 'Sembunyikan sumber stok';
     });
-
+    // Jika satuan produk diubah, perbarui harga satuan dan subtotal sesuai dengan satuan yang dipilih.
     unitSel.addEventListener('change', function() {
         const product = products.find(p => p.id == productSel.value);
         if (!product) return;
@@ -1108,7 +1103,7 @@ function bindItemEvents(div, idx) {
         calcSubtotal();
         renderSource(div, idx, product, 'unit');
     });
-
+    // Jika tombol hapus item diklik, hapus baris item dari keranjang dan perbarui total serta jumlah item.
     div.querySelector('.remove-item').addEventListener('click', function() {
         div.remove();
         updateTotal();
@@ -1317,7 +1312,7 @@ function addProductToCart(product) {
     // Baris hanya digabung jika produk, satuan default, harga, dan pilihan lokasinya sesuai.
     const defaultUnit = product.product_units.find(unit => unit.is_default_sale) || product.product_units[0];
     const rows = [...document.querySelectorAll('#itemsContainer .item-block')];
-    // Penggabungan hanya untuk baris dengan satuan default, harga, dan sumber satu lokasi yang sama.
+    // Merge only the default unit, price and single-location allocation.
     // Mencari baris yang memiliki produk, satuan, harga dan lokasi sumber stok yg sama untuk ditambahkan jumlahnya.
     let target = rows.find(row =>
         row.querySelector('.product-select').value == product.id &&
