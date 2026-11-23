@@ -38,7 +38,8 @@ final class ExpiryStatus
     public static function badge(string $label): string
     {
         return match ($label) {
-            'Kedaluwarsa', 'Kedaluwarsa Hari Ini', 'Segera Kedaluwarsa' => 'danger',
+            'Kedaluwarsa', 'Kedaluwarsa Hari Ini' => 'danger',
+            'Segera Kedaluwarsa' => 'expiry-urgent',
             'Mendekati Kedaluwarsa' => 'warning text-dark',
             'Aman' => 'success',
             default => 'secondary',

@@ -102,7 +102,7 @@
                             @if($expiredBatches->isNotEmpty())
                                 <div class="expiry-item"><a href="{{ route('inventory.stock-card.show', ['product' => $product, 'tab' => 'expiry']) }}" class="badge bg-danger text-decoration-none">{{ $expiredBatches->count() }} kedaluwarsa</a> <span class="small text-muted">{{ $fmtStock($expiredBatches->sum(fn($batch)=>(float)$batch->quantity_remaining),$product) }}</span><div class="small text-danger">{{ $expiredBatches->first()->expiry_countdown }}</div></div>
                             @endif
-                            @foreach([[$todayBatches, 'hari ini', 'danger'], [$urgentBatches, 'segera kedaluwarsa', 'danger'], [$expiringBatches, 'mendekati kedaluwarsa', 'warning text-dark']] as [$riskBatches, $riskLabel, $riskTone])
+                            @foreach([[$todayBatches, 'hari ini', 'danger'], [$urgentBatches, 'segera kedaluwarsa', 'expiry-urgent'], [$expiringBatches, 'mendekati kedaluwarsa', 'warning text-dark']] as [$riskBatches, $riskLabel, $riskTone])
                                 @if($riskBatches->isNotEmpty())
                                     <div class="expiry-item"><a href="{{ route('inventory.stock-card.show', ['product' => $product, 'tab' => 'expiry']) }}" class="badge bg-{{ $riskTone }} text-decoration-none">{{ $riskBatches->count() }} {{ $riskLabel }}</a> <span class="small text-muted">{{ $fmtStock($riskBatches->sum(fn($batch)=>(float)$batch->quantity_remaining),$product) }}</span></div>
                                 @endif

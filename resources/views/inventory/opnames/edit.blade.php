@@ -26,7 +26,7 @@
     <div class="small text-muted mb-3">Keterangan per barang boleh dikosongkan saat menyimpan draf. Wajib diisi saat menyelesaikan opname jika jumlah stok atau rincian kedaluwarsa berubah.</div>
     @csrf @method('PUT')
     <div class="row g-2 mb-2" aria-label="Ringkasan kedaluwarsa">
-        @foreach(['expired' => ['Sudah Kedaluwarsa', 'text-danger'], 'today' => ['Kedaluwarsa Hari Ini', 'opname-expiry-today'], 'urgent' => ['Segera Kedaluwarsa', 'text-danger'], 'soon' => ['Mendekati Kedaluwarsa', 'text-warning-emphasis']] as $status => [$label, $color])
+        @foreach(['expired' => ['Sudah Kedaluwarsa', 'text-danger'], 'today' => ['Kedaluwarsa Hari Ini', 'opname-expiry-today'], 'urgent' => ['Segera Kedaluwarsa', 'text-expiry-urgent'], 'soon' => ['Mendekati Kedaluwarsa', 'text-warning-emphasis']] as $status => [$label, $color])
             <div class="col-12 col-sm-6 col-xl-3">
                 <button type="button" class="card opname-expiry-filter w-100 h-100 text-start p-3 {{ $color }}" data-expiry-filter="{{ $status }}" aria-pressed="false">
                     <span class="fw-semibold">{{ $label }}</span>

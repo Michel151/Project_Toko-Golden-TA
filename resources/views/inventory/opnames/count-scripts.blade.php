@@ -45,7 +45,7 @@
     const expiryStates = {
         expired: { label: 'Sudah kedaluwarsa', color: 'text-danger', background: 'bg-danger-subtle' },
         today: { label: 'Kedaluwarsa hari ini', color: 'opname-expiry-today', background: 'bg-warning-subtle' },
-        urgent: { label: 'Segera kedaluwarsa', color: 'text-danger', background: 'bg-danger-subtle' },
+        urgent: { label: 'Segera kedaluwarsa', color: 'text-expiry-urgent', background: 'bg-expiry-urgent-subtle' },
         soon: { label: 'Mendekati kedaluwarsa', color: 'text-warning-emphasis', background: 'bg-warning-subtle' },
         safe: { label: 'Aman', color: 'text-success' },
         undated: { label: 'Tanpa tanggal', color: 'text-warning-emphasis' },

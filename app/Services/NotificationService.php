@@ -348,7 +348,7 @@ class NotificationService
         };
 
         return ['kind' => $kind, 'type' => in_array($kind, ['expired', 'expiry_today', 'expiry_urgent', 'expiring'], true) ? 'expiry' : 'stock',
-            'rank' => $rank, 'level' => in_array($kind, ['expired', 'expiry_today', 'expiry_urgent', 'out_of_stock'], true) ? 'danger' : 'warning', 'badge_label' => $label, 'badge_class' => in_array($kind, ['expired', 'expiry_today', 'expiry_urgent', 'out_of_stock'], true) ? 'danger' : 'warning text-dark',
+            'rank' => $rank, 'level' => in_array($kind, ['expired', 'expiry_today', 'expiry_urgent', 'out_of_stock'], true) ? 'danger' : 'warning', 'badge_label' => $label, 'badge_class' => $kind === 'expiry_urgent' ? 'expiry-urgent' : (in_array($kind, ['expired', 'expiry_today', 'out_of_stock'], true) ? 'danger' : 'warning text-dark'),
             'location_ids' => $ids, 'location_names' => $names, 'location_name' => count($names) === 1 ? $names[0] : 'Semua lokasi', 'message' => $message];
     }
 

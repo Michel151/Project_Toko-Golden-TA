@@ -68,7 +68,7 @@ class NotificationServiceTest extends TestCase
         $this->assertSame('danger', $notifications[0]['badge_class']);
         $this->assertSame([
             ['label' => 'Kedaluwarsa', 'class' => 'danger'],
-            ['label' => 'Segera Kedaluwarsa', 'class' => 'danger'],
+            ['label' => 'Segera Kedaluwarsa', 'class' => 'expiry-urgent'],
             ['label' => 'Mendekati Kedaluwarsa', 'class' => 'warning text-dark'],
         ], $notifications[0]['badges']);
         $this->assertStringContainsString('sudah kedaluwarsa sejak 20/09/2026', $notifications[0]['message']);

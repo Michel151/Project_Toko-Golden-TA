@@ -21,6 +21,9 @@
         }
 
         body { background-color: #f4f6f9; font-size: 0.9rem; }
+        .bg-expiry-urgent { background-color: #c45100 !important; color: #fff !important; }
+        .text-expiry-urgent { color: #a84300 !important; }
+        .bg-expiry-urgent-subtle { background-color: #fff0e3 !important; }
 
         /* Sidebar */
         #sidebar {
