@@ -99,9 +99,7 @@
 <section class="bg-white border-bottom mt-3" data-detail-list>
     <div class="p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h6 class="fw-bold mb-0">Hasil Pemeriksaan</h6>
-        @if(auth()->user()->canAccessRoute('purchase.returns.create')
-            && $receipt->inspections->contains(fn ($row) =>
-                $row->quantity_damaged + $row->quantity_wrong + $row->quantity_missing > 0))
+        @if(auth()->user()->canAccessRoute('purchase.returns.create') && $hasClaimableIssues)
         <a class="btn btn-sm btn-outline-primary"
             href="{{ route('purchase.returns.create',['receipt_id'=>$receipt->id]) }}">
             <i class="bi bi-box-arrow-up me-1"></i>Buat Retur/Klaim

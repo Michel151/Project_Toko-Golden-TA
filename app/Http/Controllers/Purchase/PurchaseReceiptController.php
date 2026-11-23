@@ -144,7 +144,10 @@ class PurchaseReceiptController extends Controller
             'inspections.quarantineLocation', 'returns.replacementOrder',
         ]);
 
-        return view('purchase.receipts.show', compact('receipt'));
+        $hasClaimableIssues = $receipt->purchaseOrder->status !== 'completed'
+            && $receipt->inspections()->withClaimableIssues()->exists();
+
+        return view('purchase.receipts.show', compact('receipt', 'hasClaimableIssues'));
     }
 
     // Mengirim rincian dan sisa barang PO untuk kebutuhan form penerimaan.

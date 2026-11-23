@@ -461,6 +461,38 @@ class PurchaseReturnWorkflowTest extends TestCase
         $this->get(route('purchase.receipts.show', $receipt))->assertOk();
     }
 
+    public function test_receipt_return_button_matches_remaining_claims_order_status_and_permission(): void
+    {
+        $this->setupOrder();
+        $this->post(route('purchase.receipts.store'), $this->payload($this->order, 90, 10))->assertSessionHasNoErrors();
+        $receipt = PurchaseReceipt::firstOrFail();
+        $url = route('purchase.receipts.show', $receipt);
+        $createUrl = e(route('purchase.returns.create', ['receipt_id' => $receipt->id]));
+        $this->get($url)->assertOk()->assertSee($createUrl, false);
+
+        $this->post(route('purchase.returns.store'), [
+            'purchase_receipt_id' => $receipt->id,
+            'items' => [['purchase_inspection_id' => $receipt->inspections()->firstOrFail()->id, 'kind' => 'damaged', 'quantity' => 4]],
+        ])->assertSessionHasNoErrors();
+        $this->get($url)->assertOk()->assertSee($createUrl, false);
+        $return = $this->claim($receipt);
+        $this->get($url)->assertOk()->assertDontSee($createUrl, false)->assertSee('Hasil Pemeriksaan');
+        $this->post(route('purchase.returns.reject', $return), ['rejection_reason' => 'Perbaiki pengajuan'])->assertSessionHasNoErrors();
+        $this->get($url)->assertOk()->assertSee($createUrl, false);
+        $return = $this->claim($receipt->fresh());
+        $this->post(route('purchase.returns.approve', $return))->assertSessionHasNoErrors();
+        $this->get($url)->assertOk()->assertDontSee($createUrl, false)->assertSee($return->return_number);
+
+        $this->order->update(['status' => 'completed']);
+        $this->get($url)->assertOk()->assertDontSee($createUrl, false);
+        $this->order->update(['status' => 'partial']);
+        $return->update(['status' => 'rejected']);
+        $staff = User::create(['name' => 'Gudang', 'email' => 'receipt-button@test.com', 'password' => 'password', 'role' => 'staf_gudang']);
+        \Illuminate\Support\Facades\DB::table('role_permissions')->where('role', 'staf_gudang')
+            ->where('permission', 'purchase.returns.create')->delete();
+        $this->actingAs($staff)->get($url)->assertOk()->assertDontSee($createUrl, false);
+    }
+
     public function test_claim_selector_keeps_partial_claims_hides_fully_claimed_and_restores_rejected_quantities(): void
     {
         $this->setupOrder();
