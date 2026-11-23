@@ -68,7 +68,8 @@ class NotificationServiceTest extends TestCase
         $this->assertSame('danger', $notifications[0]['badge_class']);
         $this->assertSame([
             ['label' => 'Kedaluwarsa', 'class' => 'danger'],
-            ['label' => 'Hampir Kedaluwarsa', 'class' => 'warning text-dark'],
+            ['label' => 'Segera Kedaluwarsa', 'class' => 'danger'],
+            ['label' => 'Mendekati Kedaluwarsa', 'class' => 'warning text-dark'],
         ], $notifications[0]['badges']);
         $this->assertStringContainsString('sudah kedaluwarsa sejak 20/09/2026', $notifications[0]['message']);
         $this->assertStringContainsString('akan kedaluwarsa pada 20/10/2026', $notifications[0]['message']);
@@ -77,7 +78,7 @@ class NotificationServiceTest extends TestCase
 
         $owner = \App\Models\User::create(['name'=>'Owner','email'=>'notification-wording@example.com','password'=>'password','role'=>'owner']);
         $this->actingAs($owner)->get(route('dashboard'))->assertOk()
-            ->assertSee('Hampir Kedaluwarsa')->assertSee('Stok Susu UHT di Gudang')
+            ->assertSee('Segera Kedaluwarsa')->assertSee('Mendekati Kedaluwarsa')->assertSee('Stok Susu UHT di Gudang')
             ->assertDontSee('Hampir Expired')->assertDontSee('Batch Susu UHT');
 
         Carbon::setTestNow();

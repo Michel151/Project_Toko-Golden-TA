@@ -120,7 +120,7 @@
 <div class="card table-card">
     <div class="card-header bg-white border-0 py-3 d-flex justify-content-between">
         <div><h6 class="fw-bold mb-1">Kedaluwarsa</h6><small class="text-muted">Ditampilkan per lokasi dan tanggal kedaluwarsa. Rincian tanpa sisa stok disembunyikan.</small></div>
-        <span class="badge bg-warning text-dark align-self-center">30 hari = hampir kedaluwarsa</span>
+        <span class="badge bg-warning text-dark align-self-center">31-90 hari: mendekati; 1-30 hari: segera kedaluwarsa</span>
     </div>
     <div class="table-responsive"><table class="table table-hover align-middle mb-0">
         <thead><tr><th>Lokasi</th><th>Riwayat Masuk</th><th>No. PO</th><th>Kedaluwarsa</th><th class="text-end">Masuk ke Lokasi</th><th class="text-end">Sisa Fisik / Layak Jual</th><th class="text-center">Status</th></tr></thead>
@@ -128,7 +128,7 @@
         @forelse($expiryBatchGroups as $group)
             @php
                 $status = $group['status'];
-                $badge = $status === 'Kedaluwarsa' ? 'danger' : ($status === 'Hampir Kedaluwarsa' ? 'warning text-dark' : ($status === 'Tidak Ada Kedaluwarsa' ? 'secondary' : 'success'));
+                $badge = \App\Support\ExpiryStatus::badge($status);
                 $receivedDates = $group['received_dates'];
                 $receivedLabel = $receivedDates->count() > 1
                     ? $receivedDates->first()?->format('d/m/Y').' - '.$receivedDates->last()?->format('d/m/Y')
@@ -153,7 +153,7 @@
                     <thead><tr><th>No. PO</th><th>Tanggal Terima</th><th class="text-end">Awal</th><th class="text-end">Sisa</th><th class="text-center">Status</th></tr></thead>
                     <tbody>
                     @foreach($group['batches'] as $batch)
-                        @php $detailStatus = $batch->expiry_status; $detailBadge = $detailStatus === 'Kedaluwarsa' ? 'danger' : ($detailStatus === 'Hampir Kedaluwarsa' ? 'warning text-dark' : ($status === 'Tidak Ada Kedaluwarsa' ? 'secondary' : 'success')); @endphp
+                        @php $detailStatus = $batch->expiry_status; $detailBadge = \App\Support\ExpiryStatus::badge($detailStatus); @endphp
                         <tr><td>@include('inventory.stock-card.batch-po', ['batchOrder' => $batch->purchaseReceiptItem?->purchaseReceipt?->purchaseOrder])</td><td>{{ $batch->received_date?->format('d/m/Y') }}</td><td class="text-end">{{ $product->displayStock((float) $batch->quantity_initial) }}</td><td class="text-end fw-semibold">{{ $product->displayStock((float) $batch->quantity_remaining) }}</td><td class="text-center"><span class="badge bg-{{ $detailBadge }}">{{ $detailStatus }}</span></td></tr>
                     @endforeach
                     </tbody>

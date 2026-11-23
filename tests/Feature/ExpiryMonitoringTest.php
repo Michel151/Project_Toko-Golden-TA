@@ -55,9 +55,9 @@ class ExpiryMonitoringTest extends TestCase
         $this->batch($expired,'EXPIRED','2026-10-15',100);
         $low = $this->product('Layak Rendah');
         $this->batch($low,'OLD','2026-10-01',30);
-        $this->batch($low,'FRESH','2027-01-01',2);
+        $this->batch($low,'FRESH','2027-04-01',2);
         $safe = $this->product('Batch Aman');
-        $this->batch($safe,'SAFE','2027-01-01',20);
+        $this->batch($safe,'SAFE','2027-04-01',20);
         $untracked = $this->product('Tanpa Pelacakan',5,false);
         Stock::create(['product_id'=>$untracked->id,'location_id'=>$this->shop->id,'quantity'=>12]);
 
@@ -93,11 +93,11 @@ class ExpiryMonitoringTest extends TestCase
         $this->batch($product,'UNDATED',null,1);
         $this->batch($product,'OTHER-LOCATION','2026-10-10',5,$this->warehouse);
         $response=$this->get(route('inventory.stock.index',['view'=>'priorities','location_id'=>$this->shop->id]))
-            ->assertOk()->assertSeeInOrder(['EXPIRED','TODAY','NEAR','DAY30','UNDATED'])
+            ->assertOk()->assertSeeInOrder(['EXPIRED','TODAY','NEAR','DAY30','DAY31','UNDATED'])
             ->assertSee('Lewat 1 hari')->assertSee('Kedaluwarsa hari ini')->assertSee('Sisa 7 hari')
             ->assertSee('Tanggal belum dicatat')->assertSee('Pisahkan dari rak')->assertSee('Dahulukan pengambilan')
-            ->assertDontSee('DAY31')->assertDontSee('EMPTY')->assertDontSee('OTHER-LOCATION');
-        $this->assertSame(5,$response->viewData('priorityCount'));
+            ->assertSee('DAY31')->assertDontSee('EMPTY')->assertDontSee('OTHER-LOCATION');
+        $this->assertSame(6,$response->viewData('priorityCount'));
         $this->get(route('inventory.stock.index',['view'=>'priorities','expiry_status'=>'expired']))
             ->assertOk()->assertSee('EXPIRED')->assertDontSee('NEAR');
         $this->get(route('inventory.stock.index',['view'=>'priorities','search'=>'Tidak Ada']))

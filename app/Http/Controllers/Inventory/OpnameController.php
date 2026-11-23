@@ -237,13 +237,14 @@ class OpnameController extends Controller
         $expirySummary = [];
         if ($opname->status === 'completed') {
             $date = $opname->opname_date->toDateString();
-            $limit = $opname->opname_date->copy()->addDays(30)->toDateString();
+            $limit = $opname->opname_date->copy()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS)->toDateString();
             $countProducts = fn ($condition) => $opname->items()->whereHas('expiryCounts', fn ($dates) => $condition($dates->where('physical_quantity', '>', 0)))
                 ->distinct()->count('product_id');
             $expirySummary = [
                 'expired' => $countProducts(fn ($dates) => $dates->where('expired_date', '<', $date)),
                 'today' => $countProducts(fn ($dates) => $dates->where('expired_date', $date)),
-                'soon' => $countProducts(fn ($dates) => $dates->where('expired_date', '>', $date)->where('expired_date', '<=', $limit)),
+                'urgent' => $countProducts(fn ($dates) => $dates->where('expired_date', '>', $date)->where('expired_date', '<=', $opname->opname_date->copy()->addDays(\App\Support\ExpiryStatus::URGENT_DAYS)->toDateString())),
+                'soon' => $countProducts(fn ($dates) => $dates->where('expired_date', '>', $opname->opname_date->copy()->addDays(\App\Support\ExpiryStatus::URGENT_DAYS)->toDateString())->where('expired_date', '<=', $limit)),
             ];
         }
         $query = $opname->items()->with(['expiryCounts', 'product.buyUnit', 'product.retailUnit', 'product.productUnits.unit']);

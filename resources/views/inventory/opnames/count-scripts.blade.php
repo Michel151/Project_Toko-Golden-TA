@@ -45,6 +45,7 @@
     const expiryStates = {
         expired: { label: 'Sudah kedaluwarsa', color: 'text-danger', background: 'bg-danger-subtle' },
         today: { label: 'Kedaluwarsa hari ini', color: 'opname-expiry-today', background: 'bg-warning-subtle' },
+        urgent: { label: 'Segera kedaluwarsa', color: 'text-danger', background: 'bg-danger-subtle' },
         soon: { label: 'Mendekati kedaluwarsa', color: 'text-warning-emphasis', background: 'bg-warning-subtle' },
         safe: { label: 'Aman', color: 'text-success' },
         undated: { label: 'Tanpa tanggal', color: 'text-warning-emphasis' },
@@ -74,10 +75,11 @@
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'undated';
         if (date < form.dataset.opnameDate) return 'expired';
         if (date === form.dataset.opnameDate) return 'today';
+        if (date <= form.dataset.expiryUrgentLimit) return 'urgent';
         return date <= form.dataset.expiryLimit ? 'soon' : 'safe';
     }
     function updateExpiryIndicators(main, rows, units) {
-        const quantities = { expired: 0, today: 0, soon: 0 };
+        const quantities = { expired: 0, today: 0, urgent: 0, soon: 0 };
         for (const row of rows) {
             const status = expiryStatus(row.querySelector('[data-expiry-date]').value);
             const state = expiryStates[status];
@@ -221,7 +223,7 @@
     const empty = document.getElementById('opnameEmpty');
     function refreshFilters() {
         const query = search.value.trim().toLocaleLowerCase('id-ID');
-        const counts = { expired: 0, today: 0, soon: 0 };
+        const counts = { expired: 0, today: 0, urgent: 0, soon: 0 };
         let visible = 0;
         mainRows.forEach(main => {
             const quantities = expiryQuantities.get(main);

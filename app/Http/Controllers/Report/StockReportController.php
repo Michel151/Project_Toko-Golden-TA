@@ -18,7 +18,9 @@ class StockReportController extends Controller
     private const EXPIRY_FILTERS = [
         'tracked' => 'Barang Berkedaluwarsa',
         'expired' => 'Sudah Kedaluwarsa',
-        'expiring_soon' => 'Hampir Kedaluwarsa (30 Hari)',
+        'expiry_today' => 'Kedaluwarsa Hari Ini',
+        'expiry_urgent' => 'Segera Kedaluwarsa (1-30 Hari)',
+        'expiring_soon' => 'Mendekati Kedaluwarsa (31-90 Hari)',
         'safe' => 'Aman dari Kedaluwarsa',
     ];
 
@@ -125,6 +127,13 @@ class StockReportController extends Controller
             $query->whereHas('stocks', fn ($q) => $q->where('location_id', $request->location_id));
         }
 
+        if ($request->input('expiry_status') === 'safe') {
+            $query->whereDoesntHave('stockBatches', fn ($q) => $q
+                ->when($request->filled('location_id'), fn ($q) => $q->where('location_id', $request->location_id))
+                ->where('quantity_remaining', '>', 0)
+                ->whereDate('expired_date', '<=', today()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS)));
+        }
+
         match ($request->input('expiry_status')) {
             'tracked' => $query->where('is_expirable', true)
                 ->whereHas('stockBatches', fn ($q) => $q
@@ -136,16 +145,26 @@ class StockReportController extends Controller
                     ->when($request->filled('location_id'), fn ($q) => $q->where('location_id', $request->location_id))
                     ->where('quantity_remaining', '>', 0)
                     ->whereDate('expired_date', '<', today())),
+            'expiry_today' => $query->where('is_expirable', true)
+                ->whereHas('stockBatches', fn ($q) => $q
+                    ->when($request->filled('location_id'), fn ($q) => $q->where('location_id', $request->location_id))
+                    ->where('quantity_remaining', '>', 0)
+                    ->whereDate('expired_date', today())),
+            'expiry_urgent' => $query->where('is_expirable', true)
+                ->whereHas('stockBatches', fn ($q) => $q
+                    ->when($request->filled('location_id'), fn ($q) => $q->where('location_id', $request->location_id))
+                    ->where('quantity_remaining', '>', 0)
+                    ->whereBetween('expired_date', [today()->addDay(), today()->addDays(\App\Support\ExpiryStatus::URGENT_DAYS)])),
             'expiring_soon' => $query->where('is_expirable', true)
                 ->whereHas('stockBatches', fn ($q) => $q
                     ->when($request->filled('location_id'), fn ($q) => $q->where('location_id', $request->location_id))
                     ->where('quantity_remaining', '>', 0)
-                    ->whereBetween('expired_date', [today(), today()->addDays(30)])),
+                    ->whereBetween('expired_date', [today()->addDays(\App\Support\ExpiryStatus::URGENT_DAYS + 1), today()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS)])),
             'safe' => $query->where('is_expirable', true)
                 ->whereHas('stockBatches', fn ($q) => $q
                     ->when($request->filled('location_id'), fn ($q) => $q->where('location_id', $request->location_id))
                     ->where('quantity_remaining', '>', 0)
-                    ->whereDate('expired_date', '>', today()->addDays(30))),
+                    ->whereDate('expired_date', '>', today()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS))),
             default => null,
         };
     }

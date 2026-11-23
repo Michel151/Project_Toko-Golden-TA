@@ -127,7 +127,7 @@ class NotificationCenterTest extends TestCase
         $this->product('Tidak aktif', ['is_active' => false]);
         $empty = $this->product('Stok kosong');
         $items = app(NotificationService::class)->checkAllProducts();
-        $this->assertSame([$products[-1]->id, $empty->id, $products[0]->id, $products[1]->id, $products[30]->id], array_column($items, 'product_id'));
+        $this->assertSame([$products[-1]->id, $empty->id, $products[0]->id, $products[1]->id, $products[30]->id, $products[31]->id], array_column($items, 'product_id'));
         $this->assertSame('Kedaluwarsa Hari Ini', $items[2]['badge_label']);
         $this->assertStringContainsString('sisa 30 hari', $items[4]['summary']);
         $this->stock($products[-1], 'Toko', 0, 10);
@@ -178,14 +178,14 @@ class NotificationCenterTest extends TestCase
         $this->get(route('notifications.index', ['condition' => 'expired', 'location_id' => $warehouse->id]))->assertOk()->assertViewHas('notifications', fn ($page) => $page->total() === 0);
         $response = $this->get(route('notifications.index', ['search' => 'milk-123', 'condition' => 'expired', 'location_id' => $store->id]));
         $response->assertOk()->assertViewHas('notifications', fn ($page) => $page->total() === 1)->assertSee('Rincian kondisi');
-        $this->get(route('notifications.index', ['condition' => 'expiring', 'location_id' => $warehouse->id]))
+        $this->get(route('notifications.index', ['condition' => 'expiry_urgent', 'location_id' => $warehouse->id]))
             ->assertOk()->assertSee('1 produk sesuai filter dari 1 produk perlu perhatian.')
             ->assertViewHas('notifications', fn ($page) => $page->first()['summary'] === 'Stok Susu Filter di Gudang akan kedaluwarsa pada 08/11/2026 (sisa 10 hari). Sisa 5 Pcs.'
                 && collect($page->first()['conditions'])->contains('kind', 'expired')
-                && collect($page->first()['conditions'])->contains('kind', 'expiring'));
+                && collect($page->first()['conditions'])->contains('kind', 'expiry_urgent'));
         $this->get(route('notifications.index', ['location_id' => $warehouse->id]))
             ->assertOk()->assertViewHas('notifications', fn ($page) => str_contains($page->first()['summary'], 'di Gudang'));
-        $this->get(route('notifications.index', ['condition' => 'expiring']))
+        $this->get(route('notifications.index', ['condition' => 'expiry_urgent']))
             ->assertOk()->assertViewHas('notifications', fn ($page) => str_contains($page->first()['summary'], 'sisa 10 hari'));
         $this->get(route('notifications.index', ['search' => 'tidak cocok']))
             ->assertOk()->assertSee('0 produk sesuai filter dari 1 produk perlu perhatian.');

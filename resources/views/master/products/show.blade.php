@@ -115,14 +115,14 @@
 <div class="card detail-card">
     <div class="card-header bg-white border-0 py-3 d-flex justify-content-between">
         <div><h6 class="fw-bold mb-1">Kedaluwarsa</h6><small class="text-muted">Ditampilkan per lokasi dan tanggal kedaluwarsa. Rincian tanpa sisa stok disembunyikan.</small></div>
-        <span class="badge bg-warning text-dark align-self-center">30 hari = hampir kedaluwarsa</span>
+        <span class="badge bg-warning text-dark align-self-center">31-90 hari: mendekati; 1-30 hari: segera kedaluwarsa</span>
     </div>
     <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Lokasi</th><th>Riwayat Masuk</th><th>Kedaluwarsa</th><th class="text-end">Masuk ke Lokasi</th><th class="text-end">Sisa Fisik / Layak Jual</th><th class="text-center">Status</th></tr></thead><tbody>
     {{-- Tampilkan daftar batch stok per kelompok. --}}
     @forelse($expiryBatchGroups as $groupIndex => $group)
     @php
         $status=$group['status'];
-        $badge=$status==='Kedaluwarsa'?'danger':($status==='Hampir Kedaluwarsa'?'warning text-dark':($status==='Tidak Ada Kedaluwarsa'?'secondary':'success'));
+        $badge = \App\Support\ExpiryStatus::badge($status);
         $receivedDates=$group['received_dates'];
         $receivedLabel=$receivedDates->count() > 1
             ? $receivedDates->first()?->format('d/m/Y').' - '.$receivedDates->last()?->format('d/m/Y')
@@ -156,7 +156,7 @@
                     @foreach($group['batches'] as $batch)
                     @php
                         $detailStatus=$batch->expiry_status;
-                        $detailBadge=$detailStatus==='Kedaluwarsa'?'danger':($detailStatus==='Hampir Kedaluwarsa'?'warning text-dark':($status==='Tidak Ada Kedaluwarsa'?'secondary':'success'));
+                        $detailBadge = \App\Support\ExpiryStatus::badge($detailStatus);
                     @endphp
                     <tr>
                         

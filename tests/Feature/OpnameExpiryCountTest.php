@@ -96,7 +96,7 @@ class OpnameExpiryCountTest extends TestCase
         $this->assertSame('completed',$opname->fresh()->status);
         $this->assertDatabaseHas('stock_movements',['movement_type'=>'opname_adjustment','quantity'=>-10]);
         $this->capture('show',$this->get(route('inventory.opnames.show',$opname))->assertOk()->assertSee('Rincian Kedaluwarsa')->assertSee('16/10/2026')
-            ->assertViewHas('expirySummary', ['expired' => 0, 'today' => 0, 'soon' => 0]));
+            ->assertViewHas('expirySummary', ['expired' => 0, 'today' => 0, 'urgent' => 0, 'soon' => 1]));
     }
 
     public function test_count_and_result_pages_use_all_registered_unit_levels(): void

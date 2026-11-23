@@ -46,19 +46,7 @@ class StockBatch extends Model
 
     public function getExpiryStatusAttribute(): string
     {
-        if (! $this->expired_date) {
-            return 'Tidak Ada Kedaluwarsa';
-        }
-
-        if ($this->expired_date->lt(today())) {
-            return 'Kedaluwarsa';
-        }
-
-        if ($this->expired_date->lte(today()->addDays(30))) {
-            return 'Hampir Kedaluwarsa';
-        }
-
-        return 'Aman';
+        return \App\Support\ExpiryStatus::label(\App\Support\ExpiryStatus::classify($this->expired_date));
     }
 
     public function getExpiryCountdownAttribute(): string

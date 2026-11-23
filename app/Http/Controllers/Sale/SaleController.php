@@ -158,7 +158,7 @@ class SaleController extends Controller
         if ($pending && (float) $request->amount_paid !== 0.0) {
             return back()->with('error', 'Transaksi menunggu pembayaran belum menerima pembayaran. Isi jumlah bayar 0.')->withInput();
         }
-        // Menghitung total di server dari jumlah dan harga rincian, bukan dari tampilan total browser.
+        
         $requestedTotal = collect($request->items)->sum(fn ($item) => $item['quantity'] * $item['unit_price']);
         if (! $pending && (float) $request->amount_paid < $requestedTotal) {
             return back()->with('error', 'Jumlah bayar harus mencukupi total transaksi. Pilih Menunggu Pembayaran bila belum dibayar.')->withInput();
@@ -176,7 +176,6 @@ class SaleController extends Controller
         }
 
         try {
-            // Dokumen, rincian, stok, HPP, dan penggunaan draf dibatalkan bersama jika penyimpanan gagal.
             $sale = DB::transaction(function () use ($request, $pending, $holdUntil, $jakartaNow) {
                 app(\App\Services\MovingAverageCostService::class)->lock();
                 app(\App\Services\SaleDraftService::class)->consume($request);

@@ -61,12 +61,12 @@ class WarehouseDashboardTest extends TestCase
         $response->assertOk()->assertViewIs('dashboard.warehouse')
             ->assertViewHas('warehouseProductCount',5)->assertViewHas('warehouseOutOfStockCount',2)
             ->assertViewHas('warehouseLowStockCount',1)->assertViewHas('warehouseSafeStockCount',2)
-            ->assertViewHas('expiredBatchCount',2)->assertViewHas('expiringBatchCount',2)
+            ->assertViewHas('expiredBatchCount',2)->assertViewHas('expiringBatchCount',3)
             ->assertViewHas('warehousePriorityCount',3)
             ->assertViewHas('warehousePriorities',fn($rows)=>$rows->first()['badge_label']==='Kedaluwarsa' && $rows->first()['product_name']==='Campuran' && $rows->get(2)['badge_label']==='Stok Habis')
             ->assertViewHas('stockedLocations',fn($rows)=>$rows->first()['sellable']===3 && $rows->first()['physical']===4)
             ->assertDontSee('Produk Nonaktif')->assertDontSee('chart.umd')->assertSee('Stok Layak Jual Habis')
-            ->assertSee('Sudah Kedaluwarsa')->assertSee('Dari 1 produk, kedaluwarsa hari ini hingga 30 hari ke depan')->assertSee('2 batch')->assertSee('Berdasarkan total stok seluruh lokasi')->assertViewHas('expiredProductCount',2)->assertViewHas('expiringProductCount',1)
+            ->assertSee('Sudah Kedaluwarsa')->assertSee('Dari 1 produk, kedaluwarsa hari ini hingga 90 hari ke depan')->assertSee('2 batch')->assertSee('Berdasarkan total stok seluruh lokasi')->assertViewHas('expiredProductCount',2)->assertViewHas('expiringProductCount',1)
             ->assertDontSee('Batch Kedaluwarsa')->assertDontSee('Batch dalam 30 hari');
         $this->assertDatabaseHas('stocks',['product_id'=>$expired->id,'quantity'=>10]);
     }

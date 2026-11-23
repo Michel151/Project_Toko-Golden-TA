@@ -6,7 +6,7 @@ use App\Models\Product;
 
 class NotificationService
 {
-    public const FILTERS = ['expired' => 'Sudah kedaluwarsa', 'out_of_stock' => 'Stok habis', 'expiry_today' => 'Kedaluwarsa hari ini', 'expiring' => 'Mendekati kedaluwarsa', 'low_stock' => 'Stok rendah', 'return_pending' => 'Perlu Retur/Klaim', 'return_approval'=>'Retur/Klaim Menunggu Persetujuan'];
+    public const FILTERS = ['expired' => 'Sudah kedaluwarsa', 'out_of_stock' => 'Stok habis', 'expiry_today' => 'Kedaluwarsa hari ini', 'expiry_urgent' => 'Segera kedaluwarsa', 'expiring' => 'Mendekati kedaluwarsa', 'low_stock' => 'Stok rendah', 'return_pending' => 'Perlu Retur/Klaim', 'return_approval'=>'Retur/Klaim Menunggu Persetujuan'];
 
     // Share a snapshot within this request only, never across requests.
     public function forRequest(?\Illuminate\Database\Eloquent\Collection $products = null): array
@@ -310,7 +310,7 @@ class NotificationService
         if (! $product->is_expirable) {
             return [];
         }
-        $cutoff = $today->copy()->addDays(30)->toDateString();
+        $cutoff = $today->copy()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS)->toDateString();
         $conditions = [];
         $dates = [];
         foreach ($product->stockBatches as $batch) {
@@ -323,7 +323,7 @@ class NotificationService
             if (! isset($dates[$dateKey])) {
                 $expiry = \Carbon\Carbon::parse($dateKey);
                 $days = (int) $today->diffInDays($expiry, false);
-                $kind = $days < 0 ? 'expired' : ($days === 0 ? 'expiry_today' : 'expiring');
+                $kind = $days < 0 ? 'expired' : ($days === 0 ? 'expiry_today' : ($days <= \App\Support\ExpiryStatus::URGENT_DAYS ? 'expiry_urgent' : 'expiring'));
                 $date = $expiry->format('d/m/Y');
                 $text = $days < 0 ? "sudah kedaluwarsa sejak {$date}" : ($days === 0 ? 'kedaluwarsa hari ini' : "akan kedaluwarsa pada {$date} (sisa {$days} hari)");
                 $dates[$dateKey] = [$kind, $text];
@@ -338,14 +338,17 @@ class NotificationService
 
     private function condition(string $kind, string $message, array $ids, array $names): array
     {
-        $rank = array_search($kind, array_keys(self::FILTERS), true);
+        $rank = match ($kind) {
+            'expired' => 0, 'out_of_stock' => 1, 'expiry_today' => 2,
+            'expiry_urgent' => 2.2, 'expiring' => 3, default => 4,
+        };
         $label = match ($kind) {
             'expired' => 'Kedaluwarsa', 'out_of_stock' => 'Stok Habis', 'expiry_today' => 'Kedaluwarsa Hari Ini',
-            'expiring' => 'Hampir Kedaluwarsa', default => 'Stok Rendah',
+            'expiry_urgent' => 'Segera Kedaluwarsa', 'expiring' => 'Mendekati Kedaluwarsa', default => 'Stok Rendah',
         };
 
-        return ['kind' => $kind, 'type' => in_array($kind, ['expired', 'expiry_today', 'expiring'], true) ? 'expiry' : 'stock',
-            'rank' => $rank, 'level' => $rank <= 2 ? 'danger' : 'warning', 'badge_label' => $label, 'badge_class' => $rank <= 2 ? 'danger' : 'warning text-dark',
+        return ['kind' => $kind, 'type' => in_array($kind, ['expired', 'expiry_today', 'expiry_urgent', 'expiring'], true) ? 'expiry' : 'stock',
+            'rank' => $rank, 'level' => in_array($kind, ['expired', 'expiry_today', 'expiry_urgent', 'out_of_stock'], true) ? 'danger' : 'warning', 'badge_label' => $label, 'badge_class' => in_array($kind, ['expired', 'expiry_today', 'expiry_urgent', 'out_of_stock'], true) ? 'danger' : 'warning text-dark',
             'location_ids' => $ids, 'location_names' => $names, 'location_name' => count($names) === 1 ? $names[0] : 'Semua lokasi', 'message' => $message];
     }
 

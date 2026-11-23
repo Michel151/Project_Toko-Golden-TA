@@ -72,7 +72,7 @@ class DashboardController extends Controller
         $expiringSoonCount = StockBatch::where('quantity_remaining', '>', 0)
             ->whereHas('product', fn ($query) => $query->active()->where('is_expirable', true))
             ->whereDate('expired_date', '>=', $today)
-            ->whereDate('expired_date', '<=', $today->copy()->addDays(30))
+            ->whereDate('expired_date', '<=', $today->copy()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS))
             ->count();
         $expiredBatchCount = StockBatch::where('quantity_remaining', '>', 0)
             ->whereHas('product', fn ($query) => $query->active()->where('is_expirable', true))
@@ -82,7 +82,7 @@ class DashboardController extends Controller
             ->whereHas('product', fn ($query) => $query->active()->where('is_expirable', true))
             ->where('quantity_remaining', '>', 0)
             ->whereNotNull('expired_date')
-            ->whereDate('expired_date', '<=', $today->copy()->addDays(30))
+            ->whereDate('expired_date', '<=', $today->copy()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS))
             ->orderBy('expired_date')
             ->limit(5)
             ->get();
@@ -249,10 +249,10 @@ class DashboardController extends Controller
         $priorities = collect($this->notificationService->forRequest($products));
         $conditions = $priorities->flatMap(fn ($item) => $item['conditions']);
         $expiredBatchCount = $conditions->where('kind', 'expired')->count();
-        $expiringBatchCount = $conditions->whereIn('kind', ['expiry_today', 'expiring'])->count();
+        $expiringBatchCount = $conditions->whereIn('kind', ['expiry_today', 'expiry_urgent', 'expiring'])->count();
 
         $expiredProductCount = $priorities->filter(fn ($item) => collect($item['conditions'])->contains('kind', 'expired'))->count();
-        $expiringProductCount = $priorities->filter(fn ($item) => collect($item['conditions'])->whereIn('kind', ['expiry_today', 'expiring'])->isNotEmpty())->count();
+        $expiringProductCount = $priorities->filter(fn ($item) => collect($item['conditions'])->whereIn('kind', ['expiry_today', 'expiry_urgent', 'expiring'])->isNotEmpty())->count();
 
         $draftQuery = StockOpname::where('status', 'draft');
         $draftOpnames = (clone $draftQuery)->count();

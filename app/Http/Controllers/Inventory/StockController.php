@@ -16,7 +16,7 @@ class StockController extends Controller
         $request->validate([
             'view' => 'nullable|in:stock,priorities',
             'status' => 'nullable|in:low,out,safe',
-            'expiry_status' => 'nullable|in:expired,expiring,safe,without_date,untracked',
+            'expiry_status' => 'nullable|in:expired,expiry_today,expiry_urgent,expiring,safe,without_date,untracked',
             'location_id' => 'nullable|exists:locations,id',
             'category_id' => 'nullable|exists:categories,id',
             'search' => 'nullable|string|max:200',
@@ -36,7 +36,7 @@ class StockController extends Controller
             ->count();
         $expiringBatchCount = StockBatch::where('quantity_remaining', '>', 0)
             ->whereDate('expired_date', '>=', today())
-            ->whereDate('expired_date', '<=', today()->addDays(30))
+            ->whereDate('expired_date', '<=', today()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS))
             ->count();
         $inventoryValue = $canViewInventoryValue ? $allProducts->sum(function ($product) {
             return $product->inventoryValue();
@@ -80,24 +80,28 @@ class StockController extends Controller
 
                 if ($request->expiry_status === 'expired') {
                     $q->whereDate('expired_date', '<', today());
+                } elseif ($request->expiry_status === 'expiry_today') {
+                    $q->whereDate('expired_date', today());
+                } elseif ($request->expiry_status === 'expiry_urgent') {
+                    $q->whereDate('expired_date', '>', today())->whereDate('expired_date', '<=', today()->addDays(\App\Support\ExpiryStatus::URGENT_DAYS));
                 } elseif ($request->expiry_status === 'expiring') {
-                    $q->whereDate('expired_date', '>=', today())
-                        ->whereDate('expired_date', '<=', today()->addDays(30));
+                    $q->whereDate('expired_date', '>', today()->addDays(\App\Support\ExpiryStatus::URGENT_DAYS))
+                        ->whereDate('expired_date', '<=', today()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS));
                 } elseif ($request->expiry_status === 'safe') {
-                    $q->whereDate('expired_date', '>', today()->addDays(30));
+                    $q->whereDate('expired_date', '>', today()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS));
                 } elseif ($request->expiry_status === 'without_date') {
                     $q->whereNull('expired_date');
                 }
             };
 
-            if (in_array($request->expiry_status, ['expired', 'expiring', 'safe', 'without_date'], true)) {
+            if (in_array($request->expiry_status, ['expired', 'expiry_today', 'expiry_urgent', 'expiring', 'safe', 'without_date'], true)) {
                 $query->whereHas('stockBatches', $batchFilter);
 
                 if ($request->expiry_status === 'safe') {
                     $query->whereDoesntHave('stockBatches', function ($q) use ($request) {
                         $q->where('quantity_remaining', '>', 0)
                             ->whereNotNull('expired_date')
-                            ->whereDate('expired_date', '<=', today()->addDays(30));
+                            ->whereDate('expired_date', '<=', today()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS));
 
                         if ($request->filled('location_id')) {
                             $q->where('location_id', $request->location_id);
@@ -129,11 +133,13 @@ class StockController extends Controller
             ->whereHas('product', fn ($q) => $q->where('is_expirable', true))
             ->where('quantity_remaining', '>', 0)
             ->when($request->filled('location_id'), fn ($q) => $q->where('location_id', $request->location_id))
-            ->where(fn ($q) => $q->whereNull('expired_date')->orWhereDate('expired_date', '<=', today()->addDays(30)));
+            ->where(fn ($q) => $q->whereNull('expired_date')->orWhereDate('expired_date', '<=', today()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS)));
         if ($request->filled('expiry_status')) {
             match ($request->expiry_status) {
                 'expired' => $priorityQuery->whereDate('expired_date', '<', today()),
-                'expiring' => $priorityQuery->whereDate('expired_date', '>=', today())->whereDate('expired_date', '<=', today()->addDays(30)),
+                'expiry_today' => $priorityQuery->whereDate('expired_date', today()),
+                'expiry_urgent' => $priorityQuery->whereDate('expired_date', '>', today())->whereDate('expired_date', '<=', today()->addDays(\App\Support\ExpiryStatus::URGENT_DAYS)),
+                'expiring' => $priorityQuery->whereDate('expired_date', '>', today()->addDays(\App\Support\ExpiryStatus::URGENT_DAYS))->whereDate('expired_date', '<=', today()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS)),
                 'without_date' => $priorityQuery->whereNull('expired_date'),
                 'safe', 'untracked' => $priorityQuery->whereRaw('1 = 0'),
             };

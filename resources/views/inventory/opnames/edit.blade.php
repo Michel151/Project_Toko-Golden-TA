@@ -12,7 +12,7 @@
 .opname-count-table [hidden]{display:none!important}.opname-actions{position:sticky;bottom:0;background:var(--bs-body-bg,#fff);padding:10px 0;z-index:2}
 .opname-expiry-filter{border-left:4px solid currentColor!important}
 .opname-expiry-filter[aria-pressed="true"]{background:#f1f5f2;box-shadow:inset 0 0 0 1px currentColor!important}
-.opname-expiry-today{color:#a64b0c}
+.opname-expiry-today{color:var(--bs-danger,#dc3545)}
 </style>
 @endpush
 @section('content')
@@ -21,13 +21,13 @@
 </div>
 <div class="mb-3"><h5 class="fw-bold mb-1">{{ $opname->opname_number }}</h5><div class="small text-muted">{{ $opname->location->name }} | {{ $opname->opname_date->format('d/m/Y') }}</div></div>
 <form method="POST" action="{{ route('inventory.opnames.update', $opname) }}" data-complete-url="{{ route('inventory.opnames.complete',$opname) }}" id="opnameForm"
-      data-opname-date="{{ $opname->opname_date->toDateString() }}" data-expiry-limit="{{ $opname->opname_date->copy()->addDays(30)->toDateString() }}">
+      data-expiry-urgent-limit="{{ $opname->opname_date->copy()->addDays(\App\Support\ExpiryStatus::URGENT_DAYS)->toDateString() }}" data-opname-date="{{ $opname->opname_date->toDateString() }}" data-expiry-limit="{{ $opname->opname_date->copy()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS)->toDateString() }}">
     <div class="small text-muted mb-3">Petugas Opname: <strong class="text-body text-break">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: 'Belum dicatat' }}</strong></div>
     <div class="small text-muted mb-3">Keterangan per barang boleh dikosongkan saat menyimpan draf. Wajib diisi saat menyelesaikan opname jika jumlah stok atau rincian kedaluwarsa berubah.</div>
     @csrf @method('PUT')
     <div class="row g-2 mb-2" aria-label="Ringkasan kedaluwarsa">
-        @foreach(['expired' => ['Sudah Kedaluwarsa', 'text-danger'], 'today' => ['Kedaluwarsa Hari Ini', 'opname-expiry-today'], 'soon' => ['Mendekati Kedaluwarsa', 'text-warning-emphasis']] as $status => [$label, $color])
-            <div class="col-12 col-sm-4">
+        @foreach(['expired' => ['Sudah Kedaluwarsa', 'text-danger'], 'today' => ['Kedaluwarsa Hari Ini', 'opname-expiry-today'], 'urgent' => ['Segera Kedaluwarsa', 'text-danger'], 'soon' => ['Mendekati Kedaluwarsa', 'text-warning-emphasis']] as $status => [$label, $color])
+            <div class="col-12 col-sm-6 col-xl-3">
                 <button type="button" class="card opname-expiry-filter w-100 h-100 text-start p-3 {{ $color }}" data-expiry-filter="{{ $status }}" aria-pressed="false">
                     <span class="fw-semibold">{{ $label }}</span>
                     <strong class="fs-5" data-expiry-product-count>0 produk</strong>

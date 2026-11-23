@@ -10,13 +10,13 @@
                 @php
                     $expired = $batch->expired_date && $batch->expired_date->lt(today());
                     $todayExpiry = $batch->expired_date && $batch->expired_date->isToday();
-                    $tone = $expired ? 'danger' : ($batch->expired_date ? 'warning text-dark' : 'secondary');
+                    $tone = \App\Support\ExpiryStatus::badge($batch->expiry_status);
                 @endphp
                 <tr>
                     <td style="min-width:200px"><div class="fw-semibold">{{ $batch->product->name }}</div><div class="font-monospace small text-muted">{{ $batch->batch_code ?: '#'.$batch->id }}</div></td>
                     <td data-label="Lokasi">{{ $batch->location->name }}</td>
                     <td data-label="Sisa fisik" class="text-end text-nowrap">{{ $batch->product->displayStock((float) $batch->quantity_remaining) }}@if($expired)<div class="small text-danger">Tidak layak jual</div>@endif</td>
-                    <td data-label="Kedaluwarsa" class="text-nowrap"><div>{{ $batch->expired_date?->format('d/m/Y') ?? '-' }}</div><span class="badge bg-{{ $tone }}">{{ $batch->expiry_countdown }}</span></td>
+                    <td data-label="Kedaluwarsa" class="text-nowrap"><div>{{ $batch->expired_date?->format('d/m/Y') ?? '-' }}</div><span class="badge bg-{{ $tone }}">{{ $batch->expiry_status }}</span><div class="small text-muted">{{ $batch->expiry_countdown }}</div></td>
                     <td data-label="Prioritas" style="min-width:190px"><div class="fw-semibold">{{ $expired ? 'Pisahkan dari rak' : ($batch->expired_date ? ($todayExpiry ? 'Periksa hari ini' : 'Dahulukan pengambilan') : 'Lengkapi tanggal kedaluwarsa') }}</div><div class="small text-muted">{{ $expired ? 'Stok fisik tetap tercatat' : ($batch->expired_date ? 'Ikuti urutan FEFO' : 'Status kedaluwarsa belum diketahui') }}</div></td>
                     <td><a class="btn btn-sm btn-outline-secondary" href="{{ route('inventory.stock-card.show', ['product'=>$batch->product_id,'tab'=>'expiry']) }}" title="Lihat kedaluwarsa {{ $batch->batch_code ?: '#'.$batch->id }}" aria-label="Lihat kedaluwarsa {{ $batch->batch_code ?: '#'.$batch->id }}"><i class="bi bi-arrow-up-right"></i></a></td>
                 </tr>

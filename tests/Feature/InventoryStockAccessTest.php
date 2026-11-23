@@ -166,7 +166,7 @@ class InventoryStockAccessTest extends TestCase
 
         $this->makeStockBatch($expiredProduct, $location, '2026-09-25');
         $this->makeStockBatch($expiringProduct, $location, '2026-10-20');
-        $this->makeStockBatch($safeProduct, $location, '2026-11-30');
+        $this->makeStockBatch($safeProduct, $location, '2027-02-01');
 
         $this->actingAs($owner)
             ->get(route('inventory.stock.index', ['expiry_status' => 'expired']))
@@ -176,7 +176,7 @@ class InventoryStockAccessTest extends TestCase
             ->assertViewHas('products', fn ($products) => $products->pluck('id')->all() === [$expiredProduct->id]);
 
         $this->actingAs($owner)
-            ->get(route('inventory.stock.index', ['expiry_status' => 'expiring']))
+            ->get(route('inventory.stock.index', ['expiry_status' => 'expiry_urgent']))
             ->assertOk()
             ->assertSee('Yogurt Segera Dicek')
             ->assertViewHas('products', fn ($products) => $products->pluck('id')->all() === [$expiringProduct->id]);

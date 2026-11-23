@@ -38,7 +38,8 @@
     <p class="small text-muted mb-2">Kondisi kedaluwarsa berdasarkan hasil fisik pada tanggal opname</p>
     <div class="opname-summary" aria-label="Ringkasan kedaluwarsa hasil opname">
         <div class="opname-stat"><strong class="text-danger">{{ $expirySummary['expired'] }} produk</strong><span>Sudah Kedaluwarsa</span></div>
-        <div class="opname-stat"><strong style="color:#a64b0c">{{ $expirySummary['today'] }} produk</strong><span>Kedaluwarsa Hari Ini</span></div>
+        <div class="opname-stat"><strong class="text-danger">{{ $expirySummary['today'] }} produk</strong><span>Kedaluwarsa Hari Ini</span></div>
+        <div class="opname-stat"><strong class="text-danger">{{ $expirySummary['urgent'] }} produk</strong><span>Segera Kedaluwarsa</span></div>
         <div class="opname-stat"><strong class="text-warning-emphasis">{{ $expirySummary['soon'] }} produk</strong><span>Mendekati Kedaluwarsa</span></div>
     </div>
 @endif

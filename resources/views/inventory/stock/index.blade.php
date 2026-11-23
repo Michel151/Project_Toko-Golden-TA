@@ -47,7 +47,7 @@
     <div class="col-6 col-xl"><div class="card stock-stat h-100" style="--accent:#0d6efd;--soft:#eaf2ff"><div class="card-body d-flex gap-3 align-items-center"><div class="stock-stat-icon"><i class="bi bi-box-seam"></i></div><div><div class="text-muted small">Jenis Barang</div><div class="fs-5 fw-bold">{{ $totalProducts }}</div></div></div></div></div>
     <div class="col-6 col-xl"><div class="card stock-stat h-100" style="--accent:#dc3545;--soft:#fdecef"><div class="card-body d-flex gap-3 align-items-center"><div class="stock-stat-icon"><i class="bi bi-exclamation-triangle"></i></div><div><div class="text-muted small">Layak Jual Rendah</div><div class="fs-5 fw-bold text-danger">{{ $lowStockCount }}</div></div></div></div></div>
     <div class="col-6 col-xl"><div class="card stock-stat h-100" style="--accent:#6c757d;--soft:#f0f1f2"><div class="card-body d-flex gap-3 align-items-center"><div class="stock-stat-icon"><i class="bi bi-box2"></i></div><div><div class="text-muted small">Layak Jual Habis</div><div class="fs-5 fw-bold">{{ $outOfStockCount }}</div></div></div></div></div>
-    <div class="col-6 col-xl"><div class="card stock-stat h-100" style="--accent:#fd7e14;--soft:#fff0e6"><div class="card-body d-flex gap-3 align-items-center"><div class="stock-stat-icon"><i class="bi bi-calendar-x"></i></div><div><div class="text-muted small">Kedaluwarsa</div><div class="fs-5 fw-bold text-danger">{{ $expiredBatchCount }}</div><div class="small text-muted">{{ $expiringBatchCount }} hampir</div></div></div></div></div>
+    <div class="col-6 col-xl"><div class="card stock-stat h-100" style="--accent:#fd7e14;--soft:#fff0e6"><div class="card-body d-flex gap-3 align-items-center"><div class="stock-stat-icon"><i class="bi bi-calendar-x"></i></div><div><div class="text-muted small">Kedaluwarsa</div><div class="fs-5 fw-bold text-danger">{{ $expiredBatchCount }}</div><div class="small text-muted">{{ $expiringBatchCount }} rincian berisiko (0-90 hari)</div></div></div></div></div>
     @if($canViewInventoryValue)
     <div class="col-6 col-xl"><div class="card stock-stat h-100" style="--accent:#c8960c;--soft:#fff7df"><div class="card-body d-flex gap-3 align-items-center"><div class="stock-stat-icon"><i class="bi bi-wallet2"></i></div><div><div class="text-muted small">Nilai Persediaan</div><div class="fw-bold">Rp {{ number_format($inventoryValue,0,',','.') }}</div></div></div></div></div>
     @endif
@@ -64,7 +64,7 @@
         <div class="app-filter-field"><label for="stockCategory">Kategori</label><select id="stockCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $category)<option value="{{ $category->id }}" @selected(request('category_id') == $category->id)>{{ $category->name }}</option>@endforeach</select></div>
         <div class="app-filter-field"><label for="stockLocation">Lokasi</label><select id="stockLocation" name="location_id" class="form-select form-select-sm"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected(request('location_id') == $location->id)>{{ $location->name }}</option>@endforeach</select></div>
         <div class="app-filter-field"><label for="stockStatus">Status</label><select id="stockStatus" name="status" class="form-select form-select-sm"><option value="">Semua Status</option><option value="safe" @selected(request('status')==='safe')>Aman</option><option value="low" @selected(request('status')==='low')>Stok Rendah</option><option value="out" @selected(request('status')==='out')>Stok Habis</option></select></div>
-        <div class="app-filter-field"><label for="stockExpiry">Kedaluwarsa</label><select id="stockExpiry" name="expiry_status" class="form-select form-select-sm"><option value="">Semua Status</option><option value="expired" @selected(request('expiry_status')==='expired')>Sudah Kedaluwarsa</option><option value="expiring" @selected(request('expiry_status')==='expiring')>Hampir Kedaluwarsa</option><option value="safe" @selected(request('expiry_status')==='safe')>Aman</option><option value="without_date" @selected(request('expiry_status')==='without_date')>Tanpa Tanggal</option><option value="untracked" @selected(request('expiry_status')==='untracked')>Tidak Dilacak</option></select></div>
+        <div class="app-filter-field"><label for="stockExpiry">Kedaluwarsa</label><select id="stockExpiry" name="expiry_status" class="form-select form-select-sm"><option value="">Semua Status</option><option value="expired" @selected(request('expiry_status')==='expired')>Sudah Kedaluwarsa</option><option value="expiry_today" @selected(request('expiry_status')==='expiry_today')>Kedaluwarsa Hari Ini</option><option value="expiry_urgent" @selected(request('expiry_status')==='expiry_urgent')>Segera Kedaluwarsa (1-30 hari)</option><option value="expiring" @selected(request('expiry_status')==='expiring')>Mendekati Kedaluwarsa (31-90 hari)</option><option value="safe" @selected(request('expiry_status')==='safe')>Aman</option><option value="without_date" @selected(request('expiry_status')==='without_date')>Tanpa Tanggal</option><option value="untracked" @selected(request('expiry_status')==='untracked')>Tidak Dilacak</option></select></div>
         <div class="app-filter-actions"><button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
         <a href="{{ route('inventory.stock.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
         </div>
@@ -84,7 +84,9 @@
                 $availability=$product->stockAvailability(); $total=$availability['sellable']; $minimum=(float)$product->min_stock_total;
                 $isOut=$total<=0; $isLow=$total<=$minimum; $progress=$minimum>0?min(100,($total/$minimum)*100):100;
                 $expiredBatches=$product->stockBatches->filter(fn($batch)=>$batch->expired_date&&$batch->expired_date->lt(today()));
-                $expiringBatches=$product->stockBatches->filter(fn($batch)=>$batch->expired_date&&$batch->expired_date->gte(today())&&$batch->expired_date->lte(today()->addDays(30)));
+                $todayBatches=$product->stockBatches->filter(fn($batch)=>\App\Support\ExpiryStatus::classify($batch->expired_date)==='today');
+                $urgentBatches=$product->stockBatches->filter(fn($batch)=>\App\Support\ExpiryStatus::classify($batch->expired_date)==='urgent');
+                $expiringBatches=$product->stockBatches->filter(fn($batch)=>\App\Support\ExpiryStatus::classify($batch->expired_date)==='soon');
                 $nextExpiringBatch=$product->stockBatches->first(fn($batch)=>$batch->expired_date&&$batch->expired_date->gte(today()));
             @endphp
             <tr class="{{ $isOut?'stock-out':($isLow?'stock-low':'') }}">
@@ -95,14 +97,16 @@
                     <td class="text-end location-stock {{ $locationLow?'text-danger fw-semibold':'' }}"><div class="small text-muted">Fisik: {{ $fmtStock($atLocation['physical'],$product) }}</div><div class="small fw-semibold">Jual: {{ $fmtStock($qty,$product) }}</div>@if($locationLow)<div class="text-danger" style="font-size:.67rem"><i class="bi bi-exclamation-circle"></i> Min. {{ $fmtStock($minLocation,$product) }}</div>@endif</td>
                 @endforeach
                 <td class="expiry-cell">
-                    @if($expiredBatches->isNotEmpty() || $expiringBatches->isNotEmpty())
+                    @if($expiredBatches->isNotEmpty() || $todayBatches->isNotEmpty() || $urgentBatches->isNotEmpty() || $expiringBatches->isNotEmpty())
                         <div class="expiry-list">
                             @if($expiredBatches->isNotEmpty())
                                 <div class="expiry-item"><a href="{{ route('inventory.stock-card.show', ['product' => $product, 'tab' => 'expiry']) }}" class="badge bg-danger text-decoration-none">{{ $expiredBatches->count() }} kedaluwarsa</a> <span class="small text-muted">{{ $fmtStock($expiredBatches->sum(fn($batch)=>(float)$batch->quantity_remaining),$product) }}</span><div class="small text-danger">{{ $expiredBatches->first()->expiry_countdown }}</div></div>
                             @endif
-                            @if($expiringBatches->isNotEmpty())
-                                <div class="expiry-item"><a href="{{ route('inventory.stock-card.show', ['product' => $product, 'tab' => 'expiry']) }}" class="badge bg-warning text-dark text-decoration-none">{{ $expiringBatches->count() }} hampir</a> <span class="small text-muted">{{ $fmtStock($expiringBatches->sum(fn($batch)=>(float)$batch->quantity_remaining),$product) }}</span></div>
-                            @endif
+                            @foreach([[$todayBatches, 'hari ini', 'danger'], [$urgentBatches, 'segera kedaluwarsa', 'danger'], [$expiringBatches, 'mendekati kedaluwarsa', 'warning text-dark']] as [$riskBatches, $riskLabel, $riskTone])
+                                @if($riskBatches->isNotEmpty())
+                                    <div class="expiry-item"><a href="{{ route('inventory.stock-card.show', ['product' => $product, 'tab' => 'expiry']) }}" class="badge bg-{{ $riskTone }} text-decoration-none">{{ $riskBatches->count() }} {{ $riskLabel }}</a> <span class="small text-muted">{{ $fmtStock($riskBatches->sum(fn($batch)=>(float)$batch->quantity_remaining),$product) }}</span></div>
+                                @endif
+                            @endforeach
                             @if($nextExpiringBatch)
                                 <div class="small text-muted">Terdekat: {{ $nextExpiringBatch->expired_date->format('d/m/Y') }} @if($nextExpiringBatch->location)<span class="text-secondary">({{ $nextExpiringBatch->location->name }})</span>@endif<div>{{ $nextExpiringBatch->expiry_countdown }}</div></div>
                             @endif
@@ -110,7 +114,7 @@
                     @elseif($product->is_expirable && $product->stockBatches->isNotEmpty())
                         @php $undated=$product->stockBatches->whereNull('expired_date')->count(); @endphp
                         @if($undated)<div class="small text-secondary">{{ $undated }} rincian tanpa tanggal</div>@endif
-                        @if($nextExpiringBatch)<div class="small text-success">{{ $product->stockBatches->filter(fn($b)=>$b->expired_date && $b->expired_date->gt(today()->addDays(30)))->count() }} rincian aman</div><div class="small text-muted">Terdekat: {{ $nextExpiringBatch->expired_date->format('d/m/Y') }}</div><div class="small">{{ $nextExpiringBatch->expiry_countdown }}</div>@endif
+                        @if($nextExpiringBatch)<div class="small text-success">{{ $product->stockBatches->filter(fn($b)=>$b->expired_date && $b->expired_date->gt(today()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS)))->count() }} rincian aman</div><div class="small text-muted">Terdekat: {{ $nextExpiringBatch->expired_date->format('d/m/Y') }}</div><div class="small">{{ $nextExpiringBatch->expiry_countdown }}</div>@endif
                     @elseif($product->is_expirable)
                         <span class="text-muted small">Tidak ada rincian kedaluwarsa</span>
                     @else

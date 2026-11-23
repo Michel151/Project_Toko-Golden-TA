@@ -12,7 +12,7 @@ class NotificationController extends Controller
 {
     public function index(Request $request, NotificationService $service)
     {
-        $groups = ['expiry_all'=>['expired', 'expiry_today', 'expiring'], 'stock_all'=>['out_of_stock', 'low_stock'], 'return_all'=>['return_pending','return_approval']];
+        $groups = ['expiry_all'=>['expired', 'expiry_today', 'expiry_urgent', 'expiring'], 'stock_all'=>['out_of_stock', 'low_stock'], 'return_all'=>['return_pending','return_approval']];
         $conditionOptions = NotificationService::FILTERS + ['expiry_all'=>'Risiko kedaluwarsa (semua)', 'stock_all'=>'Stok habis/rendah', 'return_all'=>'Retur/klaim (semua)'];
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:150'],
@@ -45,7 +45,7 @@ class NotificationController extends Controller
             ->contains(fn ($condition) => $matchesCondition($condition) && in_array($condition['kind'], $kinds, true)))->count();
         $summary = [
             'products' => $items->count(),
-            'expiry' => $countConditions(['expired', 'expiry_today', 'expiring']),
+            'expiry' => $countConditions(['expired', 'expiry_today', 'expiry_urgent', 'expiring']),
             'stock' => $countConditions(['out_of_stock', 'low_stock']),
             'returns' => $countConditions(['return_pending','return_approval']),
         ];
