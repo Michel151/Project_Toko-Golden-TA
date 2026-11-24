@@ -23,11 +23,13 @@
 
 
 @section('content')
+{{-- Mengirim data transfer ke fungsi store() saat tombol Simpan ditekan. --}}
 <form method="POST" id="transferForm" action="{{ route('inventory.transfers.store') }}" class="mx-auto" style="max-width:1200px">
     @csrf
 
     <section class="bg-white border-top p-3 mb-3" aria-labelledby="transferInfoHeading">
         <h6 id="transferInfoHeading" class="fw-bold mb-3"><i class="bi bi-arrow-left-right me-2"></i>Informasi Transfer</h6>
+        {{-- Memilih lokasi asal, lokasi tujuan, tanggal, dan catatan untuk semua barang yang ditransfer. --}}
         <fieldset id="transferInfoFields">
             <div class="row g-3">
                 <div class="col-md-4">
@@ -64,6 +66,7 @@
         <div id="transferStockAlert" class="alert d-none py-2" role="status" aria-live="polite"></div>
         <button type="button" id="retryTransferStock" class="btn btn-sm btn-outline-secondary mb-3 d-none"><i class="bi bi-arrow-clockwise me-1"></i>Periksa Ulang Stok</button>
         <fieldset id="transferItemsFields">
+            {{-- Bagian ini untuk memilih barang, jumlah, dan satuan yang akan ditransfer. --}}
             <fieldset id="transferComposer" class="mb-3" disabled>
                 <div class="row g-2 align-items-end">
                     <div class="col-md-7">
@@ -75,6 +78,7 @@
                             </div>
                             <div class="transfer-product-results d-none" id="productResults"></div>
                         </div>
+                        {{-- Menyimpan ID barang yang sedang dipilih sebelum ditambahkan ke daftar transfer. --}}
                         <input type="hidden" id="productSelect" value="{{ request('product_id') }}">
                     </div>
                     <div class="col-md-3">
@@ -89,6 +93,7 @@
                 <div id="stockInfo" class="form-text text-primary fw-semibold"></div>
                 <div class="form-text" id="qtyHelp"></div>
             </fieldset>
+            {{-- Menampilkan daftar barang yang akan dikirim saat transfer disimpan. --}}
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
                     <thead><tr><th style="min-width:220px">Barang</th><th style="min-width:170px">Layak Transfer di Asal</th><th style="min-width:120px;width:150px">Jumlah</th><th style="min-width:130px;width:170px">Satuan</th><th style="width:55px"></th></tr></thead>
@@ -103,6 +108,7 @@
         <x-back-link :fallback="route('inventory.transfers.index')" label="Batal" :small="false" />
     </div>
 </form>
+{{-- Menampilkan pilihan barang yang stoknya tersedia untuk ditransfer dari lokasi asal. --}}
 <div class="modal fade" id="transferProductCatalogModal" tabindex="-1" aria-labelledby="transferProductCatalogTitle" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow">
@@ -133,6 +139,7 @@
 
 @push('scripts')
 <script>
+// Menyiapkan data barang, isian sebelumnya, dan alamat pengecekan stok untuk JavaScript.
 window.stockTransferConfig = {
     products: {{ Illuminate\Support\Js::from($productsJson) }},
     items: {{ Illuminate\Support\Js::from(old('items', [])) }},

@@ -4,6 +4,7 @@
     if (!modal) return;
     const search = document.getElementById('transferItemsSearch');
     const body = document.getElementById('transferItemsBody');
+    // Menyaring nama barang di modal tanpa meminta data lagi ke server.
     function filterItems() {
         const query = search.value.trim().toLocaleLowerCase('id-ID');
         const rows = [...body.querySelectorAll('[data-transfer-item]')];
@@ -15,6 +16,7 @@
         document.getElementById('transferItemsCount').textContent = `${visible.toLocaleString('id-ID')} / ${rows.length.toLocaleString('id-ID')} barang`;
         document.getElementById('transferItemsEmpty').hidden = visible > 0;
     }
+    // Menyalin template transfer terpilih, mengisi judul, dan mengosongkan pencarian sebelumnya.
     modal.addEventListener('show.bs.modal', event => {
         const button = event.relatedTarget;
         if (!button) return;
@@ -26,6 +28,7 @@
         modal.querySelector('.transfer-items-scroll').scrollTop = 0;
         filterItems();
     });
+    // Memberi fokus pencarian setelah modal selesai ditampilkan.
     modal.addEventListener('shown.bs.modal', () => search.focus());
     search.addEventListener('input', filterItems);
 })();

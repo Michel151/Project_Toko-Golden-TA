@@ -6,33 +6,82 @@
     <x-back-link :fallback="route('inventory.transfers.index')" />
 </div>
 <h5 class="fw-bold mb-3">{{ $transfer->transfer_number }}</h5>
+{{-- Menampilkan lokasi asal, tujuan, tanggal, pencatat, dan jumlah barang dalam transfer. --}}
 <div class="app-document-meta border-bottom pb-3 mb-3">
-    <span>Lokasi asal: <strong>{{ $transfer->fromLocation->name }}</strong></span><span>Lokasi tujuan: <strong>{{ $transfer->toLocation->name }}</strong></span>
-    <span>Tanggal: <strong>{{ $transfer->transfer_date->format('d/m/Y') }}</strong></span><span>Dibuat oleh: <strong>{{ $transfer->createdBy->name ?? '-' }}</strong></span><span>Total: <strong>{{ $transfer->items_count }} barang</strong></span>
+    <span>Lokasi asal: <strong>{{ $transfer->fromLocation->name }}</strong></span>
+    <span>Lokasi tujuan: <strong>{{ $transfer->toLocation->name }}</strong></span>
+    <span>Tanggal: <strong>{{ $transfer->transfer_date->format('d/m/Y') }}</strong></span>
+    <span>Dibuat oleh: <strong>{{ $transfer->createdBy->name ?? '-' }}</strong></span>
+    <span>Total: <strong>{{ $transfer->items_count }} barang</strong></span>
 </div>
-@if($transfer->notes)<div class="bg-white border-bottom p-3 mb-3"><span class="small text-muted">Catatan</span><div style="white-space:pre-wrap">{{ $transfer->notes }}</div></div>@endif
-<form method="GET" action="{{ route('inventory.transfers.show',$transfer) }}" class="app-unified-filter d-flex flex-wrap gap-2 align-items-end mb-3" role="search">
-    <div class="app-filter-field flex-grow-1" style="max-width:320px"><label for="transferDetailSearch">Nama Barang</label><input id="transferDetailSearch" name="q" value="{{ $search }}" type="search" class="form-control form-control-sm" placeholder="Cari nama barang..."></div>
+@if($transfer->notes)
+<div class="bg-white border-bottom p-3 mb-3">
+    <span class="small text-muted">Catatan</span>
+    <div style="white-space:pre-wrap">{{ $transfer->notes }}</div>
+</div>
+@endif
+{{-- Mencari nama barang dalam transfer ini. --}}
+<form method="GET" action="{{ route('inventory.transfers.show',$transfer) }}"
+    class="app-unified-filter d-flex flex-wrap gap-2 align-items-end mb-3" role="search">
+    <div class="app-filter-field flex-grow-1" style="max-width:320px">
+        <label for="transferDetailSearch">Nama Barang</label>
+        <input id="transferDetailSearch" name="q" value="{{ $search }}" type="search"
+            class="form-control form-control-sm" placeholder="Cari nama barang...">
+    </div>
     <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-    @if($search!=='')<a href="{{ route('inventory.transfers.show',$transfer) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>@endif
+    @if($search!=='')
+    <a href="{{ route('inventory.transfers.show',$transfer) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset
+    </a>
+    @endif
 </form>
 <div class="card table-card">
     <div class="table-responsive app-table-scroll" tabindex="0" role="region" aria-label="Daftar barang transfer">
         <table class="table table-hover align-middle mb-0" style="min-width:600px">
-            <thead><tr><th>Barang</th><th>Satuan Transfer</th><th class="text-end">Jumlah</th><th>Kedaluwarsa</th></tr></thead>
-            <tbody>@forelse($items as $item)<tr><td class="fw-semibold">{{ $item->product->name }}</td><td>{{ $item->productUnit?->unit?->name ?? $item->product->buyUnit->name }}</td><td class="text-end">{{ $item->product->displayStock((float)$item->quantity) }}</td>
-                <td>
-                    @forelse($item->expiry_details ?? [] as $detail)
+            <thead>
+                <tr>
+                    <th>Barang</th>
+                    <th>Satuan Transfer</th>
+                    <th class="text-end">Jumlah</th>
+                    <th>Kedaluwarsa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{-- Menampilkan nama barang, satuan yang dipilih, dan jumlah yang dipindahkan. --}}
+                @forelse($items as $item)
+                <tr>
+                    <td class="fw-semibold">{{ $item->product->name }}</td>
+                    <td>{{ $item->productUnit?->unit?->name ?? $item->product->buyUnit->name }}</td>
+                    <td class="text-end">{{ $item->product->displayStock((float)$item->quantity) }}</td>
+                    <td>
+                        {{-- Menampilkan tanggal kedaluwarsa dan jumlah yang dipindahkan dari setiap batch. --}}
+                        @forelse($item->expiry_details ?? [] as $detail)
                         <div class="small text-muted mb-1">
-                            <span class="badge bg-light text-secondary">Kedaluwarsa {{ $detail['expired_date'] ? \Carbon\Carbon::parse($detail['expired_date'])->format('d/m/Y') : '-' }}</span>
+                            <span class="badge bg-light text-secondary">
+                                Kedaluwarsa {{ $detail['expired_date']
+                                    ? \Carbon\Carbon::parse($detail['expired_date'])->format('d/m/Y')
+                                    : '-' }}
+                            </span>
                             <span>{{ $item->product->displayStock((float)$detail['quantity']) }}</span>
                         </div>
-                    @empty
-                        <span class="small text-muted">{{ $item->expiry_details === null && $item->product->is_expirable ? 'Rincian kedaluwarsa belum tercatat.' : '-' }}</span>
-                    @endforelse
-                </td>
-            </tr>
-            @empty<tr><td colspan="4" class="text-center text-muted py-4">{{ $search!=='' ? 'Tidak ada barang yang sesuai pencarian.' : 'Belum ada barang dalam transfer ini.' }}</td></tr>@endforelse</tbody>
+                        @empty
+                        <span class="small text-muted">
+                            {{ $item->expiry_details === null && $item->product->is_expirable
+                                ? 'Rincian kedaluwarsa belum tercatat.' : '-' }}
+                        </span>
+                        @endforelse
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        {{ $search!==''
+                            ? 'Tidak ada barang yang sesuai pencarian.'
+                            : 'Belum ada barang dalam transfer ini.' }}
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
         </table>
     </div>
     <div class="card-footer bg-white">{{ $items->links() }}</div>

@@ -8,6 +8,7 @@
 .transfer-items-table td { overflow-wrap:anywhere; }
 </style>
 @endpush
+{{-- Satu modal digunakan bergantian untuk rincian transfer yang dipilih pengguna. --}}
 <div class="modal fade" id="transferItemsModal" tabindex="-1" aria-labelledby="transferItemsTitle" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
         <div class="modal-header"><div><h5 class="modal-title fs-6" id="transferItemsTitle">Rincian Barang</h5><div id="transferItemsContext" class="small text-muted mt-1"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button></div>

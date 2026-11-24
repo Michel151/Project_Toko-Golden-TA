@@ -26,6 +26,7 @@
     </a> @endif
 </div>
 <div class="bg-white border-bottom p-3 mb-3">
+    {{-- Memilih pencarian, tanggal, dan lokasi untuk menyaring daftar transfer. --}}
     <form class="app-unified-filter transfer-filter-grid" method="GET" id="transferFilterForm">
         @if(request('product_id'))
         <input type="hidden" name="product_id" value="{{ request('product_id') }}">
@@ -66,16 +67,32 @@
                 </tr>
             </thead>
             <tbody>
+                {{-- Menampilkan daftar transfer beserta tombol untuk melihat barang yang dipindahkan. --}}
                 @forelse($transfers as $transfer)
                 <tr>
                     <td class="fw-semibold">{{ $transfer->transfer_number }}</td>
-                    <td><button type="button" class="btn btn-sm btn-outline-success transfer-items-open" data-bs-toggle="modal" data-bs-target="#transferItemsModal" data-transfer-id="{{ $transfer->id }}" data-transfer-number="{{ $transfer->transfer_number }}" data-transfer-context="{{ $transfer->fromLocation->name }} &rarr; {{ $transfer->toLocation->name }} | {{ $transfer->transfer_date->format('d/m/Y') }}" aria-label="Rincian barang {{ $transfer->transfer_number }}"><i class="bi bi-list-ul me-1" aria-hidden="true"></i>{{ number_format($transfer->items->count(), 0, ',', '.') }} barang<i class="bi bi-chevron-right ms-2" aria-hidden="true"></i></button></td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-success transfer-items-open"
+                            data-bs-toggle="modal" data-bs-target="#transferItemsModal"
+                            data-transfer-id="{{ $transfer->id }}"
+                            data-transfer-number="{{ $transfer->transfer_number }}"
+                            data-transfer-context="{{ $transfer->fromLocation->name }} &rarr; {{ $transfer->toLocation->name }} | {{ $transfer->transfer_date->format('d/m/Y') }}"
+                            aria-label="Rincian barang {{ $transfer->transfer_number }}">
+                            <i class="bi bi-list-ul me-1" aria-hidden="true"></i>
+                            {{ number_format($transfer->items->count(), 0, ',', '.') }} barang
+                            <i class="bi bi-chevron-right ms-2" aria-hidden="true"></i>
+                        </button>
+                    </td>
                     <td><span class="badge bg-danger bg-opacity-10 text-danger">{{ $transfer->fromLocation->name }}</span></td>
                     <td><span class="badge bg-success bg-opacity-10 text-success">{{ $transfer->toLocation->name }}</span></td>
                     <td>{{ $transfer->transfer_date->format('d/m/Y') }}</td>
                     <td class="text-muted small">{{ $transfer->createdBy->name ?? '-' }}</td>
                     <td class="text-center">
-                        <a href="{{ route('inventory.transfers.show', $transfer) }}" class="btn btn-sm btn-outline-info py-0 px-2" title="Detail transfer" aria-label="Detail {{ $transfer->transfer_number }}"><i class="bi bi-eye"></i></a>
+                        <a href="{{ route('inventory.transfers.show', $transfer) }}"
+                            class="btn btn-sm btn-outline-info py-0 px-2"
+                            title="Detail transfer" aria-label="Detail {{ $transfer->transfer_number }}">
+                            <i class="bi bi-eye"></i>
+                        </a>
                     </td>
                 </tr>
                 @empty
@@ -98,6 +115,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const resetFilter = document.getElementById('transferResetFilter');
     const tableWrap = document.getElementById('transferTableWrap');
 
+    // Membuat alamat pencarian berdasarkan isian filter, termasuk tanggal yang dikosongkan.
     function buildUrl() {
         const formData = new FormData(form);
         const params = new URLSearchParams();
@@ -113,6 +131,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return `${action}${query ? `?${query}` : ''}`;
     }
 
+    // Mengambil hasil pencarian dari server dan memperbarui tabel transfer.
     async function fetchTransfers(url, focusTable = false) {
         tableWrap.style.opacity = '0.55';
 
@@ -147,12 +166,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Menerapkan filter tanpa memuat ulang seluruh halaman.
     form?.addEventListener('submit', function (event) {
         event.preventDefault();
         fetchTransfers(buildUrl());
     });
 
 
+    // Menampilkan halaman daftar berikutnya tanpa memuat ulang seluruh halaman.
     tableWrap?.addEventListener('click', function (event) {
         const pageLink = event.target.closest('.pagination a');
         if (!pageLink) return;

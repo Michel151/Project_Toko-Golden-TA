@@ -198,15 +198,14 @@ class StockService
         }
     }
 
-    /**
-     * Pindah stok antar lokasi.
-     * quantity dalam satuan yang tersimpan di stocks (ecer atau beli).
-     */
+    // Mengurangi stok asal, menambah stok tujuan, dan mencatat kedua mutasinya.
     public function transferStock(Product $product, Location $from, Location $to, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null): array
     {
         return DB::transaction(function () use ($product, $from, $to, $quantity, $reference, $movementDate, $referenceNumber) {
+            // Mengunci pengaturan biaya dan menyiapkan saldo biaya sebelum perubahan stok.
             $this->costs->lock();
             $this->costs->prepare($product);
+            // Mengunci stok asal agar pengecekan dan pengurangan tidak memakai saldo lama bersamaan.
             $stockFrom = Stock::where('product_id', $product->id)
                             ->where('location_id', $from->id)
                             ->lockForUpdate()
@@ -218,14 +217,17 @@ class StockService
 
             $fromBalanceBefore = (float) $stockFrom->quantity;
 
+            // Jika barang memiliki batch kedaluwarsa, pindahkan batch layak jual dari asal ke tujuan.
             $expiryDetails = $product->is_expirable
                 ? $this->transferBatches($product, $from, $to, $quantity, $movementDate) : [];
 
             $stockFrom->quantity = $stockFrom->quantity - $quantity;
             $stockFrom->save();
 
+            // Menambah stok tujuan dan mengambil saldo sebelum penambahan untuk riwayat mutasi.
             $toBalanceBefore = $this->increaseAggregateStock($product, $to, $quantity);
 
+            // Mencatat keluar negatif di asal dan masuk positif di tujuan; total stok tetap.
             $this->recordMovement($product, $from, 'transfer_out', -$quantity, $fromBalanceBefore, $reference, $movementDate, $referenceNumber, "Transfer ke {$to->name}");
             $this->recordMovement($product, $to, 'transfer_in', $quantity, $toBalanceBefore, $reference, $movementDate, $referenceNumber, "Transfer dari {$from->name}");
             return $expiryDetails;
@@ -396,11 +398,13 @@ class StockService
         return $deductions;
     }
 
+    // Memindahkan batch layak dengan urutan kedaluwarsa terdekat dan mengembalikan rinciannya.
     private function transferBatches(Product $product, Location $from, Location $to, float $quantity, $movementDate): array
     {
         $remaining = $quantity;
         $details = [];
 
+        // batch tanpa tanggal ditempatkan setelah batch bertanggal.
         $batches = StockBatch::where('product_id', $product->id)
             ->where('location_id', $from->id)
             ->sellable()
@@ -417,10 +421,12 @@ class StockService
             }
 
             $available = (float) $batch->quantity_remaining;
+            // Mengambil paling banyak sejumlah isi batch atau kebutuhan yang masih tersisa.
             $used = min($available, $remaining);
             $batch->quantity_remaining = $available - $used;
             $batch->save();
 
+            // Membuat batch tujuan dengan asal penerimaan, kode, dan kedaluwarsa yang sama.
             StockBatch::create([
                 'product_id' => $product->id,
                 'location_id' => $to->id,
@@ -432,6 +438,7 @@ class StockService
                 'quantity_remaining' => $used,
             ]);
 
+            // Mencatat ID batch asal dan jumlah yang dipindahkan 
             $details[] = [
                 'stock_batch_id' => $batch->id,
                 'expired_date' => $batch->expired_date?->toDateString(),
@@ -441,6 +448,7 @@ class StockService
             $remaining -= $used;
         }
 
+        // Jika batch tidak cukup, exception membatalkan perubahan melalui transaksi pemanggil.
         if ($remaining > 0.00001) {
             throw new \Exception("Stok layak transfer tidak mencukupi di {$from->name} untuk produk {$product->name}. Periksa barang kedaluwarsa atau batch stok.");
         }

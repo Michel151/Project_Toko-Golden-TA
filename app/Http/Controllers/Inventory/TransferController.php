@@ -15,6 +15,7 @@ class TransferController extends Controller
 {
     public function __construct(protected StockService $stockService) {}
 
+    // Menampilkan daftar transfer sesuai periode, lokasi, barang, dan pencarian.
     public function index(Request $request)
     {
         ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
@@ -35,6 +36,7 @@ class TransferController extends Controller
         if ($request->filled('product_id')) {
             $query->whereHas('items', fn ($q) => $q->where('product_id', $request->product_id));
         }
+        // Pencarian dapat mencocokkan nomor, catatan, barang, lokasi, atau pencatat.
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -54,13 +56,15 @@ class TransferController extends Controller
         return view('inventory.transfers.index', compact('transfers', 'products', 'locations', 'from', 'to'));
     }
 
+    // Menyiapkan lokasi dan barang aktif untuk form transfer baru.
     public function create()
     {
         $locations  = Location::orderBy('name')->get();
         $products   = Product::with(['buyUnit', 'retailUnit', 'stocks.location', 'stockBatches', 'category', 'productUnits.unit'])
-                            ->active()
-                            ->orderBy('name')->get();
+            ->active()
+            ->orderBy('name')->get();
 
+        // Menyusun data satuan dan stok per lokasi agar dapat digunakan JavaScript form.
         $productsJson = $products->map(function($p) {
             return [
                 'id'                => $p->id,
@@ -106,6 +110,7 @@ class TransferController extends Controller
         return view('inventory.transfers.form', compact('locations', 'products', 'productsJson'));
     }
 
+    // Memeriksa isian form, menyimpan transfer, dan memindahkan stok setiap barang.
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -127,6 +132,7 @@ class TransferController extends Controller
             'items.*.to_location_id.prohibited' => 'Semua barang harus memakai lokasi tujuan pada informasi transfer.',
         ]);
 
+        // Memastikan satuan yang dikirim benar-benar milik barang pada setiap rincian.
         $products = Product::with('productUnits')->whereIn('id', array_column($data['items'], 'product_id'))->get()->keyBy('id');
         foreach ($data['items'] as $index => $item) {
             if (! $products[$item['product_id']]->productUnits->firstWhere('id', (int) $item['product_unit_id'])) {
@@ -136,13 +142,14 @@ class TransferController extends Controller
             }
         }
 
+        // Jika salah satu barang gagal dipindahkan, seluruh perubahan transfer dibatalkan.
         DB::transaction(function () use ($data, $products) {
             $from = Location::findOrFail($data['from_location_id']);
             $to = Location::findOrFail($data['to_location_id']);
             $first = $data['items'][array_key_first($data['items'])];
             $firstUnit = $products[$first['product_id']]->productUnits->firstWhere('id', (int) $first['product_unit_id']);
 
-            // Keep the legacy single-product columns for existing integrations.
+            // Menyimpan barang pertama pada kolom lama agar bagian program lama tetap dapat membacanya.
             $transfer = StockTransfer::create([
                 'transfer_number'  => StockTransfer::generateTransferNumber(),
                 'product_id'       => $first['product_id'],
@@ -158,16 +165,19 @@ class TransferController extends Controller
             foreach ($data['items'] as $index => $item) {
                 $product = $products[$item['product_id']];
                 $unit = $product->productUnits->firstWhere('id', (int) $item['product_unit_id']);
+                // Mengubah jumlah pilihan pengguna menjadi satuan dasar sebelum memindahkan stok.
                 $quantity = (float) $item['quantity'] * (float) $unit->conversion_to_base;
                 $transferItem = $transfer->items()->create([
                     'product_id' => $product->id,
                     'product_unit_id' => $unit->id,
                     'quantity' => $quantity,
                 ]);
+                // Memindahkan stok dan menyimpan rincian batch yang digunakan jika barang berkedaluwarsa.
                 try {
                     $expiryDetails = $this->stockService->transferStock($product, $from, $to, $quantity, $transfer, $transfer->transfer_date, $transfer->transfer_number);
                     $transferItem->update(['expiry_details' => $expiryDetails]);
                 } catch (\Exception $exception) {
+                    // Meneruskan kesalahan database atau menampilkan pesan kegagalan pada jumlah barang.
                     if ($exception instanceof \Illuminate\Database\QueryException) {
                         throw $exception;
                     }
@@ -180,6 +190,7 @@ class TransferController extends Controller
                          ->with('success', 'Transfer stok berhasil dicatat.');
     }
 
+    // Mengirim stok terbaru barang terpilih pada lokasi asal untuk pemeriksaan form.
     public function availability(Request $request)
     {
         $data = $request->validate([
@@ -197,10 +208,13 @@ class TransferController extends Controller
         ])->header('Cache-Control', 'no-store, private');
     }
 
+
+    // Menampilkan satu dokumen transfer dan rincian barang sesuai pencarian.
     public function show(Request $request, StockTransfer $transfer)
     {
         $filters = $request->validate(['q'=>'nullable|string|max:150']);
         $search = trim($filters['q'] ?? '');
+        // Menghitung seluruh barang dalam transfer untuk ditampilkan pada informasi dokumen.
         $transfer->load(['fromLocation', 'toLocation', 'createdBy'])->loadCount('items');
         $items = $transfer->items()->with(['product.buyUnit', 'product.retailUnit', 'product.productUnits.unit', 'productUnit.unit'])
             ->when($search !== '', fn ($query) => $query->whereHas('product', fn ($products) => $products->where('name', 'like', '%'.$search.'%')))
@@ -214,11 +228,13 @@ class TransferController extends Controller
         return back()->with('error', 'Transfer tidak bisa diedit.');
     }
 
+    // Menolak perubahan transfer yang sudah tercatat.
     public function update(Request $request, StockTransfer $transfer)
     {
         return back()->with('error', 'Transfer tidak bisa diedit.');
     }
 
+    // Menolak penghapusan transfer agar catatan perpindahan stok tetap utuh.
     public function destroy(StockTransfer $transfer)
     {
         return back()->with('error', 'Transfer tidak bisa dihapus untuk menjaga integritas stok.');

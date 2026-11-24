@@ -3,20 +3,24 @@
 const config = window.stockTransferConfig;
 const products = config.products;
 let activeCatalogCategory = 'all';
+// Menyimpan daftar barang yang akan ditransfer, termasuk isian sebelumnya jika ada.
 const transferItems = Array.isArray(config.items) ? config.items : Object.values(config.items || {});
 const fromLocation = document.getElementById('fromLocation');
 const toLocation = document.getElementById('toLocation');
+// Menyimpan lokasi asal yang sudah disetujui untuk digunakan pada form.
 let acceptedSource = fromLocation.value;
 let busy = false;
 let stockError = '';
 let sourceNotice = '';
 const numberFormat = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 });
 
+// Mengambil jumlah stok yang boleh ditransfer dari lokasi asal.
 function stockAt(product, locationId = acceptedSource) {
     const stock = product.stocks.find(s => String(s.location_id) === String(locationId));
     return Math.max(0, Number(stock ? (product.is_expirable ? stock.sellable_quantity : stock.quantity) : 0));
 }
 
+// Memeriksa barang, satuan, jumlah, dan kecukupan stok lalu memberikan pesan jika ada masalah.
 function itemProblem(item) {
     const product = products.find(p => p.id == item.product_id);
     if (!product) return 'Barang sudah tidak aktif atau tidak tersedia.';
@@ -34,6 +38,7 @@ function itemProblem(item) {
     return '';
 }
 
+// Mengaktifkan tombol Simpan jika lokasi sudah benar, ada barang, dan tidak ada masalah stok.
 function updateTransferState() {
     const invalid = transferItems.filter(item => itemProblem(item)).length;
     const validRoute = acceptedSource && toLocation.value && acceptedSource !== toLocation.value;
@@ -53,6 +58,7 @@ function updateTransferState() {
     document.getElementById('retryTransferStock').classList.toggle('d-none', !stockError);
 }
 
+// Mencegah lokasi tujuan sama dengan asal dan mengosongkan tujuan jika perlu.
 function updateDestinationOptions() {
     for (const option of toLocation.options) option.disabled = !!option.value && option.value === acceptedSource;
     if (toLocation.value && toLocation.value === acceptedSource) {
@@ -60,7 +66,7 @@ function updateDestinationOptions() {
         sourceNotice = 'Pilih ulang lokasi tujuan karena sama dengan lokasi asal yang baru.';
     }
 }
-
+// Memeriksa stok di lokasi asal yang baru tanpa mengubah jumlah dan satuan barang.
 async function refreshSource(locationId) {
     if (busy) return;
     const ids = [...new Set(transferItems.map(item => Number(item.product_id)))];
@@ -105,12 +111,14 @@ async function refreshSource(locationId) {
     }
 }
 
+// Mengamankan karakter teks sebelum dimasukkan ke HTML buatan JavaScript.
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, char => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
     })[char]);
 }
 
+// Mengubah jumlah dasar menjadi tulisan satuan barang yang mudah dibaca.
 function formatStok(rawQty, product) {
     if (product.product_units && product.product_units.length) {
         const units = [...product.product_units].sort((a, b) => b.conversion_to_base - a.conversion_to_base);
@@ -141,14 +149,15 @@ function formatStok(rawQty, product) {
     return `${rawQty.toFixed(2)} ${product.unit_name_buy}`;
 }
 
+// Mengambil jumlah stok yang ditampilkan pada pilihan barang.
 function productStockTotal(product) {
     return stockAt(product);
 }
-
+// Mengambil daftar produk yang memiliki stok layak transfer di lokasi asal
 function sourceProducts() {
     return acceptedSource ? products.filter(product => stockAt(product) > 0) : [];
 }
-
+// Memperbarui pilihan barang sesuai stok di lokasi asal yang dipilih.
 function updateSourceProducts() {
     const selected = products.find(product => product.id == document.getElementById('productSelect').value);
     if (selected && (!acceptedSource || stockAt(selected) <= 0)) {
@@ -165,6 +174,7 @@ function updateSourceProducts() {
         : 'Pilih lokasi asal terlebih dahulu.';
 }
 
+// Mencari barang berdasarkan nama atau barcode dari stok yang tersedia di lokasi asal.
 function matchingProducts(query, limit = 8) {
     const keyword = query.trim().toLowerCase();
     const available = sourceProducts();
@@ -178,12 +188,14 @@ function matchingProducts(query, limit = 8) {
     return matches.slice(0, limit);
 }
 
+// Menutup dan membersihkan daftar hasil pencarian barang.
 function closeProductResults() {
     const productResults = document.getElementById('productResults');
     productResults.classList.add('d-none');
     productResults.innerHTML = '';
 }
 
+// Menampilkan pilihan barang yang cocok dengan pencarian.
 function renderProductResults() {
     const productSearch = document.getElementById('productSearch');
     const productResults = document.getElementById('productResults');
@@ -203,6 +215,7 @@ function renderProductResults() {
     `).join('');
 }
 
+// Menyimpan ID barang pilihan lalu memperbarui satuan dan informasi stoknya.
 function chooseProduct(product) {
     const productSelect = document.getElementById('productSelect');
     const productSearch = document.getElementById('productSearch');
@@ -215,6 +228,7 @@ function chooseProduct(product) {
     productSelect.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+// Membatalkan pilihan barang dan meminta pengguna memilih kembali dari daftar pencarian.
 function clearProductSelection() {
     const productSelect = document.getElementById('productSelect');
     const productSearch = document.getElementById('productSearch');
@@ -223,6 +237,7 @@ function clearProductSelection() {
     productSelect.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+// Memilih barang jika teks sama persis dengan nama atau barcode yang tersedia di asal.
 function selectProductFromSearch() {
     const productSearch = document.getElementById('productSearch');
     const query = productSearch.value.trim().toLowerCase();
@@ -238,6 +253,7 @@ function selectProductFromSearch() {
     }
 }
 
+// Menampilkan pilihan satuan, jumlah stok, dan isi per satuan untuk barang yang dipilih.
 function updateStockInfo() {
     const productId  = document.getElementById('productSelect').value;
     const locationId = document.getElementById('fromLocation').value;
@@ -297,6 +313,7 @@ function updateStockInfo() {
     updateQuantityLimit();
 }
 
+// Menghitung jumlah maksimal yang bisa ditransfer sesuai stok dan satuan yang dipilih.
 function updateQuantityLimit() {
     const product = products.find(p => p.id == document.getElementById('productSelect').value);
     const stock = product?.stocks.find(s => s.location_id == document.getElementById('fromLocation').value);
@@ -311,6 +328,7 @@ function updateQuantityLimit() {
     qtyInput.step = '1';
 }
 
+// Membuat tombol kategori dari barang yang tersedia di lokasi asal.
 function renderCatalogCategories() {
     const categories = [...new Map(sourceProducts().map(product => [
         String(product.category_id ?? 'uncategorized'),
@@ -325,6 +343,7 @@ function renderCatalogCategories() {
     ].join('');
 }
 
+// Menampilkan kartu barang sesuai kategori, pencarian, dan stok asal.
 function renderCatalogProducts() {
     const query = document.getElementById('catalogSearch').value.trim().toLowerCase();
     const filtered = sourceProducts().filter(product => {
@@ -415,6 +434,7 @@ document.getElementById('catalogProducts').addEventListener('click', function(ev
 });
 
 document.getElementById('productSelect').addEventListener('change', updateStockInfo);
+// Meminta konfirmasi jika sudah ada rincian sebelum mencoba mengganti lokasi asal.
 fromLocation.addEventListener('change', async () => {
     const candidate = fromLocation.value;
     fromLocation.value = acceptedSource;
@@ -448,6 +468,7 @@ if (initialProduct) {
 }
 updateStockInfo();
 
+// Menandai barang yang bermasalah dan menampilkan pesan kesalahannya.
 function validateTransferRows() {
     document.querySelectorAll('#transferItems tr[data-index]').forEach(row => {
         const item = transferItems[Number(row.dataset.index)];
@@ -460,6 +481,7 @@ function validateTransferRows() {
     updateTransferState();
 }
 
+// Menampilkan daftar barang beserta jumlah, satuan, dan tombol hapus.
 function renderTransferItems() {
     document.getElementById('transferItems').innerHTML = transferItems.map((item, index) => {
         const product = products.find(p => p.id == item.product_id);
@@ -480,6 +502,7 @@ function renderTransferItems() {
     validateTransferRows();
 }
 
+// Menambahkan barang ke daftar setelah memeriksa pilihan, jumlah, satuan, dan barang yang sudah ada.
 function addTransferItem() {
     if (busy || !acceptedSource || !toLocation.value || toLocation.value === acceptedSource) return false;
     if (transferItems.length >= 100) {
@@ -535,6 +558,7 @@ document.getElementById('transferItems').addEventListener('click', event => {
     transferItems.splice(Number(button.closest('[data-index]').dataset.index), 1);
     renderTransferItems();
 });
+// Mencegah penyimpanan jika pemeriksaan stok gagal atau masih ada barang yang bermasalah.
 document.getElementById('transferForm').addEventListener('submit', event => {
     if (busy || stockError || transferItems.some(item => itemProblem(item))) {
         event.preventDefault(); validateTransferRows(); return;

@@ -1,3 +1,4 @@
+{{-- Menyimpan rincian setiap transfer sebagai template tersembunyi yang bisa disalin ke modal. --}}
 @foreach($transfers as $transfer)
 <template id="transfer-items-{{ $transfer->id }}">
     @foreach($transfer->items as $item)
