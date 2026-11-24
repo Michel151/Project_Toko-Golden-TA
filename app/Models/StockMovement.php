@@ -24,11 +24,13 @@ class StockMovement extends Model
     public function createdBy() { return $this->belongsTo(User::class, 'created_by'); }
     public function reference() { return $this->morphTo(); }
 
+    // Mengutamakan label khusus kartu stok jika ada, lalu memakai label jenis biasa.
     public function getCardTypeLabelAttribute(?string $value): string
     {
         return $value ?? $this->type_label;
     }
 
+    // Mengubah kode mutasi menjadi nama transaksi yang mudah dibaca.
     public function getTypeLabelAttribute(): string
     {
         return match ($this->movement_type) {

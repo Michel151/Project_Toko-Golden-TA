@@ -1,6 +1,7 @@
 @extends('report.pdf.layout')
 @section('report-header-centered', '1')
 @php
+    // Menyiapkan identitas barang, lokasi, dan keterangan filter laporan.
     $reportMetadata = ['Barang: '.$product->name.' | Kategori: '.($product->category->name ?? '-'),
         'Lokasi: '.($locationId ? ($locations->firstWhere('id',$locationId)?->name ?? '-') : 'Semua Lokasi')];
     if (request()->filled('movement_type') || request()->filled('direction')) {
@@ -13,6 +14,7 @@
 Periode {{ date('d/m/Y',strtotime($from)) }} s.d. {{ date('d/m/Y',strtotime($to)) }}
 @endsection
 @section('report-body')
+{{-- Ringkasan memakai seluruh mutasi lokasi dan periode, bukan hanya jenis yang ditampilkan. --}}
 <table class="summary"><tr>
     <td><div class="label">SALDO AWAL</div><div class="value">{{ $product->displayStock($openingBalance) }}</div></td>
     <td><div class="label">BARANG MASUK</div><div class="value">{{ $product->displayStock($totalIn) }}</div></td>
@@ -20,6 +22,7 @@ Periode {{ date('d/m/Y',strtotime($from)) }} s.d. {{ date('d/m/Y',strtotime($to)
     <td><div class="label">SALDO AKHIR</div><div class="value">{{ $product->displayStock($closingBalance) }}</div></td>
 </tr></table>
 <table class="data compact"><thead><tr><th style="width:9%">Tanggal</th><th style="width:15%">Referensi</th><th style="width:22%">Keterangan</th><th style="width:10%">Lokasi</th><th style="width:12%">Petugas</th><th class="right" style="width:10%">Masuk</th><th class="right" style="width:10%">Keluar</th><th class="right" style="width:12%">Saldo</th></tr></thead><tbody>
+{{-- Menampilkan semua hasil filter karena pagination dimatikan saat ekspor. --}}
 @forelse($movements as $movement)
     @php $quantity=(float)$movement->quantity; @endphp
     <tr><td>{{ $movement->movement_date->format('d/m/Y') }}</td><td>{{ $movement->reference_number ?? '-' }}</td><td>{{ $movement->card_type_label }}{{ $movement->notes ? ' - '.$movement->notes : '' }}</td><td>{{ $movement->location?->name ?? '-' }}</td><td>{{ $movement->createdBy->name ?? 'Sistem' }}</td><td class="right">{{ $quantity>0 ? $product->displayStock($quantity) : '-' }}</td><td class="right">{{ $quantity<0 ? $product->displayStock(abs($quantity)) : '-' }}</td><td class="right">{{ $product->displayStock((float)$movement->card_balance) }}</td></tr>

@@ -1,3 +1,4 @@
+{{-- Setiap baris mewakili satu batch yang perlu ditindaklanjuti, bukan satu jenis barang. --}}
 <section class="bg-white border-top p-3" aria-labelledby="priority-heading">
     <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
         <div><h6 class="fw-bold mb-1" id="priority-heading">Perlu Ditindaklanjuti</h6><div class="small text-muted">{{ $priorityCount }} rincian kedaluwarsa sesuai filter &middot; Urutan tanggal kedaluwarsa terdekat</div></div>
@@ -8,6 +9,7 @@
             <tbody>
             @forelse($priorityBatches as $batch)
                 @php
+                    // Menentukan status dan saran tindakan berdasarkan tanggal kedaluwarsa batch.
                     $expired = $batch->expired_date && $batch->expired_date->lt(today());
                     $todayExpiry = $batch->expired_date && $batch->expired_date->isToday();
                     $tone = \App\Support\ExpiryStatus::badge($batch->expiry_status);

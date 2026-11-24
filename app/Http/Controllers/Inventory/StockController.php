@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 
 class StockController extends Controller
 {
+    // Menyiapkan ringkasan stok, daftar barang, dan batch yang perlu ditindaklanjuti.
     public function index(Request $request)
     {
         $request->validate([
@@ -25,6 +26,7 @@ class StockController extends Controller
         $locations  = Location::orderBy('name')->get();
         $categories = \App\Models\Category::orderBy('name')->get();
 
+        // Ringkasan seluruh barang tidak mengikuti filter daftar; nilai persediaan hanya untuk owner.
         $canViewInventoryValue = $request->user()->isOwner();
         $allProducts = Product::with(['stocks', 'stockBatches', 'productUnits.unit'])
             ->when($canViewInventoryValue, fn ($query) => $query->with('costBalance'))->get();
@@ -42,6 +44,7 @@ class StockController extends Controller
             return $product->inventoryValue();
         }) : null;
 
+        // Memuat data barang dan batch bersisa untuk tabel persediaan.
         $query = Product::with([
             'buyUnit',
             'retailUnit',
@@ -57,6 +60,7 @@ class StockController extends Controller
                 ->orderBy('received_date'),
         ]);
 
+        // Menyaring daftar barang berdasarkan pilihan pengguna.
         if ($request->filled('product_id')) $query->whereKey($request->integer('product_id'));
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->search . '%');
@@ -70,6 +74,7 @@ class StockController extends Controller
                   ->where('quantity', '>', 0);
             });
         }
+        // Memilih barang yang memiliki batch sesuai status kedaluwarsa.
         if ($request->filled('expiry_status')) {
             $batchFilter = function ($q) use ($request) {
                 $q->where('quantity_remaining', '>', 0);
@@ -97,6 +102,7 @@ class StockController extends Controller
             if (in_array($request->expiry_status, ['expired', 'expiry_today', 'expiry_urgent', 'expiring', 'safe', 'without_date'], true)) {
                 $query->whereHas('stockBatches', $batchFilter);
 
+                // Barang aman tidak boleh memiliki batch bertanggal yang berisiko dalam 90 hari.
                 if ($request->expiry_status === 'safe') {
                     $query->whereDoesntHave('stockBatches', function ($q) use ($request) {
                         $q->where('quantity_remaining', '>', 0)
@@ -112,6 +118,7 @@ class StockController extends Controller
                 $query->where('is_expirable', false);
             }
         }
+        // Status stok memakai total layak jual semua lokasi.
         if ($request->filled('status')) {
             $stockTotalSql = '(CASE WHEN products.is_expirable = 1 THEN
                 (SELECT COALESCE(SUM(stock_batches.quantity_remaining), 0) FROM stock_batches
@@ -128,6 +135,7 @@ class StockController extends Controller
             }
         }
 
+        // Mengambil batch berisiko atau belum bertanggal dari barang hasil filter.
         $priorityQuery = StockBatch::with(['location', 'product.buyUnit', 'product.retailUnit', 'product.productUnits.unit'])
             ->whereIn('product_id', (clone $query)->select('products.id')->reorder())
             ->whereHas('product', fn ($q) => $q->where('is_expirable', true))
@@ -144,6 +152,7 @@ class StockController extends Controller
                 'safe', 'untracked' => $priorityQuery->whereRaw('1 = 0'),
             };
         }
+        // Menghitung jumlah batch prioritas dan menyiapkan hasil 25 baris per halaman.
         $priorityCount = (clone $priorityQuery)->count();
         $priorityBatches = $request->view === 'priorities'
             ? $priorityQuery->orderByRaw('expired_date IS NULL')->orderBy('expired_date')->orderBy('id')->paginate(25)->withQueryString()

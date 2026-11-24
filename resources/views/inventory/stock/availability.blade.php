@@ -1,3 +1,4 @@
+{{-- Menampilkan stok fisik, layak jual, dan kedaluwarsa saat ini di semua lokasi. --}}
 @php $availability = $product->stockAvailability(); @endphp
 <div class="d-flex flex-wrap gap-4 bg-white border-top p-3 mb-3">
     <div><div class="small text-muted">Stok Fisik</div><strong>{{ $product->displayStock($availability['physical']) }}</strong></div>

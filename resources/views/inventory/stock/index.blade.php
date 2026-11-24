@@ -23,7 +23,9 @@
 @section('content')
 @php
     $canTransferStock = auth()->user()->hasPermission('inventory.transfers.create');
+    // Mengubah angka stok menjadi tulisan satuan barang.
     $fmtStock = static fn ($qty, $product) => $product->displayStock((float) $qty);
+    // Menampilkan daftar satuan dari ukuran terbesar ke terkecil.
     $fmtUnits = static function ($product) {
         if ($product->productUnits->isNotEmpty()) {
             return $product->productUnits
@@ -43,6 +45,7 @@
     <div class="small text-white-50"><i class="bi bi-clock me-1"></i>Diperbarui {{ now()->format('H:i') }}</div>
 </div>
 
+{{-- Ringkasan ini mencakup seluruh barang meskipun daftar di bawah sedang difilter. --}}
 <div class="row g-3 mb-3">
     <div class="col-6 col-xl">
         <div class="card stock-stat h-100" style="--accent:#0d6efd;--soft:#eaf2ff">
@@ -115,6 +118,7 @@
         <span class="badge bg-light text-dark ms-1">{{ $priorityCount }}</span>
     </a>
 </nav>
+{{-- Mengirim filter melalui URL agar tetap tersedia saat pindah halaman. --}}
 <div class="mb-3">
     <form class="app-unified-filter app-filter-bar" method="GET">
         @if(request('view') === 'priorities')<input type="hidden" name="view" value="priorities">@endif
@@ -179,6 +183,7 @@
     </form>
 </div>
 
+{{-- Memilih tabel persediaan atau daftar batch yang perlu ditindaklanjuti. --}}
 @if(request('view') === 'priorities')
     @include('inventory.stock.priorities')
 @else
@@ -212,6 +217,7 @@
         <tbody>
         @forelse($products as $product)
             @php
+                // Status barang memakai stok layak jual; stok fisik ditampilkan terpisah.
                 $availability=$product->stockAvailability(); $total=$availability['sellable']; $minimum=(float)$product->min_stock_total;
                 $isOut=$total<=0; $isLow=$total<=$minimum; $progress=$minimum>0?min(100,($total/$minimum)*100):100;
                 $expiredBatches=$product->stockBatches->filter(fn($batch)=>$batch->expired_date&&$batch->expired_date->lt(today()));
@@ -231,6 +237,7 @@
                 <td><span class="badge bg-light text-secondary fw-normal">{{ $product->category->name ?? '-' }}</span></td>
                 @foreach($locations as $location)
                     @php
+                        // Menghitung stok dan minimum barang untuk lokasi pada kolom ini.
                         $atLocation=$product->stockAvailability($location->id);
                         $qty=$atLocation['sellable'];
                         $minLocation=(float)($product->productLocations
@@ -247,6 +254,7 @@
                         @endif
                     </td>
                 @endforeach
+                {{-- Menampilkan jumlah batch berisiko beserta link ke tab Kedaluwarsa. --}}
                 <td class="expiry-cell">
                     @if($expiredBatches->isNotEmpty() || $todayBatches->isNotEmpty() || $urgentBatches->isNotEmpty() || $expiringBatches->isNotEmpty())
                         <div class="expiry-list">

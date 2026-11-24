@@ -1,3 +1,4 @@
+{{-- Nomor PO menjadi link jika pengguna boleh membuka detailnya; tanpa PO tampil tanda strip. --}}
 @if($batchOrder)
     @if(auth()->user()->canAccessRoute('purchase.orders.show'))
         <a class="font-monospace text-nowrap" href="{{ route('purchase.orders.show', $batchOrder) }}">{{ $batchOrder->po_number }}</a>

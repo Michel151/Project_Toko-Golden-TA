@@ -9,6 +9,7 @@ final class ExpiryStatus
     public const WARNING_DAYS = 90;
     public const URGENT_DAYS = 30;
 
+    // Menentukan kode status dari selisih hari terhadap tanggal pembanding atau hari ini.
     public static function classify(?CarbonInterface $date, ?CarbonInterface $reference = null): string
     {
         if (! $date) return 'undated';
@@ -23,6 +24,7 @@ final class ExpiryStatus
         };
     }
 
+    // Mengubah kode status kedaluwarsa menjadi tulisan untuk pengguna.
     public static function label(string $status): string
     {
         return match ($status) {
@@ -35,6 +37,7 @@ final class ExpiryStatus
         };
     }
 
+    // Memilih class warna badge berdasarkan tulisan status kedaluwarsa.
     public static function badge(string $label): string
     {
         return match ($label) {

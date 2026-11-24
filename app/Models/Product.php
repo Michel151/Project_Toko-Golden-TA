@@ -166,7 +166,7 @@ class Product extends Model
         return $query->where('is_active', true);
     }
 
-    // Helper: total stok semua lokasi
+    // Menghitung stok fisik, layak jual, dan kedaluwarsa untuk satu lokasi atau semua lokasi.
     public function stockAvailability(?int $locationId = null): array
     {
         $stocks = $this->stocks->when($locationId !== null, fn ($rows) => $rows->where('location_id', $locationId));
@@ -176,7 +176,7 @@ class Product extends Model
         $physical = (float) $stocks->sum('quantity');
         $expired = $this->is_expirable
             ? (float) $batches->filter(fn ($batch) => $batch->expired_date && $batch->expired_date->lt(today()))->sum('quantity_remaining') : 0.0;
-        // Match the sale engine: undated tracked batches are currently sellable.
+        // Sesuai aturan penjualan, batch tanpa tanggal masih dihitung layak jual.
         $sellable = $this->is_expirable ? (float) $batches
             ->filter(fn ($batch) => ! $batch->expired_date || $batch->expired_date->gte(today()))->sum('quantity_remaining') : $physical;
         return compact('physical', 'sellable', 'expired');

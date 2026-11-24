@@ -26,6 +26,7 @@ class StockCardController extends Controller
 {
     public function __construct(private StockCardPurchaseHistory $purchaseHistory) {}
 
+    // Menampilkan kartu stok beserta link dokumen yang boleh dibuka pengguna.
     public function show(Request $request, Product $product)
     {
         $data = $this->cardData($request, $product);
@@ -34,6 +35,7 @@ class StockCardController extends Controller
         return view('inventory.stock-card.show', $data);
     }
 
+    // Memasang link setelah memeriksa keberadaan dokumen dan izin pengguna.
     private function addReferenceLinks(Collection $rows, User $user): void
     {
         $routes = [
@@ -65,6 +67,7 @@ class StockCardController extends Controller
         }
     }
 
+    // Membuat PDF riwayat sesuai filter tanpa batas 25 baris.
     public function pdf(Request $request, Product $product)
     {
         $data = $this->cardData($request, $product, false);
@@ -72,9 +75,11 @@ class StockCardController extends Controller
         return $pdf->stream('Kartu-Stok-' . str($product->name)->slug() . '-' . date('Y-m-d') . '.pdf');
     }
 
+    // Mengunduh riwayat sesuai filter dalam file Excel.
     public function excel(Request $request, Product $product)
     {
         $data = $this->cardData($request, $product, false);
+        // Mengubah setiap mutasi menjadi delapan kolom Excel.
         $rows = $data['movements']->map(function ($movement) use ($product) {
             $quantity = (float) $movement->quantity;
             return [$movement->movement_date->format('d/m/Y'), $movement->reference_number ?? '-',
@@ -84,6 +89,7 @@ class StockCardController extends Controller
                 $product->displayStock((float) $movement->card_balance)];
         })->all();
         if (! $rows) $rows[] = ['Tidak ada mutasi sesuai filter.', null, null, null, null, null, null, null];
+        // Total memakai hasil perhitungan saldo, bukan penjumlahan teks satuan di Excel.
         $rows[] = ['TOTAL', null, 'Saldo Akhir', null, null, $product->displayStock($data['totalIn']),
             $product->displayStock($data['totalOut']), $product->displayStock($data['closingBalance'])];
         $location = $data['locationId'] ? $data['locations']->firstWhere('id', $data['locationId'])?->name : 'Semua Lokasi';
@@ -95,12 +101,14 @@ class StockCardController extends Controller
             $metadata[] = 'Arah: '.match ($request->direction) { 'in' => 'Masuk', 'out' => 'Keluar', default => 'Masuk & Keluar' };
             $metadata[] = 'Ringkasan dan saldo mencakup seluruh transaksi pada lokasi dan periode terpilih.';
         }
+        // Baris TOTAL sudah disiapkan, sehingga total otomatis dinonaktifkan.
         return Excel::download(new ReportExport('Kartu Stok Barang',
             ['Tanggal','Referensi','Keterangan','Lokasi','Petugas','Masuk','Keluar','Saldo'], $rows, [], [6,7,8], 'Kartu Stok', $metadata,
             showGridlines: true, reportPeriod: 'Periode: '.$data['from'].' s.d. '.$data['to'], includeTotal: false),
             'Kartu-Stok-'.str($product->name)->slug().'-'.$data['from'].'-sd-'.$data['to'].'.xlsx');
     }
 
+    // Menyiapkan filter, riwayat, dan saldo untuk halaman kartu stok maupun ekspor.
     private function cardData(Request $request, Product $product, bool $paginate = true): array
     {
         $movementTypes = [
@@ -135,12 +143,14 @@ class StockCardController extends Controller
         $to = $request->date('to')?->toDateString() ?? now()->toDateString();
         $locationId = $request->filled('location_id') ? (int) $request->location_id : null;
 
+        // Mengambil seluruh mutasi lokasi dan periode untuk menghitung saldo.
         $periodMovements = StockMovement::with(['location', 'createdBy'])
             ->where('product_id', $product->id)
             ->when($locationId, fn ($q) => $q->where('location_id', $locationId))
             ->whereDate('movement_date', '>=', $from)
             ->whereDate('movement_date', '<=', $to)
             ->orderBy('movement_date')->orderBy('id')->get();
+        // Mulai dari stok fisik saat ini, lalu keluarkan perubahan setelah akhir periode.
         $currentBalance = $locationId
             ? (float) ($product->stocks->firstWhere('location_id', $locationId)?->quantity ?? 0)
             : (float) $product->stocks->sum('quantity');
@@ -149,10 +159,12 @@ class StockCardController extends Controller
             ->whereDate('movement_date', '>', $to)->sum('quantity');
         $closingBalance = $currentBalance - $movementsAfterPeriod;
         $netMovement = (float) $periodMovements->sum('quantity');
+        // Saldo awal adalah saldo akhir dikurangi perubahan selama periode.
         $openingBalance = $closingBalance - $netMovement;
         $totalIn = (float) $periodMovements->where('quantity', '>', 0)->sum('quantity');
         $totalOut = abs((float) $periodMovements->where('quantity', '<', 0)->sum('quantity'));
 
+        // Melengkapi mutasi dengan informasi pemeriksaan penerimaan dan penyerahan retur.
         $purchaseNotes = $this->purchaseHistory->rows($product, $periodMovements, $from, $to, $locationId);
         $cardRows = $periodMovements->toBase()->concat($purchaseNotes)->sortBy([
             fn ($a, $b) => $a->movement_date->timestamp <=> $b->movement_date->timestamp,
@@ -160,17 +172,20 @@ class StockCardController extends Controller
             fn ($a, $b) => $b->exists <=> $a->exists,
             fn ($a, $b) => $a->id <=> $b->id,
         ]);
+        // Menghitung saldo dari baris paling awal; catatan nol tidak mengubah saldo.
         $runningBalance = $openingBalance;
         foreach ($cardRows as $movement) {
             $runningBalance += (float) $movement->quantity;
             $movement->card_balance = $runningBalance;
         }
 
+        // Filter jenis dan arah menyaring baris setelah seluruh saldo dihitung.
         $movements = $cardRows
             ->when($request->filled('movement_type'), fn ($rows) => $rows->where('movement_type', $request->movement_type))
             ->when($request->direction === 'in', fn ($rows) => $rows->where('quantity', '>', 0))
             ->when($request->direction === 'out', fn ($rows) => $rows->where('quantity', '<', 0))
             ->values();
+        // Browser menampilkan 25 baris terbaru; ekspor mengambil semua baris.
         if ($paginate) {
             $page = LengthAwarePaginator::resolveCurrentPage();
             $movements = (new LengthAwarePaginator($movements->reverse()->forPage($page, 25)->values(),

@@ -20,6 +20,7 @@
 
 @section('content')
 @php
+    // Memilih tab dan menyiapkan total stok saat ini untuk tampilan lokasi.
     $activeTab = request('tab', 'history');
     $totalStock = (float) $product->stocks->sum('quantity');
     $minimum = (float) $product->min_stock_total;
@@ -32,8 +33,19 @@
     <div class="d-flex flex-wrap gap-2 justify-content-end">
         @if(auth()->user()->canAccessRoute('inventory.transfers.create')) <a href="{{ route('inventory.transfers.create', ['product_id' => $product->id]) }}" class="btn btn-sm btn-warning fw-semibold"><i class="bi bi-arrow-left-right me-1"></i>Transfer Barang</a> @endif
         @if(auth()->user()->canAccessRoute('inventory.transfers.index')) <a href="{{ route('inventory.transfers.index', ['product_id' => $product->id]) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-clock-history me-1"></i>Riwayat Transfer</a> @endif
-        <a href="{{ route('inventory.stock-card.pdf',['product'=>$product]+request()->only(['from','to','location_id','movement_type','direction'])) }}" target="_blank" class="btn btn-sm btn-outline-danger stock-card-export"><i class="bi bi-file-pdf me-1" aria-hidden="true"></i>PDF</a>
-        @if(auth()->user()->canAccessRoute('inventory.stock-card.excel'))<a href="{{ route('inventory.stock-card.excel',['product'=>$product]+request()->only(['from','to','location_id','movement_type','direction'])) }}" class="btn btn-sm btn-outline-success stock-card-export"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>EXCEL</a>@endif
+        {{-- Ekspor membawa filter riwayat tanpa nomor halaman yang sedang dibuka. --}}
+        <a href="{{ route('inventory.stock-card.pdf',['product'=>$product]
+            +request()->only(['from','to','location_id','movement_type','direction'])) }}"
+            target="_blank" class="btn btn-sm btn-outline-danger stock-card-export">
+            <i class="bi bi-file-pdf me-1" aria-hidden="true"></i>PDF
+        </a>
+        @if(auth()->user()->canAccessRoute('inventory.stock-card.excel'))
+        <a href="{{ route('inventory.stock-card.excel',['product'=>$product]
+            +request()->only(['from','to','location_id','movement_type','direction'])) }}"
+            class="btn btn-sm btn-outline-success stock-card-export">
+            <i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>EXCEL
+        </a>
+        @endif
     </div>
 </div>
 
@@ -60,13 +72,33 @@
 </div>
 
 <ul class="nav stock-card-tabs mb-3" role="tablist">
-    <li class="nav-item"><a class="nav-link {{ $activeTab === 'stock' ? 'active' : '' }}" href="{{ route('inventory.stock-card.show',['product'=>$product,'tab'=>'stock']) }}"><i class="bi bi-geo-alt"></i>Stok per Lokasi <span class="badge bg-light text-secondary ms-1">{{ $product->productLocations->count() }}</span></a></li>
+    <li class="nav-item">
+        <a class="nav-link {{ $activeTab === 'stock' ? 'active' : '' }}"
+            href="{{ route('inventory.stock-card.show',['product'=>$product,'tab'=>'stock']) }}">
+            <i class="bi bi-geo-alt"></i>Stok per Lokasi
+            <span class="badge bg-light text-secondary ms-1">{{ $product->productLocations->count() }}</span>
+        </a>
+    </li>
     @if($product->is_expirable)
-    <li class="nav-item"><a class="nav-link {{ $activeTab === 'expiry' ? 'active' : '' }}" href="{{ route('inventory.stock-card.show',['product'=>$product,'tab'=>'expiry']) }}"><i class="bi bi-calendar2-week"></i>Kedaluwarsa <span class="badge bg-light text-secondary ms-1">{{ $activeBatchCount }}</span></a></li>
+    <li class="nav-item">
+        <a class="nav-link {{ $activeTab === 'expiry' ? 'active' : '' }}"
+            href="{{ route('inventory.stock-card.show',['product'=>$product,'tab'=>'expiry']) }}">
+            <i class="bi bi-calendar2-week"></i>Kedaluwarsa
+            <span class="badge bg-light text-secondary ms-1">{{ $activeBatchCount }}</span>
+        </a>
+    </li>
     @endif
-    <li class="nav-item"><a class="nav-link {{ $activeTab === 'history' ? 'active' : '' }}" href="{{ route('inventory.stock-card.show',['product'=>$product]+request()->only(['from','to','location_id','movement_type','direction'])) }}"><i class="bi bi-clock-history"></i>Riwayat Mutasi <span class="badge bg-light text-secondary ms-1">{{ $movements->total() }}</span></a></li>
+    <li class="nav-item">
+        <a class="nav-link {{ $activeTab === 'history' ? 'active' : '' }}"
+            href="{{ route('inventory.stock-card.show',['product'=>$product]
+                +request()->only(['from','to','location_id','movement_type','direction'])) }}">
+            <i class="bi bi-clock-history"></i>Riwayat Mutasi
+            <span class="badge bg-light text-secondary ms-1">{{ $movements->total() }}</span>
+        </a>
+    </li>
 </ul>
 
+{{-- Menampilkan stok saat ini pada setiap lokasi yang diatur untuk barang. --}}
 @if($activeTab === 'stock')
 <div class="card table-card">
     <div class="card-header bg-white border-0 py-3 d-flex justify-content-between">
@@ -78,13 +110,37 @@
         <tbody>
         @forelse($product->productLocations as $productLocation)
             @php
+                // Mengambil stok fisik dan membandingkan stok layak jual dengan minimum lokasi.
                 $quantity = (float) ($product->stocks->firstWhere('location_id',$productLocation->location_id)?->quantity ?? 0);
                 $locationMin = (float) $productLocation->min_stock;
                 $sellableQuantity = $product->stockAvailability($productLocation->location_id)['sellable'];
                 $locationLow = $sellableQuantity <= $locationMin;
                 $level = $locationMin > 0 ? min(100,($sellableQuantity / $locationMin) * 100) : 100;
             @endphp
-            <tr><td><div class="d-flex align-items-center gap-2"><div class="location-icon"><i class="bi bi-building"></i></div><div class="fw-semibold">{{ $productLocation->location->name }}</div></div></td><td class="text-end fw-bold {{ $locationLow ? 'text-danger' : '' }}">{{ $product->displayStock($quantity) }}<div class="small text-muted">Jual: {{ $product->displayStock($sellableQuantity) }}</div></td><td class="text-end text-muted">{{ $product->displayStock($locationMin) }}</td><td><div class="progress" style="height:7px"><div class="progress-bar bg-{{ $locationLow ? 'danger' : 'success' }}" style="width:{{ $level }}%"></div></div></td><td class="text-center"><span class="badge bg-{{ $locationLow ? 'danger' : 'success' }}">{{ $locationLow ? 'Rendah' : 'Aman' }}</span></td></tr>
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="location-icon"><i class="bi bi-building"></i></div>
+                        <div class="fw-semibold">{{ $productLocation->location->name }}</div>
+                    </div>
+                </td>
+                <td class="text-end fw-bold {{ $locationLow ? 'text-danger' : '' }}">
+                    {{ $product->displayStock($quantity) }}
+                    <div class="small text-muted">Jual: {{ $product->displayStock($sellableQuantity) }}</div>
+                </td>
+                <td class="text-end text-muted">{{ $product->displayStock($locationMin) }}</td>
+                <td>
+                    <div class="progress" style="height:7px">
+                        <div class="progress-bar bg-{{ $locationLow ? 'danger' : 'success' }}"
+                            style="width:{{ $level }}%"></div>
+                    </div>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-{{ $locationLow ? 'danger' : 'success' }}">
+                        {{ $locationLow ? 'Rendah' : 'Aman' }}
+                    </span>
+                </td>
+            </tr>
         @empty
             <tr><td colspan="5" class="text-center text-muted py-5"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Belum ada lokasi stok untuk barang ini.</td></tr>
         @endforelse
@@ -93,6 +149,7 @@
 </div>
 @elseif($activeTab === 'expiry' && $product->is_expirable)
 @php
+    // Menggabungkan batch bersisa yang lokasi dan tanggal kedaluwarsanya sama.
     $expiryBatchGroups = $product->stockBatches
         ->filter(fn ($batch) => (float) $batch->quantity_remaining > 0)
         ->groupBy(fn ($batch) => $batch->location_id.'|'.($batch->expired_date?->toDateString() ?? 'none'))
@@ -129,16 +186,28 @@
             @php
                 $status = $group['status'];
                 $badge = \App\Support\ExpiryStatus::badge($status);
+                // Menampilkan satu tanggal masuk atau rentang tanggal jika penerimaannya berbeda.
                 $receivedDates = $group['received_dates'];
                 $receivedLabel = $receivedDates->count() > 1
                     ? $receivedDates->first()?->format('d/m/Y').' - '.$receivedDates->last()?->format('d/m/Y')
                     : $receivedDates->first()?->format('d/m/Y');
+                // Memberi ID berbeda agar tombol rincian membuka kelompok yang tepat.
                 $collapseId = 'stockCardExpiryBatchDetail'.$loop->index;
             @endphp
             <tr>
                 <td>{{ $group['location']->name }}</td>
-                <td>{{ $receivedLabel ?? '-' }} @if($group['batch_count'] > 1)<button type="button" class="btn btn-sm btn-light border py-0 px-2 ms-1" data-bs-toggle="collapse" data-bs-target="#{{ $collapseId }}" aria-expanded="false" aria-controls="{{ $collapseId }}">{{ $group['batch_count'] }} rincian <i class="bi bi-chevron-down small"></i></button>@endif</td>
                 <td>
+                    {{ $receivedLabel ?? '-' }}
+                    @if($group['batch_count'] > 1)
+                    <button type="button" class="btn btn-sm btn-light border py-0 px-2 ms-1"
+                        data-bs-toggle="collapse" data-bs-target="#{{ $collapseId }}"
+                        aria-expanded="false" aria-controls="{{ $collapseId }}">
+                        {{ $group['batch_count'] }} rincian <i class="bi bi-chevron-down small"></i>
+                    </button>
+                    @endif
+                </td>
+                <td>
+                    {{-- Menampilkan setiap PO asal satu kali meskipun dipakai beberapa batch. --}}
                     @php $batchOrders = $group['batches']->map(fn ($batch) => $batch->purchaseReceiptItem?->purchaseReceipt?->purchaseOrder)->unique(fn ($order) => $order?->id ?? 0); @endphp
                     @foreach($batchOrders as $batchOrder)<div>@include('inventory.stock-card.batch-po')</div>@endforeach
                 </td>
@@ -148,13 +217,27 @@
                 <td class="text-center"><span class="badge bg-{{ $badge }}">{{ $status }}</span></td>
             </tr>
             @if($group['batch_count'] > 1)
+            {{-- Membuka rincian batch penyusun kelompok tanpa mengubah data batch asli. --}}
             <tr class="collapse" id="{{ $collapseId }}">
                 <td colspan="7" class="bg-light"><div class="table-responsive"><table class="table table-sm mb-0 align-middle">
                     <thead><tr><th>No. PO</th><th>Tanggal Terima</th><th class="text-end">Awal</th><th class="text-end">Sisa</th><th class="text-center">Status</th></tr></thead>
                     <tbody>
                     @foreach($group['batches'] as $batch)
                         @php $detailStatus = $batch->expiry_status; $detailBadge = \App\Support\ExpiryStatus::badge($detailStatus); @endphp
-                        <tr><td>@include('inventory.stock-card.batch-po', ['batchOrder' => $batch->purchaseReceiptItem?->purchaseReceipt?->purchaseOrder])</td><td>{{ $batch->received_date?->format('d/m/Y') }}</td><td class="text-end">{{ $product->displayStock((float) $batch->quantity_initial) }}</td><td class="text-end fw-semibold">{{ $product->displayStock((float) $batch->quantity_remaining) }}</td><td class="text-center"><span class="badge bg-{{ $detailBadge }}">{{ $detailStatus }}</span></td></tr>
+                        <tr>
+                            <td>
+                                @include('inventory.stock-card.batch-po', [
+                                    'batchOrder' => $batch->purchaseReceiptItem?->purchaseReceipt?->purchaseOrder])
+                            </td>
+                            <td>{{ $batch->received_date?->format('d/m/Y') }}</td>
+                            <td class="text-end">{{ $product->displayStock((float) $batch->quantity_initial) }}</td>
+                            <td class="text-end fw-semibold">
+                                {{ $product->displayStock((float) $batch->quantity_remaining) }}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-{{ $detailBadge }}">{{ $detailStatus }}</span>
+                            </td>
+                        </tr>
                     @endforeach
                     </tbody>
                 </table></div></td>
@@ -168,8 +251,19 @@
 </div>
 @else
 <div class="mb-3">
+    {{-- Filter jenis dan arah menyaring baris; ringkasan tetap mencakup seluruh mutasi periode. --}}
     <form class="app-unified-filter app-filter-bar">
-        <div class="app-filter-field"><label for="stockCardLocation">Lokasi</label><select id="stockCardLocation" name="location_id" class="form-select form-select-sm"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected($locationId===$location->id)>{{ $location->name }}</option>@endforeach</select></div>
+        <div class="app-filter-field">
+            <label for="stockCardLocation">Lokasi</label>
+            <select id="stockCardLocation" name="location_id" class="form-select form-select-sm">
+                <option value="">Semua Lokasi</option>
+                @foreach($locations as $location)
+                <option value="{{ $location->id }}" @selected($locationId===$location->id)>
+                    {{ $location->name }}
+                </option>
+                @endforeach
+            </select>
+        </div>
         <div class="app-filter-field"><label for="stockCardType">Jenis Transaksi</label><select id="stockCardType" name="movement_type" class="form-select form-select-sm"><option value="">Semua Jenis</option>@foreach($movementTypes as $type => $label)<option value="{{ $type }}" @selected(request('movement_type') === $type)>{{ $label }}</option>@endforeach</select></div>
         <div class="app-filter-field"><label for="stockCardDirection">Arah</label><select id="stockCardDirection" name="direction" class="form-select form-select-sm"><option value="">Masuk & Keluar</option><option value="in" @selected(request('direction') === 'in')>Masuk</option><option value="out" @selected(request('direction') === 'out')>Keluar</option></select></div>
         <div class="app-filter-field"><label for="stockCardFrom">Dari</label><input id="stockCardFrom" type="date" name="from" value="{{ $from }}" class="form-control form-control-sm"></div>
@@ -185,6 +279,7 @@
     <div class="table-responsive"><table class="table table-hover stock-card-table app-mobile-records mb-0" data-mobile-records>
         <thead><tr><th>Tanggal</th><th>Referensi</th><th>Keterangan</th><th>Lokasi</th><th>Petugas</th><th class="text-end">Masuk</th><th class="text-end">Keluar</th><th class="text-end">Saldo</th></tr></thead>
         <tbody>
+        {{-- Jumlah positif tampil di Masuk, negatif di Keluar; nol hanya menjadi informasi. --}}
         @forelse($movements as $movement)
             @php $quantity = (float) $movement->quantity; $tone = $quantity > 0 ? 'success' : ($quantity < 0 ? 'danger' : 'secondary'); @endphp
             <tr><td class="text-nowrap">{{ $movement->movement_date->format('d/m/Y') }}<div class="small text-muted">{{ $movement->created_at?->format('H:i') }}</div></td><td class="font-monospace small">
@@ -193,12 +288,35 @@
                 @else
                     {{ $movement->reference_number ?? '-' }}
                 @endif
-            </td><td><span class="badge bg-{{ $tone }} bg-opacity-10 text-{{ $tone }}">{{ $movement->card_type_label }}</span>@if($movement->notes)<div class="small text-muted mt-1">{{ $movement->notes }}</div>@endif</td><td><i class="bi bi-geo-alt text-muted me-1"></i>{{ $movement->location?->name ?? '-' }}</td><td class="small text-muted">{{ $movement->createdBy->name ?? 'Sistem' }}</td><td class="text-end fw-semibold text-success">{{ $quantity > 0 ? $product->displayStock($quantity) : '-' }}</td><td class="text-end fw-semibold text-danger">{{ $quantity < 0 ? $product->displayStock(abs($quantity)) : '-' }}</td><td class="text-end fw-bold">{{ $product->displayStock((float) $movement->card_balance) }}</td></tr>
+            </td>
+            <td>
+                <span class="badge bg-{{ $tone }} bg-opacity-10 text-{{ $tone }}">{{ $movement->card_type_label }}</span>
+                @if($movement->notes)
+                <div class="small text-muted mt-1">{{ $movement->notes }}</div>
+                @endif
+            </td>
+            <td><i class="bi bi-geo-alt text-muted me-1"></i>{{ $movement->location?->name ?? '-' }}</td>
+            <td class="small text-muted">{{ $movement->createdBy->name ?? 'Sistem' }}</td>
+            <td class="text-end fw-semibold text-success">
+                {{ $quantity > 0 ? $product->displayStock($quantity) : '-' }}
+            </td>
+            <td class="text-end fw-semibold text-danger">
+                {{ $quantity < 0 ? $product->displayStock(abs($quantity)) : '-' }}
+            </td>
+            <td class="text-end fw-bold">{{ $product->displayStock((float) $movement->card_balance) }}</td>
+        </tr>
         @empty
             <tr><td colspan="8" class="text-center text-muted py-5"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada mutasi pada periode ini</td></tr>
         @endforelse
         </tbody>
-        <tfoot class="table-light fw-bold"><tr><td colspan="5">TOTAL / SALDO AKHIR</td><td class="text-end text-success">{{ $product->displayStock($totalIn) }}</td><td class="text-end text-danger">{{ $product->displayStock($totalOut) }}</td><td class="text-end">{{ $product->displayStock($closingBalance) }}</td></tr></tfoot>
+        <tfoot class="table-light fw-bold">
+            <tr>
+                <td colspan="5">TOTAL / SALDO AKHIR</td>
+                <td class="text-end text-success">{{ $product->displayStock($totalIn) }}</td>
+                <td class="text-end text-danger">{{ $product->displayStock($totalOut) }}</td>
+                <td class="text-end">{{ $product->displayStock($closingBalance) }}</td>
+            </tr>
+        </tfoot>
     </table></div>
     @if($movements->hasPages())<div class="card-footer bg-white">{{ $movements->links() }}</div>@endif
 </div>

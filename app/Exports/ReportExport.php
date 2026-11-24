@@ -30,7 +30,8 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
         protected ?string $reportPeriod = null,
         protected bool $includeTotal = true
     ) {}
-
+    // Menyusun data ke dalam format array untuk diekspor ke Excel
+    // Menyusun judul, periode, metadata, kepala kolom, dan isi menjadi baris Excel.
     public function array(): array
     {
         $exportedAt = 'Toko Golden | Diekspor pada ' . now('Asia/Jakarta')->translatedFormat('d F Y H:i') . ' WIB';
@@ -42,12 +43,15 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
             ...$this->rows,
         ];
     }
-
+    // Menentukan judul sheet untuk laporan
+    // Menentukan nama tab lembar Excel, maksimal 31 karakter.
     public function title(): string
     {
         return mb_substr($this->sheetTitle, 0, 31);
     }
 
+    // Mengatur nilai sel agar selalu dianggap sebagai string, mencegah konversi otomatis ke format lain
+    // Menjaga nomor referensi dan tulisan satuan tetap sebagai teks jika nilainya berupa teks.
     public function bindValue(Cell $cell, $value): bool
     {
         if (is_string($value)) {
@@ -56,7 +60,8 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
         }
         return (new DefaultValueBinder)->bindValue($cell, $value);
     }
-
+    // Merapikan tampilan sheet setelah diekspor ke Excel
+    // Merapikan tampilan tabel dan pengaturan cetak setelah lembar Excel dibuat.
     public function registerEvents(): array
     {
         return [
@@ -80,6 +85,7 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
                 $sheet->mergeCells("A1:{$lastColumn}1");
                 $sheet->mergeCells("A2:{$lastColumn}2");
                 $sheet->mergeCells("A3:{$lastColumn}3");
+                // Menahan empat baris teratas agar tetap terlihat saat data digulir.
                 $sheet->freezePane('A5');
                 $sheet->setAutoFilter("A4:{$lastColumn}".max(4, $filterLastRow));
                 $sheet->setShowGridlines($this->showGridlines);
@@ -137,6 +143,7 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
                         ->setFormatCode('"Rp" #,##0;("Rp" #,##0);"Rp" 0');
                     $sheet->getStyle("{$column}5:{$column}{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                 }
+                // Format desimal tidak mengubah teks satuan menjadi angka; kolom juga diratakan kanan.
                 foreach ($this->decimalColumns as $columnIndex) {
                     $column = Coordinate::stringFromColumnIndex($columnIndex);
                     $sheet->getStyle("{$column}5:{$column}{$lastRow}")->getNumberFormat()

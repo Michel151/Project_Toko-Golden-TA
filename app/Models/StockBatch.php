@@ -44,11 +44,13 @@ class StockBatch extends Model
         return $this->hasMany(SaleItemSource::class);
     }
 
+    // Menghasilkan tulisan status berdasarkan tanggal kedaluwarsa batch.
     public function getExpiryStatusAttribute(): string
     {
         return \App\Support\ExpiryStatus::label(\App\Support\ExpiryStatus::classify($this->expired_date));
     }
 
+    // Menampilkan sisa hari, hari keterlambatan, atau keterangan tanggal belum dicatat.
     public function getExpiryCountdownAttribute(): string
     {
         if (! $this->expired_date) return 'Tanggal belum dicatat';
@@ -58,6 +60,7 @@ class StockBatch extends Model
         return 'Sisa '.$days.' hari';
     }
 
+    // Memilih batch bersisa yang belum lewat tanggalnya; batch tanpa tanggal juga boleh dijual.
     public function scopeSellable($query)
     {
         return $query->where('quantity_remaining', '>', 0)
