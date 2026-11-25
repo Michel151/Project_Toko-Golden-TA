@@ -38,6 +38,7 @@
     const options = document.createElement('div');
     options.style.maxHeight = '220px';
     options.style.overflowY = 'auto';
+    // Membuat checkbox dari pilihan petugas dan menyamakan centangnya dengan select yang dikirim form.
     const checks = [...select.options].map(option => {
         const label = document.createElement('label');
         label.className = 'd-flex align-items-center gap-2 py-2 px-1';
@@ -74,6 +75,7 @@
     wrapper.append(button, menu, error);
     select.after(wrapper);
     select.hidden = true;
+    // Memperbarui daftar nama petugas yang dipilih dan membersihkan pesan kesalahan jika sudah terisi.
     function refresh() {
         checks.forEach(({ check, option }) => { check.checked = option.selected; });
         const selected = [...select.selectedOptions];
@@ -85,6 +87,7 @@
         }
     }
     select.addEventListener('change', refresh);
+    // Membuka pilihan petugas dan menampilkan pesan jika belum ada petugas yang dipilih.
     select.addEventListener('invalid', event => {
         event.preventDefault();
         error.hidden = false;
@@ -93,6 +96,7 @@
         bootstrap.Dropdown.getOrCreateInstance(button).show();
         search.focus();
     });
+    // Menyaring nama petugas yang ditampilkan tanpa menghapus pilihan yang sudah dicentang.
     search.addEventListener('input', () => {
         const query = search.value.trim().toLocaleLowerCase('id-ID');
         checks.forEach(({ label, option }) => {

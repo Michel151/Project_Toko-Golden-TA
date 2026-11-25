@@ -15,6 +15,7 @@
         <div class="card table-card">
             <div class="card-body">
                 <p class="text-muted small mb-3">Sistem akan membuat draf opname berisi semua barang di lokasi yang dipilih. Anda kemudian mengisi jumlah fisik setiap barang.</p>
+                {{-- Mengirim lokasi, tanggal, dan petugas untuk membuat draf sebelum mengisi jumlah fisik. --}}
                 <form method="POST" action="{{ route('inventory.opnames.store') }}">
                     @csrf
                     <div class="mb-3">
@@ -32,9 +33,11 @@
                         <input id="opnameDate" type="date" name="opname_date" class="form-control" value="{{ old('opname_date', today()->toDateString()) }}" required>
                     </div>
                     <div class="mb-4">
+                        {{-- Memilih petugas dari isian sebelumnya atau pengguna yang sedang login sebagai pilihan awal. --}}
                         @php $chosenParticipants = collect(old('participant_ids', [auth()->id()]))->filter(fn ($id) => is_scalar($id))->map(fn ($id) => (string) $id)->all(); @endphp
                         <label id="opnameParticipantsLabel" for="opnameParticipants" class="form-label fw-semibold">Petugas Opname <span class="text-danger">*</span></label>
                         <div id="opnameParticipantsLoading" class="form-select text-muted" role="status" aria-live="polite">Memuat pilihan petugas…</div>
+                        {{-- Mengirim beberapa ID petugas sebagai array melalui select yang dihubungkan dengan checkbox. --}}
                         <select id="opnameParticipants" name="participant_ids[]" multiple size="5" class="form-select @error('participant_ids') is-invalid @enderror @error('participant_ids.*') is-invalid @enderror" required hidden>
                             @foreach($users as $user)
                             <option value="{{ $user->id }}" @selected(in_array((string) $user->id, $chosenParticipants, true))>{{ $user->name }} ({{ ['owner'=>'Owner','kasir'=>'Kasir','staf_gudang'=>'Staf Gudang'][$user->role] ?? $user->role }})</option>

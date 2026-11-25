@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 
 class StockMovementController extends Controller
 {
+    // Menampilkan catatan perubahan stok sesuai barang, lokasi, arah, dan periode.
     public function index(Request $request)
     {
         ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
@@ -23,9 +24,11 @@ class StockMovementController extends Controller
             ->when($from, fn ($q) => $q->whereDate('movement_date', '>=', $from))
             ->when($to, fn ($q) => $q->whereDate('movement_date', '<=', $to));
 
+        // Menghitung jumlah catatan masuk dan keluar sesuai filter, bukan menjumlahkan kuantitas barang.
         $summaryQuery = clone $query;
         $totalIn = (clone $summaryQuery)->where('quantity', '>', 0)->count();
         $totalOut = (clone $summaryQuery)->where('quantity', '<', 0)->count();
+        // Menampilkan 25 catatan terbaru dan mempertahankan filter saat pindah halaman.
         $movements = $query->latest('movement_date')->latest('id')->paginate(25)->withQueryString()
             ->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
 

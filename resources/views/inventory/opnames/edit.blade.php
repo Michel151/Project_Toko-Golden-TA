@@ -20,6 +20,7 @@
     <x-back-link :fallback="route('inventory.opnames.index')" />
 </div>
 <div class="mb-3"><h5 class="fw-bold mb-1">{{ $opname->opname_number }}</h5><div class="small text-muted">{{ $opname->location->name }} | {{ $opname->opname_date->format('d/m/Y') }}</div></div>
+{{-- Simpan Draf mengirim pengisian ke update; Selesaikan Opname diarahkan ke complete oleh JavaScript. --}}
 <form method="POST" action="{{ route('inventory.opnames.update', $opname) }}" data-complete-url="{{ route('inventory.opnames.complete',$opname) }}" id="opnameForm"
       data-expiry-urgent-limit="{{ $opname->opname_date->copy()
           ->addDays(\App\Support\ExpiryStatus::URGENT_DAYS)->toDateString() }}"
@@ -29,6 +30,7 @@
     <div class="small text-muted mb-3">Petugas Opname: <strong class="text-body text-break">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: 'Belum dicatat' }}</strong></div>
     <div class="small text-muted mb-3">Keterangan per barang boleh dikosongkan saat menyimpan draf. Wajib diisi saat menyelesaikan opname jika jumlah stok atau rincian kedaluwarsa berubah.</div>
     @csrf @method('PUT')
+    {{-- Menampilkan jumlah produk berisiko berdasarkan kondisi sistem pada awal opname. --}}
     <div class="row g-2 mb-2" aria-label="Ringkasan kedaluwarsa">
         @foreach([
             'expired' => ['Sudah Kedaluwarsa', 'text-danger'],
@@ -56,6 +58,7 @@
         <table class="table table-hover mb-0 opname-count-table">
             <thead><tr><th>Barang</th><th class="text-end">Stok Sistem</th><th style="width:310px">Stok Fisik</th><th class="text-end">Selisih</th><th>Keterangan</th></tr></thead>
             <tbody>
+            {{-- Menampilkan jumlah sistem, isian fisik, selisih, dan keterangan setiap barang. --}}
             @foreach($opname->items as $item)
                 @php
                     $product=$item->product;
@@ -66,6 +69,7 @@
                 <tr data-opname-item="{{ $item->id }}" data-system="{{ $item->system_quantity }}" data-unit="{{ $baseName }}" data-display-units="{{ json_encode($displayUnits) }}">
                     <td>
                         <strong class="opname-product-name">{{ $product->name }}</strong>
+                        {{-- Barang berkedaluwarsa diisi per tanggal; total fisiknya dihitung dari seluruh rincian. --}}
                         @if($item->tracks_expiry)
                         <div>
                             <button type="button" class="expiry-toggle" aria-expanded="false"
@@ -91,6 +95,7 @@
                         @endif
                     </td>
                     <td class="text-end fw-semibold opname-difference"><span class="item-difference"></span>
+                        {{-- Menyiapkan isian nilai perolehan untuk owner jika pencatatan biaya barang memungkinkan. --}}
                         @if($trackableProducts[$item->product_id] ?? false)
                             @php
                                 $valuationCost = old('items.'.$item->id.'.valuation_unit_cost', $item->valuation_unit_cost);
@@ -128,6 +133,7 @@
                             'id'=>$entry->id,'expired_date'=>$entry->expired_date?->toDateString(),
                             'system_quantity'=>$entry->system_quantity,'physical_quantity'=>$entry->physical_quantity,
                         ])->all());
+                        // Mengambil jumlah sistem pembanding dari data tersimpan, bukan dari isian lama pengguna.
                         foreach($expiryRows as &$expiryRow) {
                             $saved=$item->expiryCounts->firstWhere('id',$expiryRow['id'] ?? null);
                             $expiryRow['system_quantity']=$saved?->system_quantity ?? 0;
@@ -154,6 +160,7 @@
                                 </thead>
                                 <tbody class="expiry-list">@foreach($expiryRows as $index=>$row)@include('inventory.opnames.expiry-row')@endforeach</tbody>
                             </table>
+                            {{-- Menyiapkan contoh baris yang disalin saat pengguna menambah tanggal kedaluwarsa. --}}
                             <template>@include('inventory.opnames.expiry-row',['index'=>'__INDEX__','row'=>['physical_quantity'=>0]])</template>
                         </td>
                     </tr>

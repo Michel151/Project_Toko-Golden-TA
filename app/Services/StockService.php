@@ -243,6 +243,7 @@ class StockService
         $this->atomic(fn () => $this->adjustStockInternal($product, $location, $physicalQty, $reference, $movementDate, $referenceNumber, $valuationUnitCost));
     }
 
+    // Menetapkan stok akhir sesuai hasil fisik, mencatat selisih, dan menyesuaikan nilai persediaan.
     private function adjustStockInternal(Product $product, Location $location, float $physicalQty, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $valuationUnitCost = null): void
     {
         $valuation = $this->costs->prepare($product);
@@ -492,6 +493,7 @@ class StockService
         return $retailQty;
     }
 
+    // Menyamakan total sisa batch dengan jumlah fisik tanpa mengubah batch jika totalnya sudah sesuai.
     private function syncBatchesToPhysicalQuantity(Product $product, Location $location, float $physicalQty, $movementDate): void
     {
         $currentBatchQty = (float) StockBatch::where('product_id', $product->id)

@@ -1,5 +1,7 @@
+{{-- Menampilkan satu tanggal kedaluwarsa beserta jumlah sistem dan isian fisiknya. --}}
 <tr data-expiry-row>
     <td>
+        {{-- Tanggal rincian lama tetap; rincian baru harus diisi tanggal dan boleh dihapus dari form. --}}
         @if(!empty($row['id']))
         <input type="hidden" name="items[{{ $item->id }}][expiries][{{ $index }}][id]" value="{{ $row['id'] }}">
         <input type="hidden" data-expiry-date name="items[{{ $item->id }}][expiries][{{ $index }}][expired_date]" value="{{ $row['expired_date'] ?? '' }}">

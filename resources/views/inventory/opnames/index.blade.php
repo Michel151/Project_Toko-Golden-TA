@@ -20,6 +20,7 @@
     </div>
 </div>
 
+{{-- Memilih tanggal, lokasi, dan petugas untuk menyaring riwayat opname. --}}
 <form method="GET" class="app-unified-filter app-filter-bar mb-3">
     @include('components.date-range', ['prefix'=>'opnameList', 'fromValue'=>$from, 'toValue'=>$to])
     <div class="app-filter-field">
@@ -56,6 +57,7 @@
                 </tr>
             </thead>
             <tbody>
+                {{-- Menampilkan informasi setiap dokumen beserta status dan petugasnya. --}}
                 @forelse($opnames as $opname)
                 <tr>
                     <td class="fw-semibold">{{ $opname->opname_number }}</td>
@@ -70,6 +72,7 @@
                     <td class="small">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: ($opname->createdBy->name ?? '-') }}</td>
                     <td class="text-center">
                         <a href="{{ route('inventory.opnames.show', $opname) }}" class="btn btn-sm btn-outline-info py-0 px-2"><i class="bi bi-eye"></i></a>
+                        {{-- Tombol edit dan hapus hanya tersedia untuk draf sesuai izin pengguna. --}}
                         @if($opname->status === 'draft')
                         @if(auth()->user()->canAccessRoute('inventory.opnames.edit')) <a href="{{ route('inventory.opnames.edit', $opname) }}" class="btn btn-sm btn-outline-warning py-0 px-2"><i class="bi bi-pencil"></i></a> @endif
                         @endif

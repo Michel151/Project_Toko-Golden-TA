@@ -21,21 +21,25 @@ class StockOpname extends Model
         'participants' => 'array',
     ];
 
+    // Mengambil lokasi tempat opname dilakukan.
     public function location()
     {
         return $this->belongsTo(Location::class);
     }
 
+    // Mengambil pengguna yang membuat dokumen opname.
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    // Mengambil daftar barang dalam dokumen opname.
     public function items()
     {
         return $this->hasMany(StockOpnameItem::class);
     }
 
+    // Mencari opname yang melibatkan petugas dengan ID yang dipilih.
     public function scopeForParticipant(\Illuminate\Database\Eloquent\Builder $query, int $userId): void
     {
         $query->where(function ($query) use ($userId) {
@@ -44,12 +48,13 @@ class StockOpname extends Model
             } else {
                 $query->whereJsonContains('participants', ['user_id' => $userId]);
             }
-            // Legacy opnames have no participant snapshot; use the recorded creator.
+            // Untuk dokumen lama tanpa daftar petugas, gunakan pembuat dokumen sebagai petugas.
             $query->orWhere(fn ($legacy) => $legacy->where(fn ($empty) => $empty->whereNull('participants')->orWhereJsonLength('participants', 0))
                 ->where('created_by', $userId));
         });
     }
 
+    // Membuat nomor opname berdasarkan tahun, bulan, dan urutan berikutnya.
     public static function generateOpnameNumber(?\DateTimeInterface $issuedAt = null): string
     {
         $date = $issuedAt ? Carbon::instance($issuedAt)->setTimezone('Asia/Jakarta') : now('Asia/Jakarta');

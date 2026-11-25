@@ -6,6 +6,7 @@ use App\Models\Product;
 
 class OpnameQuantity
 {
+    // Menyiapkan nama satuan dan konversinya dari ukuran terbesar sampai satuan dasar.
     public static function units(Product $product): array
     {
         $product->loadMissing(['productUnits.unit', 'buyUnit', 'retailUnit']);
@@ -24,9 +25,10 @@ class OpnameQuantity
         return collect($units)->sortByDesc('conversion')->values()->all();
     }
 
+    // Mengubah jumlah dasar menjadi tulisan seperti 2 Dus + 3 Pcs, termasuk tanda selisih.
     public static function format(float $quantity, array $units, bool $difference = false): string
     {
-        // Work in ten-thousandths so fractional base units are not discarded.
+        // Menghitung dalam kelipatan 1/10000 agar pecahan satuan dasar tetap terbaca.
         $remaining = (int) round(abs($quantity) * 10000);
         $parts = [];
         foreach ($units as $unit) {

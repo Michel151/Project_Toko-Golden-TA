@@ -21,6 +21,7 @@
 
 <div class="card table-card mb-3">
     <div class="card-body">
+        {{-- Memilih barang, lokasi, arah, dan tanggal untuk menyaring catatan perubahan stok. --}}
         <form method="GET" class="app-unified-filter row g-2 align-items-end">
             <div class="col-md-3"><label class="form-label small text-muted">Barang</label><select name="product_id" class="form-select form-select-sm"><option value="">Semua Barang</option>@foreach($products as $product)<option value="{{ $product->id }}" @selected(request('product_id') == $product->id)>{{ $product->name }}</option>@endforeach</select></div>
             <div class="col-md-2"><label class="form-label small text-muted">Lokasi</label><select name="location_id" class="form-select form-select-sm"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location->id }}" @selected(request('location_id') == $location->id)>{{ $location->name }}</option>@endforeach</select></div>
@@ -37,6 +38,7 @@
         <table class="table table-hover align-middle mb-0">
             <thead><tr><th>Tanggal</th><th>Barang</th><th>Lokasi</th><th>Jenis</th><th>Referensi</th><th class="text-end">Masuk/Keluar</th><th class="text-end">Saldo Awal</th><th class="text-end">Saldo Akhir</th><th>Petugas</th></tr></thead>
             <tbody>
+                {{-- Menampilkan perubahan stok beserta saldo sebelum dan sesudah yang sudah tersimpan. --}}
                 @forelse($movements as $movement)
                 @php
                     $quantity = (float) $movement->quantity;

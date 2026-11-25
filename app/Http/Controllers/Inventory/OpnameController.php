@@ -26,6 +26,7 @@ class OpnameController extends Controller
 
     public function __construct(protected StockService $stockService) {}
 
+    // Menampilkan riwayat opname sesuai tanggal, lokasi, dan petugas yang dipilih.
     public function index(Request $request)
     {
         $request->validate([
@@ -44,6 +45,7 @@ class OpnameController extends Controller
         return view('inventory.opnames.index', compact('opnames', 'from', 'to', 'locations', 'users'));
     }
 
+    // Menyiapkan pilihan lokasi dan petugas aktif untuk membuat draf opname.
     public function create()
     {
         $locations = Location::orderBy('name')->get();
@@ -51,6 +53,7 @@ class OpnameController extends Controller
         return view('inventory.opnames.create', compact('locations', 'users'));
     }
 
+    // Membuat draf opname beserta daftar barang dan kondisi awal stoknya.
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -76,10 +79,12 @@ class OpnameController extends Controller
                 'participants'  => $participants->map(fn ($user) => ['user_id'=>$user->id, 'name'=>$user->name])->all(),
             ]);
 
+            // Mengambil barang yang didaftarkan pada lokasi dan barang yang memiliki catatan stok di sana.
             $registeredProductIds = ProductLocation::where('location_id', $request->location_id)
                 ->pluck('product_id');
             $stockProductIds = Stock::where('location_id', $request->location_id)
                 ->pluck('product_id');
+            // Menggabungkan kedua daftar barang tanpa mengulang barang yang sama.
             $productIds = $registeredProductIds
                 ->merge($stockProductIds)
                 ->unique()
@@ -94,6 +99,7 @@ class OpnameController extends Controller
                 ->orderBy('name')
                 ->get();
 
+            // Membuat rincian barang dengan jumlah fisik awal sama seperti jumlah sistem.
             foreach ($products as $product) {
                 $systemQuantity = (float) ($stocks->get($product->id)?->quantity ?? 0);
                 $item = StockOpnameItem::create([
@@ -114,6 +120,7 @@ class OpnameController extends Controller
                          ->with('success', 'Draft stock opname dibuat. Isi jumlah fisik setiap barang.');
     }
 
+    // Membuka form pengisian jumlah fisik untuk opname yang masih draf.
     public function edit(StockOpname $opname)
     {
         if ($opname->status === 'completed') {
@@ -123,6 +130,7 @@ class OpnameController extends Controller
 
         try {
             DB::transaction(function () use ($opname) {
+                // Mengunci draf dan menyiapkan rincian kedaluwarsa yang belum pernah dicatat.
                 $locked = $this->lockDraft($opname);
                 foreach ($locked->items as $item) app(OpnameExpiryService::class)->capture($item, (int) $locked->location_id);
             });
@@ -130,6 +138,7 @@ class OpnameController extends Controller
             return redirect()->route('inventory.opnames.index')->with('error', collect($exception->errors())->flatten()->first());
         }
         $opname->load(['location', 'items.expiryCounts', 'items.product.buyUnit', 'items.product.retailUnit', 'items.product.baseProductUnit.unit', 'items.product.productUnits.unit']);
+        // Menentukan barang yang boleh diisi nilai perolehannya oleh owner.
         $trackableProducts = auth()->user()->isOwner()
             ? app(\App\Services\MovingAverageCostService::class)->canTrackMany(
                 new \Illuminate\Database\Eloquent\Collection($opname->items->pluck('product')->all())
@@ -137,6 +146,7 @@ class OpnameController extends Controller
         return view('inventory.opnames.edit', compact('opname', 'trackableProducts'));
     }
 
+    // Menyimpan hasil penghitungan pada draf tanpa mengubah stok persediaan.
     public function update(Request $request, StockOpname $opname)
     {
         if ($opname->status === 'completed') {
@@ -153,11 +163,13 @@ class OpnameController extends Controller
         return back()->with('success', 'Data opname berhasil disimpan.');
     }
 
+    // Menampilkan hasil penghitungan, ringkasan, dan rincian kedaluwarsa opname.
     public function show(Request $request, StockOpname $opname)
     {
         return view('inventory.opnames.show', $this->resultData($request, $opname));
     }
 
+    // Membuat PDF hasil opname sesuai pencarian dan filter yang dipilih.
     public function pdf(Request $request, StockOpname $opname)
     {
         $data = $this->exportData($request, $opname);
@@ -166,6 +178,7 @@ class OpnameController extends Controller
             ->stream($data['filename'].'.pdf');
     }
 
+    // Mengunduh hasil opname sesuai pencarian dan filter dalam file Excel.
     public function excel(Request $request, StockOpname $opname)
     {
         $data = $this->exportData($request, $opname);
@@ -176,8 +189,10 @@ class OpnameController extends Controller
         return Excel::download($export, $data['filename'].'.xlsx');
     }
 
+    // Menyusun baris barang dan rincian tanggal untuk laporan PDF dan Excel.
     private function exportData(Request $request, StockOpname $opname): array
     {
+        // Mengambil semua hasil filter tanpa batas 25 barang per halaman.
         $data = $this->resultData($request, $opname, paginate: false);
         $rows = [];
         foreach ($data['items'] as $item) {
@@ -220,6 +235,7 @@ class OpnameController extends Controller
         ];
     }
 
+    // Menyiapkan informasi dokumen, ringkasan seluruh barang, dan daftar hasil sesuai filter.
     private function resultData(Request $request, StockOpname $opname, bool $paginate = true): array
     {
         $filters = $request->validate([
@@ -229,11 +245,14 @@ class OpnameController extends Controller
         $search = trim($filters['q'] ?? '');
         $filter = $filters['filter'] ?? 'all';
         $opname->load(['location', 'createdBy']);
+        // Barang dianggap berubah jika jumlah total atau rincian kedaluwarsanya berbeda.
         $changed = fn ($query) => $query->where('difference', '!=', 0)
             ->orWhereHas('expiryCounts', fn ($dates) => $dates->whereColumn('physical_quantity', '!=', 'system_quantity'));
+        // Ringkasan menghitung seluruh barang dalam dokumen, tanpa mengikuti filter tabel.
         $totalItems = $opname->items()->count();
         $changedItems = $opname->items()->where($changed)->count();
         $summary = ['total'=>$totalItems, 'changed'=>$changedItems, 'matched'=>$totalItems-$changedItems];
+        // Ringkasan kedaluwarsa hasil memakai jumlah fisik dan tanggal opname setelah dokumen selesai.
         $expirySummary = [];
         if ($opname->status === 'completed') {
             $date = $opname->opname_date->toDateString();
@@ -260,7 +279,7 @@ class OpnameController extends Controller
         return compact('opname', 'items', 'summary', 'expirySummary', 'search', 'filter');
     }
 
-    // Selesaikan opname — update stok sesuai fisik
+    // Menyimpan pengisian terakhir, menyesuaikan stok, lalu menandai opname selesai.
     public function complete(Request $request, StockOpname $opname)
     {
         if ($opname->status === 'completed') {
@@ -275,6 +294,7 @@ class OpnameController extends Controller
             $this->savePhysicalQuantities($opname, $validated['items']);
             $opname->load(['items.product', 'items.expiryCounts', 'location']);
 
+            // Keterangan wajib diisi jika jumlah barang atau rincian kedaluwarsanya berubah.
             $errors = [];
             foreach ($opname->items as $item) {
                 if ($item->hasCountDifference() && trim((string) $item->notes) === '') {
@@ -289,6 +309,7 @@ class OpnameController extends Controller
                     app(OpnameExpiryService::class)->apply($item, $opname, $this->stockService);
                     continue;
                 }
+                // Memastikan stok saat ini masih sama dengan kondisi awal draf sebelum disesuaikan.
                 $stock = Stock::where('product_id', $item->product_id)->where('location_id', $opname->location_id)->lockForUpdate()->first();
                 if (abs((float) ($stock?->quantity ?? 0) - (float) $item->system_quantity) > .00001) {
                     throw ValidationException::withMessages(['items'=>'Stok '.$item->product->name.' berubah sejak draf dibuat. Buat draf opname baru sebelum menyesuaikan stok.']);
@@ -310,6 +331,7 @@ class OpnameController extends Controller
                 ]);
             }
 
+            // Menandai selesai hanya setelah seluruh barang berhasil disesuaikan.
             $opname->update(['status' => 'completed']);
         });
 
@@ -317,6 +339,7 @@ class OpnameController extends Controller
                          ->with('success', 'Stock opname selesai. Stok sistem telah disesuaikan.');
     }
 
+    // Memeriksa bentuk isian, jumlah fisik, rincian tanggal, catatan, dan nilai perolehan.
     private function validateItems(Request $request): array
     {
         return $request->validate([
@@ -332,10 +355,11 @@ class OpnameController extends Controller
             'items.*.expiries.*.physical_quantity' => 'required|numeric|decimal:0,4|min:0|max:99999999999.9999',
         ]);
     }
-    // menyimpan hasil hitung fisik yang diisi pengguna ke item opname, termasuk keterangan dan biaya per unit penilaian jika yg login adalah owner. 
+    // Menyimpan jumlah fisik, selisih, dan keterangan setiap barang pada draf.
     private function savePhysicalQuantities(StockOpname $opname, array $items): void
     {
         $opnameItems = $opname->items()->with('product')->lockForUpdate()->get()->keyBy('id');
+        // Memastikan semua rincian milik opname dikirim tanpa menyertakan rincian dari dokumen lain.
         $expected=$opnameItems->keys()->map(fn ($id)=>(string)$id)->sort()->values()->all();
         $submitted=collect(array_keys($items))->map(fn ($id)=>(string)$id)->sort()->values()->all();
         if ($expected!==$submitted) {
@@ -372,6 +396,7 @@ class OpnameController extends Controller
         }
     }
 
+    // Mengunci dokumen dan memastikan opname masih draf sebelum diubah.
     private function lockDraft(StockOpname $opname): StockOpname
     {
         $locked=StockOpname::lockForUpdate()->findOrFail($opname->id);
@@ -381,6 +406,7 @@ class OpnameController extends Controller
         return $locked;
     }
 
+    // Menghapus draf beserta rinciannya; opname yang selesai tidak boleh dihapus.
     public function destroy(StockOpname $opname)
     {
         if ($opname->status === 'completed') {

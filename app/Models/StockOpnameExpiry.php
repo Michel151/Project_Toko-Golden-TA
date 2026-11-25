@@ -13,5 +13,6 @@ class StockOpnameExpiry extends Model
         'physical_quantity'=>'decimal:4', 'batch_snapshot'=>'array',
     ];
 
+    // Mengambil rincian barang opname yang memiliki penghitungan tanggal ini.
     public function stockOpnameItem() { return $this->belongsTo(StockOpnameItem::class); }
 }

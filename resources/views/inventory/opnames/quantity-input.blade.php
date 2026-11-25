@@ -2,9 +2,10 @@
     $inputUnits=\App\Support\OpnameQuantity::units($product);
     $remaining=(int)round(max(0,(float)$value)*10000);
 @endphp
+{{-- Memisahkan jumlah menjadi isian satuan seperti Dus dan Pcs; nilai gabungannya dikirim dalam satuan dasar. --}}
 <div class="opname-quantity d-flex gap-1">
     <input type="hidden" class="physical-value" name="{{ $field }}" value="{{ $value }}">
-    // Setiap Putaran membuat satu kotak input untuk setiap unit konversi yang tersedia.
+    {{-- Membuat satu kotak isian untuk setiap satuan barang. --}}
     @foreach($inputUnits as $inputUnit)
         @php
             $conversion=(int)round($inputUnit['conversion']*10000);

@@ -3,6 +3,7 @@
 @section('report-title', 'Hasil Stock Opname')
 @section('report-period'){{ $reportPeriod }}@endsection
 @section('report-body')
+{{-- Menampilkan baris total setiap barang, kemudian rincian tanggalnya tanpa menjumlahkan keduanya. --}}
 <table class="data compact">
     <thead><tr>
         <th style="width:25%">{{ $headings[0] }}</th>
@@ -13,6 +14,7 @@
         <th style="width:28%">{{ $headings[5] }}</th>
     </tr></thead>
     <tbody>
+    {{-- Membaca enam kolom yang sudah disiapkan controller untuk setiap baris laporan. --}}
     @forelse($rows as [$name, $expiry, $system, $physical, $difference, $notes])
         <tr @if($expiry !== '') style="background:#f4f4f4" @endif>
             <td>@if($expiry === '')<strong>{{ $name }}</strong>@else{{ $name }}@endif</td>

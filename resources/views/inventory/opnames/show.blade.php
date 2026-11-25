@@ -43,11 +43,13 @@
         </strong>
     </div>
 </div>
+{{-- Menampilkan ringkasan seluruh barang dalam dokumen, tanpa mengikuti pencarian atau filter tabel. --}}
 <div class="opname-summary" aria-label="Ringkasan seluruh barang dalam opname">
     <div class="opname-stat"><strong>{{ number_format($summary['total'],0,',','.') }}</strong><span>Total barang</span></div>
     <div class="opname-stat"><strong class="text-success">{{ number_format($summary['matched'],0,',','.') }}</strong><span>Sesuai</span></div>
     <div class="opname-stat"><strong class="text-danger">{{ number_format($summary['changed'],0,',','.') }}</strong><span>Ada selisih</span></div>
 </div>
+{{-- Menampilkan kondisi kedaluwarsa hasil fisik berdasarkan tanggal opname yang sudah selesai. --}}
 @if($expirySummary)
     <p class="small text-muted mb-2">Kondisi kedaluwarsa berdasarkan hasil fisik pada tanggal opname</p>
     <div class="opname-summary" aria-label="Ringkasan kedaluwarsa hasil opname">
@@ -57,6 +59,7 @@
         <div class="opname-stat"><strong class="text-warning-emphasis">{{ $expirySummary['soon'] }} produk</strong><span>Mendekati Kedaluwarsa</span></div>
     </div>
 @endif
+{{-- Mencari nama barang dan memilih hasil yang sesuai, kurang, lebih, atau berubah. --}}
 <form method="GET" action="{{ route('inventory.opnames.show',$opname) }}" class="app-unified-filter opname-filters" role="search">
     <div class="app-filter-field">
         <label for="opnameResultSearch">Nama Barang</label>
@@ -99,6 +102,7 @@
                 </tr>
             </thead>
             <tbody>
+            {{-- Menampilkan hasil yang tersimpan pada opname, bukan stok persediaan terbaru. --}}
             @forelse($items as $item)
                 @php
                     $p=$item->product;
@@ -127,6 +131,7 @@
                     </td>
                     <td class="opname-notes-result">{{ $item->notes ?: '—' }}</td>
                 </tr>
+                {{-- Menyediakan rincian jumlah sistem, fisik, dan selisih untuk setiap tanggal kedaluwarsa. --}}
                 @if($item->expiryCounts->isNotEmpty())
                 <tr id="result-expiry-{{ $item->id }}" hidden>
                     <td colspan="5" class="opname-date-cell">
@@ -186,6 +191,7 @@
 </div>
 @push('scripts')
 <script>
+// Membuka atau menutup rincian tanggal yang sudah tersedia di halaman.
 document.querySelectorAll('.opname-detail-toggle').forEach(button=>button.addEventListener('click',()=>{
     const expanded=button.getAttribute('aria-expanded')!=='true';
     button.setAttribute('aria-expanded',String(expanded));

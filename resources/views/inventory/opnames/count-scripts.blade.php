@@ -5,6 +5,7 @@
     form.querySelectorAll('[data-valuation-field]').forEach(field => {
         const display = field.querySelector('[data-valuation-display]');
         const raw = field.querySelector('[data-valuation-value]');
+        // Mengubah isian uang seperti 2.300,50 menjadi nilai 2300.50 untuk dikirim ke server.
         const sync = () => {
             const entered = display.value;
             const cursor = display.selectionStart ?? entered.length;
@@ -51,6 +52,7 @@
         undated: { label: 'Tanpa tanggal', color: 'text-warning-emphasis' },
     };
     const round = value => Math.round((value + Number.EPSILON) * 10000) / 10000;
+    // Menampilkan jumlah dalam beberapa satuan dan memberi tanda positif atau negatif untuk selisih.
     const formatQuantity = (value, units, difference = false) => {
         let remaining = Math.round(Math.abs(value) * 10000);
         const parts = [];
@@ -66,11 +68,13 @@
         const text = parts.join(' + ');
         return sign + (sign === '-' && parts.length > 1 ? '(' + text + ')' : text);
     };
+    // Menampilkan selisih dengan warna merah untuk kurang dan hijau untuk lebih.
     const paintDifference = (cell, value, units) => {
         cell.textContent = formatQuantity(value, units, true);
         cell.classList.toggle('text-danger', value < 0);
         cell.classList.toggle('text-success', value > 0);
     };
+    // Menentukan status kedaluwarsa dengan tanggal opname sebagai pembanding.
     function expiryStatus(date) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'undated';
         if (date < form.dataset.opnameDate) return 'expired';
@@ -78,6 +82,7 @@
         if (date <= form.dataset.expiryUrgentLimit) return 'urgent';
         return date <= form.dataset.expiryLimit ? 'soon' : 'safe';
     }
+    // Menampilkan penanda risiko berdasarkan jumlah sistem awal setiap rincian tanggal.
     function updateExpiryIndicators(main, rows, units) {
         const quantities = { expired: 0, today: 0, urgent: 0, soon: 0 };
         for (const row of rows) {
@@ -101,12 +106,14 @@
             badges.append(badge);
         }
     }
+    // Membersihkan tanda kesalahan setelah keterangan diisi atau tidak ada lagi perubahan jumlah.
     function clearNotesError(notes, changed) {
         if (!changed || notes.value.trim()) {
             notes.classList.remove('is-invalid');
             notes.removeAttribute('aria-invalid');
         }
     }
+    // Menghitung total fisik barang, selisih, dan kebutuhan keterangan setelah pengisian berubah.
     function updateItem(id, refresh = true) {
         const main = mainById.get(id);
         if (!main) return;
@@ -147,7 +154,7 @@
             cached.physical.value = round(total);
             cached.total.textContent = formatQuantity(round(total), units);
             cached.count.textContent = rows.length + ' rincian tanggal';
-            // Expiry filters use the system snapshot, so quantity edits cannot change them.
+            // Perubahan jumlah fisik tidak mengubah ringkasan yang memakai jumlah sistem awal.
             if (refresh || !expiryQuantities.has(main)) updateExpiryIndicators(main, rows, units);
         }
         const difference = round(Number(cached.physical.value) - Number(main.dataset.system));
@@ -164,6 +171,7 @@
         }
         if (refresh) refreshFilters();
     }
+    // Menggabungkan isian setiap satuan menjadi jumlah dasar lalu menghitung ulang barang.
     function bindQuantity(widget, id) {
         const value = widget.querySelector('.physical-value');
         const inputs = widget.querySelectorAll('.qty-unit');
@@ -197,6 +205,7 @@
             detail.addEventListener('input', event => {
                 if (event.target.matches('.expiry-date')) updateItem(id);
             });
+            // Menambah baris tanggal baru dari template dan mengaktifkan perhitungan jumlahnya.
             detail.querySelector('.add-expiry').addEventListener('click', () => {
                 const index = Number(detail.dataset.nextIndex);
                 detail.dataset.nextIndex = index + 1;
@@ -221,6 +230,7 @@
     const productNames = new Map(mainRows.map(main => [main, main.querySelector('.opname-product-name').textContent.toLocaleLowerCase('id-ID')]));
     const itemCount = document.getElementById('opnameItemCount');
     const empty = document.getElementById('opnameEmpty');
+    // Menyaring tampilan barang menurut nama dan kategori tanpa menghapus isian barang lain.
     function refreshFilters() {
         const query = search.value.trim().toLocaleLowerCase('id-ID');
         const counts = { expired: 0, today: 0, urgent: 0, soon: 0 };
@@ -256,7 +266,7 @@
         refreshFilters();
     });
     refreshFilters();
-    // Reveal invalid fields before the browser tries to focus a collapsed row.
+    // Tampilkan barang dan buka rincian agar input yang salah dapat ditemukan pengguna.
     form.addEventListener('invalid', event => {
         const detail = event.target.closest('[data-expiry-item]');
         const main = detail ? mainById.get(detail.dataset.expiryItem) : event.target.closest('[data-opname-item]');
@@ -269,6 +279,7 @@
             detail.hidden = false;
         }
     }, true);
+    // Memeriksa isian dan keterangan, meminta konfirmasi, lalu mengirim POST ke complete.
     document.getElementById('btnSelesaikan').addEventListener('click', async () => {
         if (!form.reportValidity()) return;
         let missingNotes = null;
