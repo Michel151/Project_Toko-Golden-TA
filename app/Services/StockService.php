@@ -261,9 +261,10 @@ class StockService
         if ($product->is_expirable && abs($difference) > 0.00001) {
             $this->syncBatchesToPhysicalQuantity($product, $location, $physicalQty, $movementDate);
         }
-
+        // Hanya mencatat mutasi jika ada selisih
         if (abs($difference) > 0.00001) {
             $this->recordMovement($product, $location, 'opname_adjustment', $difference, $balanceBefore, $reference, $movementDate, $referenceNumber);
+            // Jika ada selisih, catat perubahan nilai persediaan. Jika tidak ada selisih, tidak perlu mencatat biaya.
             if (!$valuation) return;
             if ($difference > 0 && $reference === null && str_starts_with($referenceNumber ?? '', 'IMPORT')) {
                 if (!auth()->user()?->isOwner() || $valuationUnitCost === null) throw \Illuminate\Validation\ValidationException::withMessages(['costing' => 'Nilai perolehan stok impor wajib disediakan owner.']);

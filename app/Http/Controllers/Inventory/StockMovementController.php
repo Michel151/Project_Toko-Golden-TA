@@ -13,7 +13,7 @@ class StockMovementController extends Controller
     public function index(Request $request)
     {
         ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
-        $query = StockMovement::with(['product.buyUnit', 'product.retailUnit', 'location', 'createdBy'])
+        $query = StockMovement::with(['product.productUnits.unit', 'product.buyUnit', 'product.retailUnit', 'location', 'createdBy'])
             ->when($request->filled('product_id'), fn ($q) => $q->where('product_id', $request->product_id))
             ->when($request->filled('location_id'), fn ($q) => $q->where('location_id', $request->location_id))
             ->when($request->filled('movement_type'), fn ($q) => $q->where('movement_type', $request->movement_type))

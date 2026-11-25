@@ -242,6 +242,9 @@ class Product extends Model
             $wholesale = floor($quantity / $this->conversion_factor);
             $retail    = fmod($quantity, $this->conversion_factor);
             if ($retail > 0) {
+                if ($wholesale == 0) {
+                    return "{$retail} {$this->retailUnit->name}";
+                }
                 return "{$wholesale} {$this->buyUnit->name} {$retail} {$this->retailUnit->name}";
             }
             return "{$wholesale} {$this->buyUnit->name}";

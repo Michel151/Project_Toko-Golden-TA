@@ -24,10 +24,24 @@
 </div>
 <div class="opname-document">
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-        <div class="d-flex flex-wrap align-items-center gap-2"><h5 class="fw-bold mb-0">{{ $opname->opname_number }}</h5><span class="badge bg-{{ $opname->status === 'completed' ? 'success' : 'warning text-dark' }}">{{ $opname->status === 'completed' ? 'Selesai' : 'Draf' }}</span></div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <h5 class="fw-bold mb-0">{{ $opname->opname_number }}</h5>
+            <span class="badge bg-{{ $opname->status === 'completed' ? 'success' : 'warning text-dark' }}">
+                {{ $opname->status === 'completed' ? 'Selesai' : 'Draf' }}
+            </span>
+        </div>
     </div>
-    <div class="opname-meta"><span>Lokasi: <strong>{{ $opname->location->name }}</strong></span><span>Tanggal: <strong>{{ $opname->opname_date->format('d/m/Y') }}</strong></span><span>Dibuat oleh: <strong>{{ $opname->createdBy->name ?? '-' }}</strong></span></div>
-    <div class="small text-muted mt-2">Petugas Opname: <strong class="text-body text-break">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: 'Belum dicatat' }}</strong></div>
+    <div class="opname-meta">
+        <span>Lokasi: <strong>{{ $opname->location->name }}</strong></span>
+        <span>Tanggal: <strong>{{ $opname->opname_date->format('d/m/Y') }}</strong></span>
+        <span>Dibuat oleh: <strong>{{ $opname->createdBy->name ?? '-' }}</strong></span>
+    </div>
+    <div class="small text-muted mt-2">
+        Petugas Opname:
+        <strong class="text-body text-break">
+            {{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: 'Belum dicatat' }}
+        </strong>
+    </div>
 </div>
 <div class="opname-summary" aria-label="Ringkasan seluruh barang dalam opname">
     <div class="opname-stat"><strong>{{ number_format($summary['total'],0,',','.') }}</strong><span>Total barang</span></div>
@@ -44,18 +58,46 @@
     </div>
 @endif
 <form method="GET" action="{{ route('inventory.opnames.show',$opname) }}" class="app-unified-filter opname-filters" role="search">
-    <div class="app-filter-field"><label for="opnameResultSearch">Nama Barang</label><input id="opnameResultSearch" type="search" name="q" value="{{ $search }}" placeholder="Cari nama barang..." aria-label="Cari nama barang" class="form-control form-control-sm"></div>
-    <div class="app-filter-field"><label for="opnameResultFilter">Hasil Opname</label><select id="opnameResultFilter" name="filter" aria-label="Filter hasil opname" class="form-select form-select-sm">
-        @foreach(['all'=>'Semua hasil','changed'=>'Ada selisih','short'=>'Stok kurang','over'=>'Stok lebih','matched'=>'Sesuai'] as $key=>$label)<option value="{{ $key }}" @selected($filter===$key)>{{ $label }}</option>@endforeach
-    </select></div>
+    <div class="app-filter-field">
+        <label for="opnameResultSearch">Nama Barang</label>
+        <input id="opnameResultSearch" type="search" name="q" value="{{ $search }}"
+            placeholder="Cari nama barang..." aria-label="Cari nama barang" class="form-control form-control-sm">
+    </div>
+    <div class="app-filter-field">
+        <label for="opnameResultFilter">Hasil Opname</label>
+        <select id="opnameResultFilter" name="filter" aria-label="Filter hasil opname"
+            class="form-select form-select-sm">
+            @foreach([
+                'all'=>'Semua hasil',
+                'changed'=>'Ada selisih',
+                'short'=>'Stok kurang',
+                'over'=>'Stok lebih',
+                'matched'=>'Sesuai'
+            ] as $key=>$label)
+            <option value="{{ $key }}" @selected($filter===$key)>{{ $label }}</option>
+            @endforeach
+        </select>
+    </div>
     <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-    @if($search!=='' || $filter!=='all')<a class="btn btn-sm btn-outline-secondary" href="{{ route('inventory.opnames.show',$opname) }}"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>@endif
+    @if($search!=='' || $filter!=='all')
+    <a class="btn btn-sm btn-outline-secondary" href="{{ route('inventory.opnames.show',$opname) }}">
+        <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset
+    </a>
+    @endif
 </form>
 <div class="opname-results">
     <div class="opname-table-container" tabindex="0" role="region" aria-label="Hasil perhitungan opname">
         <table class="table table-sm table-hover mb-0 opname-results-table">
             <caption class="visually-hidden">Hasil Perhitungan</caption>
-            <thead><tr><th class="ps-3">Barang</th><th class="text-end">Stok Sistem</th><th class="text-end">Stok Fisik</th><th class="text-end">Selisih</th><th>Keterangan</th></tr></thead>
+            <thead>
+                <tr>
+                    <th class="ps-3">Barang</th>
+                    <th class="text-end">Stok Sistem</th>
+                    <th class="text-end">Stok Fisik</th>
+                    <th class="text-end">Selisih</th>
+                    <th>Keterangan</th>
+                </tr>
+            </thead>
             <tbody>
             @forelse($items as $item)
                 @php
@@ -66,26 +108,73 @@
                 @endphp
                 <tr data-result-item="{{ $item->id }}">
                     <td><span class="fw-semibold">{{ $p->name }}</span>
-                    @if($item->expiryCounts->isNotEmpty())<button type="button" class="opname-detail-toggle" aria-expanded="false" aria-controls="result-expiry-{{ $item->id }}"><i class="bi bi-chevron-right" aria-hidden="true"></i>{{ $item->expiryCounts->count() }} kedaluwarsa @if($diff==0 && $dateChanged)<span class="text-warning-emphasis ms-1">Rincian berubah</span>@endif</button>@endif</td>
+                        @if($item->expiryCounts->isNotEmpty())
+                        <button type="button" class="opname-detail-toggle" aria-expanded="false"
+                            aria-controls="result-expiry-{{ $item->id }}">
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                            {{ $item->expiryCounts->count() }} kedaluwarsa
+                            @if($diff==0 && $dateChanged)
+                            <span class="text-warning-emphasis ms-1">Rincian berubah</span>
+                            @endif
+                        </button>
+                        @endif
+                    </td>
                     <td class="text-end opname-quantity-result">{{ \App\Support\OpnameQuantity::format((float)$item->system_quantity,$units) }}</td>
                     <td class="text-end opname-quantity-result">{{ \App\Support\OpnameQuantity::format((float)$item->physical_quantity,$units) }}</td>
-                    <td class="text-end fw-semibold opname-quantity-result {{ $diff>0 ? 'text-success' : ($diff<0 ? 'text-danger' : 'text-muted') }}">{{ \App\Support\OpnameQuantity::format($diff,$units,true) }}</td>
+                    <td class="text-end fw-semibold opname-quantity-result {{ $diff>0
+                        ? 'text-success' : ($diff<0 ? 'text-danger' : 'text-muted') }}">
+                        {{ \App\Support\OpnameQuantity::format($diff,$units,true) }}
+                    </td>
                     <td class="opname-notes-result">{{ $item->notes ?: '—' }}</td>
                 </tr>
                 @if($item->expiryCounts->isNotEmpty())
-                <tr id="result-expiry-{{ $item->id }}" hidden><td colspan="5" class="opname-date-cell">
-                    <table class="table table-sm mb-0 opname-date-table"><caption class="visually-hidden">Rincian Kedaluwarsa {{ $p->name }}</caption><thead><tr><th>Kedaluwarsa</th><th class="text-end">Stok Sistem</th><th class="text-end">Stok Fisik</th><th class="text-end">Selisih</th></tr></thead><tbody>
-                    @foreach($item->expiryCounts as $entry)
-                        @php $dateDiff=round((float)$entry->physical_quantity-(float)$entry->system_quantity,4); @endphp
-                        <tr><td>{{ $entry->expired_date?->format('d/m/Y') ?? 'Tanggal belum dicatat' }} @if($entry->expired_date && $entry->expired_date->lt(today()))<span class="small text-danger ms-2">Sudah kedaluwarsa</span>@endif</td>
-                            <td class="text-end">{{ \App\Support\OpnameQuantity::format((float)$entry->system_quantity,$units) }}</td><td class="text-end">{{ \App\Support\OpnameQuantity::format((float)$entry->physical_quantity,$units) }}</td>
-                            <td class="text-end {{ $dateDiff>0 ? 'text-success' : ($dateDiff<0 ? 'text-danger' : 'text-muted') }}">{{ \App\Support\OpnameQuantity::format($dateDiff,$units,true) }}</td></tr>
-                    @endforeach
-                    </tbody></table>
-                </td></tr>
+                <tr id="result-expiry-{{ $item->id }}" hidden>
+                    <td colspan="5" class="opname-date-cell">
+                        <table class="table table-sm mb-0 opname-date-table">
+                            <caption class="visually-hidden">Rincian Kedaluwarsa {{ $p->name }}</caption>
+                            <thead>
+                                <tr>
+                                    <th>Kedaluwarsa</th>
+                                    <th class="text-end">Stok Sistem</th>
+                                    <th class="text-end">Stok Fisik</th>
+                                    <th class="text-end">Selisih</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @foreach($item->expiryCounts as $entry)
+                                @php $dateDiff=round((float)$entry->physical_quantity-(float)$entry->system_quantity,4); @endphp
+                                <tr>
+                                    <td>
+                                        {{ $entry->expired_date?->format('d/m/Y') ?? 'Tanggal belum dicatat' }}
+                                        @if($entry->expired_date && $entry->expired_date->lt(today()))
+                                        <span class="small text-danger ms-2">Sudah kedaluwarsa</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end">
+                                        {{ \App\Support\OpnameQuantity::format((float)$entry->system_quantity,$units) }}
+                                    </td>
+                                    <td class="text-end">
+                                        {{ \App\Support\OpnameQuantity::format((float)$entry->physical_quantity,$units) }}
+                                    </td>
+                                    <td class="text-end {{ $dateDiff>0
+                                        ? 'text-success' : ($dateDiff<0 ? 'text-danger' : 'text-muted') }}">
+                                        {{ \App\Support\OpnameQuantity::format($dateDiff,$units,true) }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
                 @endif
             @empty
-                <tr><td colspan="5" class="text-center text-muted py-5">{{ $summary['total'] ? 'Tidak ada barang yang sesuai pencarian atau filter.' : 'Belum ada barang dalam opname ini.' }}</td></tr>
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-5">
+                        {{ $summary['total']
+                            ? 'Tidak ada barang yang sesuai pencarian atau filter.'
+                            : 'Belum ada barang dalam opname ini.' }}
+                    </td>
+                </tr>
             @endforelse
             </tbody>
         </table>

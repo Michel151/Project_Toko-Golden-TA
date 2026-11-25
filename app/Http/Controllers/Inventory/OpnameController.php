@@ -284,6 +284,7 @@ class OpnameController extends Controller
             if ($errors) throw ValidationException::withMessages($errors);
 
             foreach ($opname->items as $item) {
+                // jika barang memiliki rincian kedaluwarsa, gunakan service untuk menyesuaikan batch dan persediaan. Jika tidak, sesuaikan stok secara langsung.
                 if ($item->tracks_expiry) {
                     app(OpnameExpiryService::class)->apply($item, $opname, $this->stockService);
                     continue;
@@ -331,7 +332,7 @@ class OpnameController extends Controller
             'items.*.expiries.*.physical_quantity' => 'required|numeric|decimal:0,4|min:0|max:99999999999.9999',
         ]);
     }
-
+    // menyimpan hasil hitung fisik yang diisi pengguna ke item opname, termasuk keterangan dan biaya per unit penilaian jika yg login adalah owner. 
     private function savePhysicalQuantities(StockOpname $opname, array $items): void
     {
         $opnameItems = $opname->items()->with('product')->lockForUpdate()->get()->keyBy('id');
@@ -352,10 +353,12 @@ class OpnameController extends Controller
             if ((bool)$item->tracks_expiry !== (bool)$item->product->is_expirable) {
                 throw ValidationException::withMessages(['items'=>'Pengaturan kedaluwarsa barang berubah. Buat draf opname baru.']);
             }
+            // Jika barang memiliki rincian kedaluwarsa, simpan rincian tersebut ke tabel terkait. Jika tidak, simpan jumlah fisik ke item opname.
             if ($item->tracks_expiry) {
                 app(OpnameExpiryService::class)->saveCounts($item, $data);
                 continue;
             }
+            // Jika barang tidak memiliki rincian kedaluwarsa, pastikan pengguna tidak mengirimkan data kedaluwarsa dan simpan jumlah fisik ke item opname.
             if (!isset($data['physical_quantity']) || !empty($data['expiries'])) {
                 throw ValidationException::withMessages(['items'=>'Isi stok fisik barang tanpa rincian kedaluwarsa.']);
             }

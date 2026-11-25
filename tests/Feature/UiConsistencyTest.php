@@ -251,6 +251,29 @@ class UiConsistencyTest extends TestCase
         }
     }
 
+    public function test_movement_tab_omits_zero_packages_and_uses_product_unit_breakdown(): void
+    {
+        $dus = Unit::create(['name' => 'Dus']);
+        $bungkus = Unit::create(['name' => 'Bungkus']);
+        $this->product->update(['buy_unit_id' => $dus->id, 'retail_unit_id' => $bungkus->id,
+            'can_retail' => true, 'conversion_factor' => 12]);
+        foreach ([-1, 13, -12] as $quantity) {
+            StockMovement::create(['product_id' => $this->product->id, 'location_id' => $this->from->id,
+                'movement_date' => today(), 'movement_type' => 'opname_adjustment', 'quantity' => $quantity,
+                'balance_before' => 30, 'balance_after' => 30 + $quantity, 'created_by' => auth()->id()]);
+        }
+        $url = route('inventory.opnames.movements');
+        $this->get($url)->assertOk()->assertSee('-1 Bungkus')->assertDontSee('-0 Dus');
+
+        // The current multi-unit definition must take precedence over legacy conversion fields.
+        $this->product->productUnits()->create(['unit_id' => $dus->id, 'conversion_to_base' => 10]);
+        $this->product->productUnits()->create(['unit_id' => $bungkus->id, 'conversion_to_base' => 1, 'is_base_unit' => true]);
+        $this->get($url)->assertOk()->assertSee('-1 Bungkus')->assertSee('+1 Dus 3 Bungkus')
+            ->assertSee('-1 Dus 2 Bungkus')->assertDontSee('-0 Dus');
+        $this->assertDatabaseHas('stock_movements', ['product_id' => $this->product->id, 'quantity' => -1,
+            'balance_before' => 30, 'balance_after' => 29]);
+    }
+
     public function test_movement_tab_defaults_to_month_to_date_and_preserves_date_and_other_filters(): void
     {
         $dates = array_merge(['2026-09-30', '2026-10-01', '2026-10-17', '2026-10-18'], array_fill(0,30,'2026-10-17'));

@@ -21,12 +21,21 @@
 </div>
 <div class="mb-3"><h5 class="fw-bold mb-1">{{ $opname->opname_number }}</h5><div class="small text-muted">{{ $opname->location->name }} | {{ $opname->opname_date->format('d/m/Y') }}</div></div>
 <form method="POST" action="{{ route('inventory.opnames.update', $opname) }}" data-complete-url="{{ route('inventory.opnames.complete',$opname) }}" id="opnameForm"
-      data-expiry-urgent-limit="{{ $opname->opname_date->copy()->addDays(\App\Support\ExpiryStatus::URGENT_DAYS)->toDateString() }}" data-opname-date="{{ $opname->opname_date->toDateString() }}" data-expiry-limit="{{ $opname->opname_date->copy()->addDays(\App\Support\ExpiryStatus::WARNING_DAYS)->toDateString() }}">
+      data-expiry-urgent-limit="{{ $opname->opname_date->copy()
+          ->addDays(\App\Support\ExpiryStatus::URGENT_DAYS)->toDateString() }}"
+      data-opname-date="{{ $opname->opname_date->toDateString() }}"
+      data-expiry-limit="{{ $opname->opname_date->copy()
+          ->addDays(\App\Support\ExpiryStatus::WARNING_DAYS)->toDateString() }}">
     <div class="small text-muted mb-3">Petugas Opname: <strong class="text-body text-break">{{ collect($opname->participants ?? [])->pluck('name')->implode(', ') ?: 'Belum dicatat' }}</strong></div>
     <div class="small text-muted mb-3">Keterangan per barang boleh dikosongkan saat menyimpan draf. Wajib diisi saat menyelesaikan opname jika jumlah stok atau rincian kedaluwarsa berubah.</div>
     @csrf @method('PUT')
     <div class="row g-2 mb-2" aria-label="Ringkasan kedaluwarsa">
-        @foreach(['expired' => ['Sudah Kedaluwarsa', 'text-danger'], 'today' => ['Kedaluwarsa Hari Ini', 'opname-expiry-today'], 'urgent' => ['Segera Kedaluwarsa', 'text-expiry-urgent'], 'soon' => ['Mendekati Kedaluwarsa', 'text-warning-emphasis']] as $status => [$label, $color])
+        @foreach([
+            'expired' => ['Sudah Kedaluwarsa', 'text-danger'],
+            'today' => ['Kedaluwarsa Hari Ini', 'opname-expiry-today'],
+            'urgent' => ['Segera Kedaluwarsa', 'text-expiry-urgent'],
+            'soon' => ['Mendekati Kedaluwarsa', 'text-warning-emphasis']
+        ] as $status => [$label, $color])
             <div class="col-12 col-sm-6 col-xl-3">
                 <button type="button" class="card opname-expiry-filter w-100 h-100 text-start p-3 {{ $color }}" data-expiry-filter="{{ $status }}" aria-pressed="false">
                     <span class="fw-semibold">{{ $label }}</span>
@@ -55,11 +64,27 @@
                     $value=old("items.{$item->id}.physical_quantity",$item->physical_quantity);
                 @endphp
                 <tr data-opname-item="{{ $item->id }}" data-system="{{ $item->system_quantity }}" data-unit="{{ $baseName }}" data-display-units="{{ json_encode($displayUnits) }}">
-                    <td><strong class="opname-product-name">{{ $product->name }}</strong>@if($item->tracks_expiry)<div><button type="button" class="expiry-toggle" aria-expanded="false" aria-controls="expiry-{{ $item->id }}"><i class="bi bi-chevron-right" aria-hidden="true"></i><span class="expiry-count">{{ $item->expiryCounts->count() }} rincian tanggal</span></button></div><div class="d-flex flex-wrap gap-1" data-expiry-badges></div>@endif</td>
+                    <td>
+                        <strong class="opname-product-name">{{ $product->name }}</strong>
+                        @if($item->tracks_expiry)
+                        <div>
+                            <button type="button" class="expiry-toggle" aria-expanded="false"
+                                aria-controls="expiry-{{ $item->id }}">
+                                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                <span class="expiry-count">{{ $item->expiryCounts->count() }} rincian tanggal</span>
+                            </button>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1" data-expiry-badges></div>
+                        @endif
+                    </td>
                     <td class="text-end">{{ \App\Support\OpnameQuantity::format((float)$item->system_quantity,$displayUnits) }}</td>
                     <td>
                         @if($item->tracks_expiry)
-                            <input class="item-physical" type="hidden" name="items[{{ $item->id }}][physical_quantity]" value="{{ $value }}"><strong class="item-total">{{ \App\Support\OpnameQuantity::format((float)$value,$displayUnits) }}</strong>
+                            <input class="item-physical" type="hidden"
+                                name="items[{{ $item->id }}][physical_quantity]" value="{{ $value }}">
+                            <strong class="item-total">
+                                {{ \App\Support\OpnameQuantity::format((float)$value,$displayUnits) }}
+                            </strong>
                         @else
                             <input class="item-physical" type="hidden" value="{{ $value }}">
                             @include('inventory.opnames.quantity-input',['field'=>"items[{$item->id}][physical_quantity]",'value'=>$value])
@@ -75,7 +100,9 @@
                             @endphp
                             <div data-valuation-field hidden>
                             <label class="d-block small fw-normal mt-1" for="opnameCost{{ $item->id }}">Nilai perolehan penambahan / satuan dasar (Rp)</label>
-                            <input id="opnameCost{{ $item->id }}" type="text" inputmode="decimal" autocomplete="off" class="form-control form-control-sm text-end" data-valuation-display aria-describedby="opnameCostHelp{{ $item->id }}">
+                            <input id="opnameCost{{ $item->id }}" type="text" inputmode="decimal" autocomplete="off"
+                                class="form-control form-control-sm text-end" data-valuation-display
+                                aria-describedby="opnameCostHelp{{ $item->id }}">
                             <input type="hidden" name="items[{{ $item->id }}][valuation_unit_cost]" value="{{ $valuationCost }}" data-valuation-value>
                             <div id="opnameCostHelp{{ $item->id }}" class="small text-muted fw-normal">Contoh: 2.300 atau 2.300,50</div>
                             </div>
@@ -83,9 +110,16 @@
                     </td>
                     <td class="opname-notes-cell">
                         <label class="visually-hidden" for="opnameNotes{{ $item->id }}">Keterangan {{ $product->name }}</label>
-                        <textarea id="opnameNotes{{ $item->id }}" name="items[{{ $item->id }}][notes]" rows="1" maxlength="1000" class="form-control form-control-sm opname-notes @error('items.'.$item->id.'.notes') is-invalid @enderror" aria-describedby="opnameNotesHelp{{ $item->id }} opnameNotesError{{ $item->id }}" placeholder="Keterangan (opsional)">{{ old('items.'.$item->id.'.notes', $item->notes) }}</textarea>
+                        <textarea id="opnameNotes{{ $item->id }}" name="items[{{ $item->id }}][notes]"
+                            rows="1" maxlength="1000"
+                            class="form-control form-control-sm opname-notes @error('items.'.$item->id.'.notes') is-invalid @enderror"
+                            aria-describedby="opnameNotesHelp{{ $item->id }} opnameNotesError{{ $item->id }}"
+                            placeholder="Keterangan (opsional)">{{ old('items.'.$item->id.'.notes', $item->notes) }}</textarea>
                         <div id="opnameNotesHelp{{ $item->id }}" class="small text-muted" data-notes-help hidden></div>
-                        <div id="opnameNotesError{{ $item->id }}" class="invalid-feedback">{{ $errors->first('items.'.$item->id.'.notes') ?: 'Keterangan wajib diisi sebelum menyelesaikan opname karena terdapat perbedaan.' }}</div>
+                        <div id="opnameNotesError{{ $item->id }}" class="invalid-feedback">
+                            {{ $errors->first('items.'.$item->id.'.notes')
+                                ?: 'Keterangan wajib diisi sebelum menyelesaikan opname karena terdapat perbedaan.' }}
+                        </div>
                     </td>
                 </tr>
                 @if($item->tracks_expiry)
@@ -102,8 +136,22 @@
                     @endphp
                     <tr id="expiry-{{ $item->id }}" data-expiry-item="{{ $item->id }}" data-next-index="{{ count($expiryRows) }}" hidden>
                         <td colspan="5" class="opname-expiry-cell">
-                            <div class="d-flex justify-content-end mb-1"><button class="btn btn-sm btn-outline-success add-expiry" type="button"><i class="bi bi-plus-lg me-1"></i>Tambah Kedaluwarsa</button></div>
-                            <table class="table table-sm mb-0"><caption class="visually-hidden">Rincian Kedaluwarsa {{ $product->name }}</caption><thead><tr><th style="width:24%">Kedaluwarsa</th><th class="text-end" style="width:18%">Stok Sistem</th><th style="width:34%">Stok Fisik</th><th class="text-end" style="width:18%">Selisih</th><th style="width:6%"></th></tr></thead>
+                            <div class="d-flex justify-content-end mb-1">
+                                <button class="btn btn-sm btn-outline-success add-expiry" type="button">
+                                    <i class="bi bi-plus-lg me-1"></i>Tambah Kedaluwarsa
+                                </button>
+                            </div>
+                            <table class="table table-sm mb-0">
+                                <caption class="visually-hidden">Rincian Kedaluwarsa {{ $product->name }}</caption>
+                                <thead>
+                                    <tr>
+                                        <th style="width:24%">Kedaluwarsa</th>
+                                        <th class="text-end" style="width:18%">Stok Sistem</th>
+                                        <th style="width:34%">Stok Fisik</th>
+                                        <th class="text-end" style="width:18%">Selisih</th>
+                                        <th style="width:6%"></th>
+                                    </tr>
+                                </thead>
                                 <tbody class="expiry-list">@foreach($expiryRows as $index=>$row)@include('inventory.opnames.expiry-row')@endforeach</tbody>
                             </table>
                             <template>@include('inventory.opnames.expiry-row',['index'=>'__INDEX__','row'=>['physical_quantity'=>0]])</template>

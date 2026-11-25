@@ -198,7 +198,7 @@ class MovingAverageCostService
                 'cost_subtotal' => (string) $value, 'cost_price' => (string) $value->dividedBy($item->quantity, 2, RoundingMode::HalfUp)]);
         }
     }
-
+    // Menyesuaikan jumlah dan nilai persediaan dalam pencatatan moving average akibat selisih opname.
     public function adjustment(Product $product, float $difference, ?string $unitCost, ?Model $reference, mixed $date, string $key): void
     {
         if (!$this->enabled() || abs($difference) <= .00001) return;

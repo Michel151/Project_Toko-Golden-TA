@@ -4,6 +4,7 @@
 @endphp
 <div class="opname-quantity d-flex gap-1">
     <input type="hidden" class="physical-value" name="{{ $field }}" value="{{ $value }}">
+    // Setiap Putaran membuat satu kotak input untuk setiap unit konversi yang tersedia.
     @foreach($inputUnits as $inputUnit)
         @php
             $conversion=(int)round($inputUnit['conversion']*10000);

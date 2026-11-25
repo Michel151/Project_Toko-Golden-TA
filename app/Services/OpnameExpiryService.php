@@ -7,8 +7,10 @@ use Illuminate\Validation\ValidationException;
 
 class OpnameExpiryService
 {
+    // Untuk mencatat kondisi awal stok dan batch pada stock opname. seperti rincian kedaluwarsa
     public function capture(StockOpnameItem $item, int $locationId): void
     {
+        //Jika tracks_expiry sudah diisi, maka function selesai. Jika belum, maka ambil produk terkait dan periksa apakah produk tersebut dapat kedaluwarsa. Jika ya, maka ambil stok dan batch terkait dan buat rincian kedaluwarsa untuk item opname.
         if ($item->tracks_expiry!==null) return;
         $product=$item->product;
         $item->update(['tracks_expiry'=>$product->is_expirable]);
@@ -33,7 +35,7 @@ class OpnameExpiryService
                 'physical_quantity'=>max(0,$gap),'batch_snapshot'=>[]]);
         }
     }
-
+    // Menyimpan hasil perhitungan fisik per tanggal kedaluwarsa jika ada.
     public function saveCounts(StockOpnameItem $item, array $data): void
     {
         $rows=$data['expiries'] ?? [];
@@ -65,7 +67,7 @@ class OpnameExpiryService
         if (count($seen)!==$existing->count()) $this->invalid('Semua rincian kedaluwarsa lama wajib disertakan. Isi 0 jika stok fisiknya habis.');
         $item->update(['physical_quantity'=>$total,'difference'=>$total-(float)$item->system_quantity]);
     }
-
+    // 	Menyesuaikan batch dan persediaan berdasarkan hasil penghitungan
     public function apply(StockOpnameItem $item, StockOpname $opname, StockService $stocks): void
     {
         $stock=Stock::where('product_id',$item->product_id)->where('location_id',$opname->location_id)->lockForUpdate()->first();
@@ -77,7 +79,11 @@ class OpnameExpiryService
             $this->invalid('Tanggal kedaluwarsa '.$item->product->name.' belum lengkap. Isi 0 pada rincian tanpa tanggal, lalu tambahkan jumlah fisik pada tanggal yang sesuai.');
         }
         $expected=[];
-        foreach ($counts as $entry) foreach ($entry->batch_snapshot as $id=>$quantity) $expected[(int)$id]=(float)$quantity;
+        foreach ($counts as $entry) {
+            foreach ($entry->batch_snapshot as $id => $quantity) {
+                $expected[(int) $id] = (float) $quantity;
+            }
+        }
         if (count($expected)!==$batches->count()) $this->stale($item);
         foreach ($batches as $batch) {
             if (!isset($expected[$batch->id]) || abs($expected[$batch->id]-(float)$batch->quantity_remaining)>.00001) $this->stale($item);
@@ -103,7 +109,9 @@ class OpnameExpiryService
                 }
             }
         }
+        // Menyesuaikan total stok dan biayanya
         $stocks->adjustStock($item->product,$opname->location,(float)$item->physical_quantity,$opname,$opname->opname_date,$opname->opname_number,$item->valuation_unit_cost);
+        // Mencatat perubahan tanggal meskipun total stok tetap
         if ($changed && abs((float)$item->difference)<.00001) {
             StockMovement::create(['product_id'=>$item->product_id,'location_id'=>$opname->location_id,
                 'movement_type'=>'opname_adjustment','quantity'=>0,'balance_before'=>$item->system_quantity,
