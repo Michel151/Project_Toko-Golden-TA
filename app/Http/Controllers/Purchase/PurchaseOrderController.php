@@ -347,6 +347,7 @@ class PurchaseOrderController extends Controller
     }
 
     // Mengubah teks harga dengan pemisah ribuan dan desimal menjadi angka yang dapat disimpan.
+    // contohnya: "Rp 1.234,56" menjadi "1234.56" 
     private function normalizeCurrency(mixed $value): string
     {
         $value = preg_replace('/[^\d,\.]/', '', (string) $value);

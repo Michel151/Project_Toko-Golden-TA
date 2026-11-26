@@ -25,7 +25,7 @@
     <div class="col-md-4">
         <div class="card procurement-stat h-100" style="--accent:#0d6efd">
             <div class="card-body">
-                <div class="text-muted small">Barang/Alokasi</div>
+                <div class="text-muted small">Rincian Penerimaan</div>
                 <div class="fs-5 fw-bold">{{ $receipt->items->count() }}</div>
             </div>
         </div>

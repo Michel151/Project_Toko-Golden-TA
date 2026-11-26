@@ -11,139 +11,315 @@
 
 @section('content')
 <div class="report-page">
-<div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-graph-up-arrow"></i></div><div><h5 class="fw-bold mb-1">Laporan Penjualan</h5><div class="text-white-50 small">Analisis transaksi, pembayaran, dan margin per produk</div></div></div><span class="badge bg-success">{{ $totalTrx }} Transaksi</span></div>
-<div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-    <form class="app-unified-filter d-flex flex-wrap gap-2 align-items-end" method="GET">
-        <input type="hidden" name="tab" id="saleReportActiveTab" value="{{ $activeTab }}">
-        <input type="hidden" name="margins_sort" value="{{ $marginsSort }}">
-        @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
-        <div><label for="saleReportCategory" class="d-block">Kategori</label><select id="saleReportCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $option)<option value="{{ $option->id }}" @selected($categoryId === $option->id)>{{ $option->name }}</option>@endforeach</select></div>
-        @if(auth()->user()->isOwner())
-        <div><label for="saleReportCashier" class="d-block">Kasir</label><select id="saleReportCashier" name="cashier_id" class="form-select form-select-sm">
-            <option value="">Semua Kasir</option>
-            @foreach($cashiers as $option)<option value="{{ $option->id }}" @selected($cashierId === $option->id)>{{ $option->name }}{{ $option->isActive() ? '' : ' (Nonaktif)' }}</option>@endforeach
-        </select></div>
-        @endif
-        <div><label for="saleReportPerPage" class="d-block">Per Halaman</label><select id="saleReportPerPage" name="per_page" class="form-select form-select-sm">
-            @foreach([25, 50, 100] as $size)<option value="{{ $size }}" @selected($sales->perPage() === $size)>{{ $size }}</option>@endforeach
-        </select></div>
-        <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
-    <a href="{{ route('report.sale') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
-    <div class="btn-group btn-group-sm">
-        <a data-sale-export href="{{ route('report.sale.pdf', request()->all()) }}" class="btn btn-outline-danger" target="_blank"><i class="bi bi-file-pdf me-1"></i>PDF</a>
-        <a data-sale-export href="{{ route('report.sale.excel', request()->all()) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
-    </div>
-</div>
-
-{{-- Summary cards --}}
-@if($category)<div class="small text-muted mb-3">Kategori: <strong>{{ $category->name }}</strong>. Nominal dan laba hanya mencakup barang dalam kategori terpilih, termasuk pada nota campuran.</div>@endif
-@if($cashier)<div class="small text-muted mb-3">Kasir: <strong>{{ $cashier->name }}</strong>. Seluruh ringkasan dan ekspor mengikuti kasir terpilih.</div>@endif
-<div class="row g-3 mb-3">
-    <div class="col-6 col-md-4 col-xl">
-        <div class="card report-stat h-100" style="--stat-color:#198754"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-cash-stack"></i></div><div>
-            <div class="text-muted small">Total Penjualan</div>
-            <div class="report-kpi-value fw-bold">Rp {{ number_format($totalAmount, 0, ',', '.') }}</div>
-        </div></div></div>
-    </div>
-    <div class="col-6 col-md-4 col-xl">
-        <div class="card report-stat h-100" style="--stat-color:#0d6efd"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-calculator"></i></div><div>
-            <div class="text-muted small">Laba Kotor</div>
-            <div class="report-kpi-value fw-bold {{ $grossProfit !== null && $grossProfit < 0 ? 'text-danger' : '' }}">{{ $grossProfit === null ? 'Belum lengkap' : 'Rp '.number_format($grossProfit, 0, ',', '.') }}</div>
-            <div class="small text-muted">{{ $incompleteCostCount ? $incompleteCostCount.' transaksi dengan HPP belum lengkap' : 'Penjualan lunas − HPP tercatat' }}</div>
-            <div class="small text-muted">Belum dikurangi biaya operasional</div>
-        </div></div></div>
-    </div>
-    <div class="col-6 col-md-4 col-xl">
-        <div class="card report-stat h-100" style="--stat-color:#0d6efd"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-receipt"></i></div><div>
-            <div class="text-muted small">Jumlah Transaksi</div>
-            <div class="report-kpi-value fw-bold">{{ $totalTrx }}</div>
-        </div></div></div>
-    </div>
-    <div class="col-6 col-md-4 col-xl">
-        <div class="card report-stat h-100" style="--stat-color:#198754"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-cash"></i></div><div>
-            <div class="text-muted small">Tunai</div>
-            <div class="report-kpi-value fw-bold text-success">Rp {{ number_format($totalTunai, 0, ',', '.') }}</div>
-        </div></div></div>
-    </div>
-    <div class="col-6 col-md-4 col-xl">
-        <div class="card report-stat h-100" style="--stat-color:#0dcaf0"><div class="card-body d-flex align-items-center gap-3"><div class="stat-symbol"><i class="bi bi-bank"></i></div><div>
-            <div class="text-muted small">Transfer</div>
-            <div class="report-kpi-value fw-bold">Rp {{ number_format($totalTransfer, 0, ',', '.') }}</div>
-        </div></div></div>
-    </div>
-</div>
-
-<div class="nav nav-pills sale-report-tabs mb-3" id="saleReportTabs" role="tablist" aria-label="Rincian laporan penjualan">
-    <button class="nav-link {{ $activeTab === 'transactions' ? 'active' : '' }}" id="saleTransactionsTab" data-bs-toggle="pill" data-bs-target="#saleTransactionsPane" data-report-tab="transactions" type="button" role="tab" aria-controls="saleTransactionsPane" aria-selected="{{ $activeTab === 'transactions' ? 'true' : 'false' }}"><i class="bi bi-receipt me-1" aria-hidden="true"></i>Daftar Transaksi</button>
-    <button class="nav-link {{ $activeTab === 'margins' ? 'active' : '' }}" id="saleMarginsTab" data-bs-toggle="pill" data-bs-target="#saleMarginsPane" data-report-tab="margins" type="button" role="tab" aria-controls="saleMarginsPane" aria-selected="{{ $activeTab === 'margins' ? 'true' : 'false' }}"><i class="bi bi-calculator me-1" aria-hidden="true"></i>Margin per Produk</button>
-</div>
-<div class="tab-content sale-report-overview">
-    <div class="tab-pane {{ $activeTab === 'transactions' ? 'show active' : '' }}" id="saleTransactionsPane" role="tabpanel" aria-labelledby="saleTransactionsTab" tabindex="0">
-        <div class="card table-card">
-            <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Daftar Transaksi</h6></div>
-            <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Daftar transaksi penjualan">
-                <table id="saleTransactionsTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
-                    <thead><tr><th>No. Invoice</th><th>Tanggal</th><th>Pelanggan / Kasir</th><th class="text-center">Bayar</th><th class="text-end">{{ $category ? 'Total Kategori' : 'Total' }}</th></tr></thead>
-                    <tbody>
-                        @forelse($sales as $sale)
-                        <tr>
-                            <td><a href="{{ route('sale.sales.show', $sale) }}" class="text-decoration-none">{{ $sale->sale_number }}</a></td>
-                            <td>{{ $sale->sale_date->format('d/m/Y') }}</td>
-                            <td>{{ $sale->customer_name ?: 'Umum' }}<div class="small text-muted">{{ $sale->createdBy?->name ?? '-' }}</div></td>
-                            <td class="text-center"><span class="badge bg-{{ $sale->payment_method === 'tunai' ? 'success' : 'info' }}">{{ ucfirst($sale->payment_method) }}</span></td>
-                            <td class="text-end">Rp {{ number_format($sale->report_total_amount, 0, ',', '.') }}</td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="5" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada transaksi pada periode ini'])</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
+    <div class="report-heading d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="report-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div>
+                <h5 class="fw-bold mb-1">Laporan Penjualan</h5>
+                <div class="text-white-50 small">Analisis transaksi, pembayaran, dan margin per produk</div>
             </div>
-            <div class="card-footer bg-white">{{ $sales->links() }}</div>
+        </div>
+        <span class="badge bg-success">{{ $totalTrx }} Transaksi</span>
+    </div>
+    <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+        <form class="app-unified-filter d-flex flex-wrap gap-2 align-items-end" method="GET">
+            <input type="hidden" name="tab" id="saleReportActiveTab" value="{{ $activeTab }}">
+            <input type="hidden" name="margins_sort" value="{{ $marginsSort }}">
+            @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
+            <div>
+                <label for="saleReportCategory" class="d-block">Kategori</label>
+                <select id="saleReportCategory" name="category_id" class="form-select form-select-sm">
+                    <option value="">Semua Kategori</option>
+                    @foreach($categories as $option)
+                    <option value="{{ $option->id }}" @selected($categoryId === $option->id)>
+                        {{ $option->name }}
+                    </option>
+                    @endforeach
+                </select>
+            </div>
+            @if(auth()->user()->isOwner())
+            <div>
+                <label for="saleReportCashier" class="d-block">Kasir</label>
+                <select id="saleReportCashier" name="cashier_id" class="form-select form-select-sm">
+                    <option value="">Semua Kasir</option>
+                    @foreach($cashiers as $option)
+                    <option value="{{ $option->id }}" @selected($cashierId === $option->id)>
+                        {{ $option->name }}{{ $option->isActive() ? '' : ' (Nonaktif)' }}
+                    </option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
+            <div>
+                <label for="saleReportPerPage" class="d-block">Per Halaman</label>
+                <select id="saleReportPerPage" name="per_page" class="form-select form-select-sm">
+                    @foreach([25, 50, 100] as $size)
+                    <option value="{{ $size }}" @selected($sales->perPage() === $size)>{{ $size }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
+            <a href="{{ route('report.sale') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset
+            </a>
+        </form>
+        <div class="btn-group btn-group-sm">
+            <a data-sale-export href="{{ route('report.sale.pdf', request()->all()) }}"
+                class="btn btn-outline-danger" target="_blank">
+                <i class="bi bi-file-pdf me-1"></i>PDF
+            </a>
+            <a data-sale-export href="{{ route('report.sale.excel', request()->all()) }}"
+                class="btn btn-outline-success">
+                <i class="bi bi-file-earmark-excel me-1"></i>Excel
+            </a>
         </div>
     </div>
-    <div class="tab-pane {{ $activeTab === 'margins' ? 'show active' : '' }}" id="saleMarginsPane" role="tabpanel" aria-labelledby="saleMarginsTab" tabindex="0">
-<section class="card table-card" aria-labelledby="productMarginHeading">
-    <div class="card-header bg-white border-0 pt-3">
-        <h6 id="productMarginHeading" class="fw-bold mb-1">Margin per Produk</h6>
-        <div class="small text-muted mb-3">Penjualan lunas pada periode terpilih. Margin = laba kotor ÷ omzet × 100%, sebelum biaya operasional.</div>
-        <form method="GET" action="{{ route('report.sale') }}#saleReportTabs" class="app-unified-filter">
-            <input type="hidden" name="tab" value="margins">
-            @if($cashierId)<input type="hidden" name="cashier_id" value="{{ $cashierId }}">@endif
-            <input type="hidden" name="from" value="{{ $from }}"><input type="hidden" name="to" value="{{ $to }}">
-            <input type="hidden" name="category_id" value="{{ $categoryId }}"><input type="hidden" name="per_page" value="{{ $sales->perPage() }}">
-            <input type="hidden" name="page" value="{{ $sales->currentPage() }}">
-            <div><label for="saleMarginsSort">Urutkan Berdasarkan</label><select id="saleMarginsSort" name="margins_sort" class="form-select form-select-sm">
-                @foreach(['revenue'=>'Omzet Tertinggi','margin_desc'=>'Margin Tertinggi (%)','margin_asc'=>'Margin Terendah (%)','profit_desc'=>'Laba Kotor Tertinggi (Rp)','profit_asc'=>'Laba Kotor Terendah (Rp)'] as $value=>$label)
-                    <option value="{{ $value }}" @selected($marginsSort === $value)>{{ $label }}</option>
-                @endforeach
-            </select></div>
-            <button class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Terapkan</button>
-            <a href="{{ route('report.sale', array_merge(request()->except(['margins_sort','margins_page']), ['tab'=>'margins'])) }}#saleReportTabs" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a>
-        </form>
+
+    {{-- Summary cards --}}
+    @if($category)
+    <div class="small text-muted mb-3">
+        Kategori: <strong>{{ $category->name }}</strong>.
+        Nominal dan laba hanya mencakup barang dalam kategori terpilih, termasuk pada nota campuran.
     </div>
-    <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Margin per produk">
-        <table id="productMarginTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
-            <thead><tr><th>Barang</th><th class="text-end">Omzet</th><th class="text-end">HPP</th><th class="text-end">Laba Kotor</th><th class="text-end">Margin</th></tr></thead>
-            <tbody>
-                @forelse($productMargins as $margin)
-                <tr>
-                    <td class="fw-semibold">{{ $margin->name }}</td>
-                    <td class="text-end">Rp {{ number_format($margin->revenue, 0, ',', '.') }}</td>
-                    <td class="text-end">{{ $margin->cost === null ? 'Belum lengkap' : 'Rp '.number_format($margin->cost, 0, ',', '.') }}</td>
-                    <td class="text-end {{ $margin->gross_profit !== null && $margin->gross_profit < 0 ? 'text-danger' : '' }}">{{ $margin->gross_profit === null ? 'Belum lengkap' : 'Rp '.number_format($margin->gross_profit, 0, ',', '.') }}</td>
-                    <td class="text-end fw-semibold {{ $margin->margin_percentage !== null && $margin->margin_percentage < 0 ? 'text-danger' : '' }}">{{ $margin->cost === null ? 'Belum lengkap' : ($margin->margin_percentage === null ? '—' : number_format($margin->margin_percentage, 2, ',', '.').'%') }}</td>
-                </tr>
-                @empty
-                <tr><td colspan="5" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada penjualan produk pada periode ini.'])</td></tr>
-                @endforelse
-            </tbody>
-        </table>
+    @endif
+    @if($cashier)
+    <div class="small text-muted mb-3">
+        Kasir: <strong>{{ $cashier->name }}</strong>. Seluruh ringkasan dan ekspor mengikuti kasir terpilih.
     </div>
-    <div class="card-footer bg-white">{{ $productMargins->links() }}</div>
-</section>
+    @endif
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-4 col-xl">
+            <div class="card report-stat h-100" style="--stat-color:#198754">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="stat-symbol"><i class="bi bi-cash-stack"></i></div>
+                    <div>
+                        <div class="text-muted small">Total Penjualan</div>
+                        <div class="report-kpi-value fw-bold">Rp {{ number_format($totalAmount, 0, ',', '.') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl">
+            <div class="card report-stat h-100" style="--stat-color:#0d6efd">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="stat-symbol"><i class="bi bi-calculator"></i></div>
+                    <div>
+                        <div class="text-muted small">Laba Kotor</div>
+                        <div class="report-kpi-value fw-bold {{ $grossProfit !== null && $grossProfit < 0
+                            ? 'text-danger' : '' }}">
+                            {{ $grossProfit === null
+                                ? 'Belum lengkap' : 'Rp '.number_format($grossProfit, 0, ',', '.') }}
+                        </div>
+                        <div class="small text-muted">
+                            {{ $incompleteCostCount
+                                ? $incompleteCostCount.' transaksi dengan HPP belum lengkap'
+                                : 'Penjualan lunas − HPP tercatat' }}
+                        </div>
+                        <div class="small text-muted">Belum dikurangi biaya operasional</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl">
+            <div class="card report-stat h-100" style="--stat-color:#0d6efd">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="stat-symbol"><i class="bi bi-receipt"></i></div>
+                    <div>
+                        <div class="text-muted small">Jumlah Transaksi</div>
+                        <div class="report-kpi-value fw-bold">{{ $totalTrx }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl">
+            <div class="card report-stat h-100" style="--stat-color:#198754">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="stat-symbol"><i class="bi bi-cash"></i></div>
+                    <div>
+                        <div class="text-muted small">Tunai</div>
+                        <div class="report-kpi-value fw-bold text-success">
+                            Rp {{ number_format($totalTunai, 0, ',', '.') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl">
+            <div class="card report-stat h-100" style="--stat-color:#0dcaf0">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="stat-symbol"><i class="bi bi-bank"></i></div>
+                    <div>
+                        <div class="text-muted small">Transfer</div>
+                        <div class="report-kpi-value fw-bold">Rp {{ number_format($totalTransfer, 0, ',', '.') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
+
+    <div class="nav nav-pills sale-report-tabs mb-3" id="saleReportTabs" role="tablist"
+        aria-label="Rincian laporan penjualan">
+        <button class="nav-link {{ $activeTab === 'transactions' ? 'active' : '' }}" id="saleTransactionsTab"
+            data-bs-toggle="pill" data-bs-target="#saleTransactionsPane" data-report-tab="transactions"
+            type="button" role="tab" aria-controls="saleTransactionsPane"
+            aria-selected="{{ $activeTab === 'transactions' ? 'true' : 'false' }}">
+            <i class="bi bi-receipt me-1" aria-hidden="true"></i>Daftar Transaksi
+        </button>
+        <button class="nav-link {{ $activeTab === 'margins' ? 'active' : '' }}" id="saleMarginsTab"
+            data-bs-toggle="pill" data-bs-target="#saleMarginsPane" data-report-tab="margins"
+            type="button" role="tab" aria-controls="saleMarginsPane"
+            aria-selected="{{ $activeTab === 'margins' ? 'true' : 'false' }}">
+            <i class="bi bi-calculator me-1" aria-hidden="true"></i>Margin per Produk
+        </button>
+    </div>
+    <div class="tab-content sale-report-overview">
+        <div class="tab-pane {{ $activeTab === 'transactions' ? 'show active' : '' }}" id="saleTransactionsPane"
+            role="tabpanel" aria-labelledby="saleTransactionsTab" tabindex="0">
+            <div class="card table-card">
+                <div class="card-header bg-white border-0 pt-3"><h6 class="fw-bold mb-0">Daftar Transaksi</h6></div>
+                <div class="card-body p-0 table-responsive" tabindex="0" role="region"
+                    aria-label="Daftar transaksi penjualan">
+                    <table id="saleTransactionsTable" class="table table-hover report-table app-mobile-records mb-0"
+                        data-mobile-records>
+                        <thead>
+                            <tr>
+                                <th>No. Invoice</th>
+                                <th>Tanggal</th>
+                                <th>Pelanggan / Kasir</th>
+                                <th class="text-center">Bayar</th>
+                                <th class="text-end">{{ $category ? 'Total Kategori' : 'Total' }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($sales as $sale)
+                            <tr>
+                                <td>
+                                    <a href="{{ route('sale.sales.show', $sale) }}" class="text-decoration-none">
+                                        {{ $sale->sale_number }}
+                                    </a>
+                                </td>
+                                <td>{{ $sale->sale_date->format('d/m/Y') }}</td>
+                                <td>
+                                    {{ $sale->customer_name ?: 'Umum' }}
+                                    <div class="small text-muted">{{ $sale->createdBy?->name ?? '-' }}</div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-{{ $sale->payment_method === 'tunai' ? 'success' : 'info' }}">
+                                        {{ ucfirst($sale->payment_method) }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    Rp {{ number_format($sale->report_total_amount, 0, ',', '.') }}
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="report-empty">
+                                    @include('components.report-empty',
+                                        ['message'=>'Tidak ada transaksi pada periode ini'])
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-white">{{ $sales->links() }}</div>
+            </div>
+        </div>
+        <div class="tab-pane {{ $activeTab === 'margins' ? 'show active' : '' }}" id="saleMarginsPane"
+            role="tabpanel" aria-labelledby="saleMarginsTab" tabindex="0">
+            <section class="card table-card" aria-labelledby="productMarginHeading">
+                <div class="card-header bg-white border-0 pt-3">
+                    <h6 id="productMarginHeading" class="fw-bold mb-1">Margin per Produk</h6>
+                    <div class="small text-muted mb-3">
+                        Penjualan lunas pada periode terpilih. Margin = laba kotor ÷ omzet × 100%,
+                        sebelum biaya operasional.
+                    </div>
+                    <form method="GET" action="{{ route('report.sale') }}#saleReportTabs" class="app-unified-filter">
+                        <input type="hidden" name="tab" value="margins">
+                        @if($cashierId)
+                        <input type="hidden" name="cashier_id" value="{{ $cashierId }}">
+                        @endif
+                        <input type="hidden" name="from" value="{{ $from }}">
+                        <input type="hidden" name="to" value="{{ $to }}">
+                        <input type="hidden" name="category_id" value="{{ $categoryId }}">
+                        <input type="hidden" name="per_page" value="{{ $sales->perPage() }}">
+                        <input type="hidden" name="page" value="{{ $sales->currentPage() }}">
+                        <div>
+                            <label for="saleMarginsSort">Urutkan Berdasarkan</label>
+                            <select id="saleMarginsSort" name="margins_sort" class="form-select form-select-sm">
+                                @foreach([
+                                    'revenue'=>'Omzet Tertinggi',
+                                    'margin_desc'=>'Margin Tertinggi (%)',
+                                    'margin_asc'=>'Margin Terendah (%)',
+                                    'profit_desc'=>'Laba Kotor Tertinggi (Rp)',
+                                    'profit_asc'=>'Laba Kotor Terendah (Rp)'
+                                ] as $value=>$label)
+                                    <option value="{{ $value }}" @selected($marginsSort === $value)>
+                                        {{ $label }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <button class="btn btn-sm btn-primary">
+                            <i class="bi bi-funnel me-1" aria-hidden="true"></i>Terapkan
+                        </button>
+                        <a href="{{ route('report.sale', array_merge(
+                            request()->except(['margins_sort','margins_page']), ['tab'=>'margins'])) }}#saleReportTabs"
+                            class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset
+                        </a>
+                    </form>
+                </div>
+                <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Margin per produk">
+                    <table id="productMarginTable" class="table table-hover report-table app-mobile-records mb-0"
+                        data-mobile-records>
+                        <thead>
+                            <tr>
+                                <th>Barang</th>
+                                <th class="text-end">Omzet</th>
+                                <th class="text-end">HPP</th>
+                                <th class="text-end">Laba Kotor</th>
+                                <th class="text-end">Margin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($productMargins as $margin)
+                            <tr>
+                                <td class="fw-semibold">{{ $margin->name }}</td>
+                                <td class="text-end">Rp {{ number_format($margin->revenue, 0, ',', '.') }}</td>
+                                <td class="text-end">
+                                    {{ $margin->cost === null
+                                        ? 'Belum lengkap' : 'Rp '.number_format($margin->cost, 0, ',', '.') }}
+                                </td>
+                                <td class="text-end {{ $margin->gross_profit !== null && $margin->gross_profit < 0
+                                    ? 'text-danger' : '' }}">
+                                    {{ $margin->gross_profit === null
+                                        ? 'Belum lengkap' : 'Rp '.number_format($margin->gross_profit, 0, ',', '.') }}
+                                </td>
+                                <td class="text-end fw-semibold {{ $margin->margin_percentage !== null
+                                    && $margin->margin_percentage < 0 ? 'text-danger' : '' }}">
+                                    {{ $margin->cost === null
+                                        ? 'Belum lengkap'
+                                        : ($margin->margin_percentage === null ? '—'
+                                            : number_format($margin->margin_percentage, 2, ',', '.').'%') }}
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="report-empty">
+                                    @include('components.report-empty',
+                                        ['message'=>'Tidak ada penjualan produk pada periode ini.'])
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-white">{{ $productMargins->links() }}</div>
+            </section>
+        </div>
+    </div>
 @push('scripts')
 <script>
 (() => {
