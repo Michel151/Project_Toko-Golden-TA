@@ -191,7 +191,13 @@
                 padding-left: 0;
                 padding-right: 0;
             }
-            body.sidebar-collapsed #sidebar .section-label { font-size: 0; gap: 0; }
+            body.sidebar-collapsed #sidebar .section-label {
+                width: 20px;
+                flex-shrink: 0;
+                font-size: 0;
+                letter-spacing: 0;
+                gap: 0;
+            }
             body.sidebar-collapsed #sidebar .section-label i {
                 width: 20px;
                 flex-shrink: 0;
