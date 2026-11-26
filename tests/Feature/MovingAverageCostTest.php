@@ -561,6 +561,22 @@ class MovingAverageCostTest extends TestCase
         $this->capture('costing-format-list', route('inventory.costing.index'));
     }
 
+    public function test_costing_list_shows_base_quantity_with_package_equivalent_without_changing_balances(): void
+    {
+        $carton = Unit::create(['name' => 'Dus']);
+        ProductUnit::create(['product_id' => $this->product->id, 'unit_id' => $carton->id,
+            'conversion_to_base' => 12, 'buy_price' => 120000, 'sell_price' => 150000]);
+        $this->activate(25, '250000');
+        $before = InventoryCostBalance::first()->toArray();
+        $this->get(route('inventory.costing.index'))->assertOk()->assertSeeInOrder(['25 Botol', '2 Dus 1 Botol'])
+            ->assertSee('Total Persediaan')->assertSee('Seluruh lokasi, termasuk reservasi penjualan')
+            ->assertDontSee('Stok Milik Toko');
+        $this->assertSame($before, InventoryCostBalance::first()->toArray());
+        Stock::where('product_id', $this->product->id)->update(['quantity' => 1]);
+        $page = $this->get(route('inventory.costing.index'))->assertOk();
+        $this->assertStringNotContainsString('<small class="d-block text-muted">1 Botol</small>', $page->getContent());
+    }
+
     public function test_costing_quantity_display_preserves_significant_fractional_digits(): void
     {
         $this->automatic();

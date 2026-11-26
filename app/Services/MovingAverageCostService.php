@@ -75,9 +75,10 @@ class MovingAverageCostService
     {
         return (string) BigDecimal::of((string) $value)->toScale(2, RoundingMode::HalfUp);
     }
-
+    // menghitung total jumlah stok yang masih dimiliki toko dalam satuan dasar, stok transaksi pending.
     public function ownedQuantity(int $productId, ?int $locationId = null): string
     {
+        // Stok toko = jumlah pada tabel stock + jumlah barang pada penjualan pending
         $stock = Stock::where('product_id', $productId);
         $reserved = DB::table('sale_item_sources')->join('sale_items', 'sale_items.id', '=', 'sale_item_sources.sale_item_id')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')->where('sale_items.product_id', $productId)->where('sales.status', 'pending');

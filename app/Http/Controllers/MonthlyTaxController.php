@@ -80,7 +80,8 @@ class MonthlyTaxController extends Controller
 
     public function update(Request $request, MonthlyTax $tax)
     {
-        $data = $this->fields($request); unset($data['proof']);
+        $data = $this->fields($request); 
+        unset($data['proof']);
         $request->validate(['correction_reason' => 'nullable|string|max:500', 'month' => 'prohibited']);
         $path = $request->hasFile('proof') ? $request->file('proof')->store('tax-proofs', 'local') : null;
         try {
@@ -91,7 +92,8 @@ class MonthlyTaxController extends Controller
                 $before = $row->attributesToArray();
                 $row->fill($data + ['status' => 'draft', 'confirmed_by' => null, 'confirmed_at' => null]);
                 if ($path) $row->proof_path = $path;
-                $row->version++; $row->save();
+                $row->version++; 
+                $row->save();
                 $this->record($row, 'update', $reason ?: null, $before);
             });
         } catch (\Throwable $error) {
