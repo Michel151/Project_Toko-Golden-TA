@@ -143,7 +143,7 @@ class PurchaseFulfillmentService
             $return = PurchaseReturn::create([
                 'return_number' => PurchaseReturn::generateReturnNumber(), 'purchase_receipt_id' => $receipt->id,
                 'created_by' => $userId, 'notes' => $data['notes'] ?? null,
-                'submission_token' => $data['submission_token'] ?? null,
+                'submission_token' => $data['submissi   on_token'] ?? null,
             ]);
             // Mencatat pasangan pemeriksaan dan jenis masalah agar tidak berulang dalam satu pengajuan.
             $seen = [];

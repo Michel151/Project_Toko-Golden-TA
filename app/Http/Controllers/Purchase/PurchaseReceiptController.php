@@ -17,7 +17,7 @@ class PurchaseReceiptController extends Controller
     public function index(Request $request)
     {
         ['from'=>$from, 'to'=>$to] = \App\Support\MonthlyDateRange::fromRequest($request);
-        $query = PurchaseReceipt::with(['purchaseOrder.supplier', 'receivedBy', 'items.location']);
+        $query = PurchaseReceipt::with(['purchaseOrder.supplier', 'receivedBy', 'items.location', 'inspections.purchaseOrderItem']);
         $receivableOrders = PurchaseOrder::with(['supplier', 'items.product', 'items.productUnit.unit'])
             ->whereIn('status', ['pending', 'partial'])
             ->whereHas('items', fn ($itemQuery) => $itemQuery->whereRaw('quantity_received + quantity_reserved < quantity_ordered'))

@@ -172,7 +172,7 @@
                     <th>No. PO</th>
                     <th>Supplier</th>
                     <th>Tanggal Terima</th>
-                    <th class="text-center">Item/Alokasi</th>
+                    <th class="text-center">Jenis Barang</th>
                     <th>Lokasi Tujuan</th>
                     <th>Diterima Oleh</th>
                     <th class="text-center">Aksi</th>
@@ -189,10 +189,13 @@
                         @endif
                     </td>
                     <td>{{ $receipt->purchaseOrder->supplier->name }}</td>
-                    <td>{{ $receipt->receipt_date?->format('d/m/Y')??'-' }}</td>
+                    <td>
+                        <div>{{ $receipt->receipt_date?->format('d/m/Y')??'-' }}</div>
+                        <small class="text-muted" title="Jam pencatatan penerimaan">{{ $receipt->created_at?->format('H:i') ?? '-' }} WIB</small>
+                    </td>
                     <td class="text-center">
                         <span class="badge bg-primary bg-opacity-10 text-primary">
-                            {{ $receipt->items->count() }} alokasi
+                            {{ $receipt->items->pluck('product_id')->merge($receipt->inspections->pluck('purchaseOrderItem.product_id'))->filter()->unique()->count() }} jenis
                         </span>
                     </td>
                     <td>
