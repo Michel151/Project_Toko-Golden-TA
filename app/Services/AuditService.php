@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AuditService
 {
+    // Mencatat tindakan pengguna serta data sebelum dan sesudah perubahan.
     public static function record(
         string $action,
         string $module,

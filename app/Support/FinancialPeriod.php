@@ -11,12 +11,14 @@ class FinancialPeriod
     public static function resolve(Request $request): array
     {
         $now = CarbonImmutable::now('Asia/Jakarta');
+        // Melengkapi pilihan yang tidak dikirim dengan periode berjalan di Jakarta.
         $request->merge([
             'period_type' => $request->input('period_type', 'monthly'),
             'month' => $request->input('month', $now->format('Y-m')),
             'year' => $request->input('year', $now->year),
             'quarter' => $request->input('quarter', $now->quarter),
         ]);
+        // Hanya mempertahankan isian yang sesuai jenis periode bulanan, kuartalan, atau tahunan.
         $selected = $request->validate([
             'period_type' => ['required', 'in:monthly,quarterly,yearly'],
             'month' => ['exclude_unless:period_type,monthly', 'required', 'date_format:Y-m'],
@@ -34,6 +36,7 @@ class FinancialPeriod
             $end = $periodType === 'quarterly' ? $start->endOfQuarter() : $start->endOfYear();
             $periodLabel = $periodType === 'quarterly' ? 'Kuartal '.$selected['quarter'].' '.$selected['year'] : 'Tahun '.$selected['year'];
         }
+        // Menghasilkan batas tanggal untuk query dan nilai pilihan untuk form.
         $from = $start->toDateString();
         $to = $end->toDateString();
         $month = $selected['month'] ?? $now->format('Y-m');

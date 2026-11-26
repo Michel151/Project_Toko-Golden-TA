@@ -6,6 +6,7 @@
     <h5 class="text-break">{{ $product->name }}</h5>
 </div>
 <x-back-link :fallback="route('inventory.costing.index')" class="mb-3" />
+{{-- Menyaring riwayat produk berdasarkan tanggal kejadian dan jenis transaksi. --}}
 <form method="GET" action="{{ route('inventory.costing.show', $product) }}" class="app-unified-filter app-filter-bar mb-3">
     <div class="app-filter-field">
         <label for="costHistoryFrom">Dari Tanggal</label>
@@ -45,6 +46,7 @@
             </tr>
         </thead>
         <tbody>
+            {{-- Perubahan dan saldo dibaca dari catatan tersimpan, dengan ID terbaru di atas. --}}
             @foreach($entries as $entry)
             <tr>
                 <td class="text-nowrap">{{ \Carbon\Carbon::parse($entry->event_date)->format('d/m/Y') }}</td>
@@ -52,6 +54,7 @@
                     {{ $kinds[$entry->kind] ?? $entry->kind }}
                 </td>
                 <td class="text-nowrap">
+                    {{-- Referensi penerimaan membuka PO; referensi penjualan membuka nota terkait. --}}
                     @if($entry->reference_url)
                     <a href="{{ $entry->reference_url }}">{{ $entry->reference_label }}</a>
                     @else

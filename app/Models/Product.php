@@ -78,6 +78,7 @@ class Product extends Model
         return $this->hasMany(Stock::class);
     }
 
+    // Mengambil saldo jumlah, nilai persediaan, dan biaya rata-rata produk.
     public function costBalance() { return $this->hasOne(InventoryCostBalance::class); }
 
     public function inventoryBaseCost(): float

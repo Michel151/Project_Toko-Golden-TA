@@ -3,8 +3,10 @@
 @section('page-title', $expense->exists ? 'Ubah Draf Beban' : 'Tambah Beban')
 @section('content')
 <div class="inventory-heading mb-3"><h5><i class="bi bi-journal-minus me-2"></i>{{ $expense->exists ? 'Ubah Draf Beban' : 'Tambah Beban' }}</h5></div>
+{{-- Satu form untuk tambah dan edit; old() mempertahankan isian saat validasi gagal. --}}
 <form method="POST" enctype="multipart/form-data" action="{{ $expense->exists ? route('expenses.update',$expense) : route('expenses.store') }}" class="bg-white border p-3">
 @csrf
+{{-- Edit mengirim versi data; tambah mengirim token pencegah catatan ganda. --}}
 @if($expense->exists)
 @method('PUT')
 <input type="hidden" name="version" value="{{ old('version',$expense->version) }}">
@@ -90,6 +92,7 @@
 (() => {
     const status = document.getElementById('paymentStatus');
     const fields = [document.getElementById('paidDate'), document.getElementById('paymentMethod')];
+    // Tanggal dan metode wajib serta ikut dikirim hanya jika sudah dibayar.
     const refresh = () => fields.forEach(field => { field.disabled = status.value !== 'paid'; field.required = status.value === 'paid'; });
     status.addEventListener('change', refresh);
     refresh();

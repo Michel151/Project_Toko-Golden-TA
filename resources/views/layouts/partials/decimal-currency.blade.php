@@ -1,5 +1,5 @@
 <script>
-// Prices with fractional rupiah use localized display and canonical form data.
+// Menampilkan nominal dengan format Indonesia dan mengirim angka tanpa pemisah ribuan.
 function normalizeDecimalCurrencyValue(value) {
     const text = String(value ?? '');
     if (!/^[\d.]*(,\d*)?$/.test(text)) return '';

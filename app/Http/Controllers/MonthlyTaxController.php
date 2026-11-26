@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class MonthlyTaxController extends Controller
 {
+    // Menampilkan catatan pajak bulanan yang masuk dalam periode pilihan.
     public function index(Request $request)
     {
         $period = FinancialPeriod::resolve($request);
@@ -20,12 +21,14 @@ class MonthlyTaxController extends Controller
         return view('taxes.index', $period + compact('taxes'));
     }
 
+    // Membuka form pajak baru dengan bulan pilihan atau bulan berjalan.
     public function create(Request $request)
     {
         $request->validate(['month' => 'nullable|date_format:Y-m']);
         return view('taxes.form', ['tax' => new MonthlyTax(['month' => $request->input('month', now('Asia/Jakarta')->format('Y-m'))])]);
     }
 
+    // Memvalidasi nominal pajak, keterangan, dan dokumen; nominal nol diperbolehkan.
     private function fields(Request $request): array
     {
         return $request->validate([
@@ -35,6 +38,7 @@ class MonthlyTaxController extends Controller
         ], [], ['amount' => 'nominal beban pajak', 'description' => 'keterangan', 'proof' => 'dokumen pendukung']);
     }
 
+    // Menyimpan satu draf pajak per bulan beserta dokumen, riwayat, dan audit.
     public function store(Request $request)
     {
         $request->validate(['month' => 'required|date_format:Y-m|unique:monthly_taxes,month']);
@@ -48,12 +52,14 @@ class MonthlyTaxController extends Controller
             });
         } catch (\Throwable $error) {
             if ($path) Storage::disk('local')->delete($path);
+            // Menangani bulan ganda yang baru terdeteksi setelah pengiriman bersamaan.
             if (MonthlyTax::where('month', $request->month)->exists()) throw ValidationException::withMessages(['month' => 'Pajak untuk bulan ini sudah dicatat. Buka catatan yang sudah ada.']);
             throw $error;
         }
         return redirect()->route('taxes.show', $tax)->with('success', 'Draf pajak berhasil disimpan.');
     }
 
+    // Menampilkan keadaan pajak terbaru dan riwayat tindakannya.
     public function show(MonthlyTax $tax)
     {
         $tax->load('createdBy', 'confirmedBy');
@@ -61,8 +67,10 @@ class MonthlyTaxController extends Controller
         return view('taxes.show', compact('tax', 'revisions'));
     }
 
+    // Membuka form untuk mengubah draf atau mengoreksi pajak terkonfirmasi.
     public function edit(MonthlyTax $tax) { return view('taxes.form', compact('tax')); }
 
+    // Memvalidasi versi, mengunci data terbaru, dan menolak versi yang tertinggal.
     private function locked(Request $request, MonthlyTax $tax): MonthlyTax
     {
         $request->validate(['version' => 'required|integer|min:1']);
@@ -71,6 +79,7 @@ class MonthlyTaxController extends Controller
         return $row;
     }
 
+    // Menyimpan salinan keadaan pajak pada riwayat serta mencatat audit tindakannya.
     private function record(MonthlyTax $tax, string $action, ?string $reason = null, ?array $before = null): void
     {
         $tax->revisions()->create(['snapshot' => $tax->attributesToArray(), 'action' => $action, 'reason' => $reason,
@@ -78,6 +87,7 @@ class MonthlyTaxController extends Controller
         AuditService::record($action, 'monthly_tax', 'Pencatatan pajak '.$tax->month, $tax, $before, $tax->attributesToArray());
     }
 
+    // Menyimpan perubahan sebagai draf agar hasil koreksi diperiksa dan dikonfirmasi kembali.
     public function update(Request $request, MonthlyTax $tax)
     {
         $data = $this->fields($request); 
@@ -88,8 +98,10 @@ class MonthlyTaxController extends Controller
             DB::transaction(function () use ($request, $tax, $data, $path) {
                 $row = $this->locked($request, $tax);
                 $reason = trim((string) $request->correction_reason);
+                // Koreksi pajak terkonfirmasi wajib memiliki alasan selain spasi.
                 if ($row->status === 'confirmed' && $reason === '') throw ValidationException::withMessages(['correction_reason' => 'Alasan koreksi wajib diisi untuk pajak yang sudah dikonfirmasi.']);
                 $before = $row->attributesToArray();
+                // Mengosongkan konfirmasi pada data utama; riwayat konfirmasi lama tetap ada.
                 $row->fill($data + ['status' => 'draft', 'confirmed_by' => null, 'confirmed_at' => null]);
                 if ($path) $row->proof_path = $path;
                 $row->version++; 
@@ -103,6 +115,7 @@ class MonthlyTaxController extends Controller
         return redirect()->route('taxes.show', $tax)->with('success', 'Draf diperbarui. Konfirmasi kembali agar masuk laporan.');
     }
 
+    // Mengonfirmasi draf setelah pernyataan pemeriksaan diterima dan versinya sesuai.
     public function confirm(Request $request, MonthlyTax $tax)
     {
         $request->validate(['confirmation' => 'accepted']);
@@ -116,9 +129,11 @@ class MonthlyTaxController extends Controller
         return back()->with('success', 'Beban pajak dikonfirmasi dan masuk laporan laba rugi.');
     }
 
+    // Mengunduh dokumen terbaru atau dokumen dari riwayat milik pajak ini.
     public function proof(Request $request, MonthlyTax $tax)
     {
         $request->validate(['revision' => 'nullable|integer|min:1']);
+        // Pencarian melalui relasi mencegah pengambilan riwayat milik pajak lain.
         $path = $request->filled('revision') ? $tax->revisions()->findOrFail($request->revision)->snapshot['proof_path'] ?? null : $tax->proof_path;
         abort_unless($path && Storage::disk('local')->exists($path), 404);
         return Storage::disk('local')->download($path);

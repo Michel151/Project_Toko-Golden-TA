@@ -6,6 +6,7 @@
     <h5><i class="bi bi-journal-minus me-2"></i>Pencatatan Beban</h5>
     <a class="btn btn-sm btn-success" href="{{ route('expenses.create') }}"><i class="bi bi-plus-circle me-1"></i>Tambah Beban</a>
 </div>
+{{-- Menyaring beban berdasarkan periode pengakuan, kategori, status, dan pembayaran. --}}
 <form class="app-unified-filter report-toolbar d-flex flex-wrap align-items-end gap-2 mb-3" method="GET">
     <div>
         <label class="form-label small" for="expensePeriod">Periode</label>
@@ -76,6 +77,7 @@
     <strong>{{ $periodLabel }}</strong> |
     {{ \Carbon\Carbon::parse($from)->format('d/m/Y') }} s.d. {{ \Carbon\Carbon::parse($to)->format('d/m/Y') }}
 </div>
+{{-- Total nominal hanya menghitung beban terkonfirmasi dari seluruh hasil filter. --}}
 <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
     <span>{{ $expenses->total() }} catatan beban</span>
     <span>Beban terkonfirmasi sesuai filter: <strong>Rp {{ number_format($total,2,',','.') }}</strong></span>
@@ -137,6 +139,7 @@
 <script>
 (() => {
     const period = document.getElementById('expensePeriod');
+    // Menampilkan dan mengirim hanya input yang sesuai periode pilihan.
     const refresh = () => document.querySelectorAll('[data-expense-period]').forEach(group => {
         const active = group.dataset.expensePeriod.split(' ').includes(period.value);
         group.hidden = !active;

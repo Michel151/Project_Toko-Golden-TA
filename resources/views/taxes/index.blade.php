@@ -8,6 +8,7 @@
         <i class="bi bi-plus-circle me-1"></i>Tambah Pajak
     </a>
 </div>
+{{-- Filter menentukan bulan pajak yang ditampilkan, termasuk draf dan terkonfirmasi. --}}
 @include('taxes._period')
 <div class="small text-muted mb-3">{{ $periodLabel }} | Beban Pajak Penghasilan</div>
 <div class="table-responsive bg-white border">
@@ -23,6 +24,7 @@
             </tr>
         </thead>
         <tbody>
+            {{-- Setiap baris mewakili satu bulan pajak yang sudah dicatat. --}}
             @forelse($taxes as $tax)
             <tr>
                 <td class="text-nowrap">

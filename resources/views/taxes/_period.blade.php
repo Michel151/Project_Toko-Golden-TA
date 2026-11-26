@@ -1,3 +1,4 @@
+{{-- Mengirim pilihan bulanan, kuartalan, atau tahunan melalui URL. --}}
 <form method="GET" class="app-unified-filter report-toolbar d-flex flex-wrap align-items-end gap-2 mb-3">
     <div>
         <label for="taxPeriod" class="form-label small">Periode</label>
@@ -37,6 +38,7 @@
 <script>
 (() => {
     const select = document.getElementById('taxPeriod');
+    // Input periode yang tidak dipakai disembunyikan dan tidak ikut dikirim.
     const update = () => document.querySelectorAll('[data-tax-period]').forEach(group => {
         const active = group.dataset.taxPeriod.split(' ').includes(select.value);
         group.hidden = !active;

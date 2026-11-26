@@ -14,6 +14,7 @@
         {{ $tax->status === 'confirmed' ? 'Dikonfirmasi' : 'Draf' }}
     </span>
 </div>
+{{-- Bagian atas menampilkan keadaan pajak terbaru. --}}
 <section class="bg-white border p-3 mb-3">
     <dl class="row mb-0">
         <dt class="col-md-3">Beban Pajak Penghasilan</dt>
@@ -40,6 +41,7 @@
             Laporan Laba Rugi
         </a>
     </div>
+    {{-- Pengguna wajib menyatakan telah memeriksa nominal, termasuk jika nilainya nol. --}}
     @if($tax->status === 'draft')
     <form method="POST" action="{{ route('taxes.confirm',$tax) }}" class="mt-3">
         @csrf
@@ -69,6 +71,7 @@
                 </tr>
             </thead>
             <tbody>
+                {{-- Riwayat membaca salinan saat tindakan terjadi, bukan nilai pajak terbaru. --}}
                 @foreach($revisions as $revision)
                 <tr>
                     <td class="text-nowrap">
@@ -87,6 +90,7 @@
                         @endif
                     </td>
                     <td>
+                        {{-- Parameter revision memilih dokumen pada riwayat ini. --}}
                         @if($revision->snapshot['proof_path'] ?? null)
                         <a href="{{ route('taxes.proof',[$tax,'revision'=>$revision->id]) }}"
                             title="Unduh dokumen" aria-label="Unduh dokumen">

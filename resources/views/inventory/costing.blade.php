@@ -32,10 +32,12 @@
     @forelse($products as $product)
         @php
             $balance = $product->costBalance;
+            // Waktu activated_at menandai biaya aktif; jumlah nol menandai kesiapan jika belum aktif.
             $tracked = (bool) $balance?->activated_at;
             $ready = isset($owned[$product->id]) && (float) $owned[$product->id] === 0.0;
             $baseUnit = $product->baseProductUnit?->unit?->name
                 ?? ($product->can_retail ? $product->retailUnit?->name : $product->buyUnit?->name);
+            // Menyiapkan jumlah satuan dasar dan tampilan kemasan sebagai keterangan tambahan.
             $baseQuantity = isset($owned[$product->id])
                 ? \App\Support\DisplayNumber::quantity($owned[$product->id]).' '.$baseUnit : null;
             $packageQuantity = $baseQuantity !== null ? $product->displayStock((float) $owned[$product->id]) : null;
@@ -51,6 +53,7 @@
             <td class="text-end text-nowrap">{{ $tracked ? number_format($balance->inventory_value,2,',','.') : ($ready ? '0,00' : '-') }}</td>
             <td class="text-end text-nowrap">{{ $tracked ? number_format($balance->average_cost,2,',','.') : '-' }}</td>
             <td>
+                {{-- Dahulukan pesan masalah, lalu status aktif, kesiapan nol, atau stok lama. --}}
                 @if(isset($issues[$product->id]))
                     <span class="text-danger small">{{ $issues[$product->id] }}</span>
                 @elseif($tracked)

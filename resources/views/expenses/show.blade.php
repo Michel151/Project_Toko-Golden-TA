@@ -52,6 +52,7 @@
     </dl>
 </div>
 <div class="d-flex flex-wrap gap-2 mb-3">
+    {{-- Hanya draf yang menampilkan tindakan ubah dan konfirmasi. --}}
     @if($expense->status === 'draft')
     <a class="btn btn-outline-success" href="{{ route('expenses.edit',$expense) }}">
         <i class="bi bi-pencil me-1"></i>Ubah Draf
@@ -68,6 +69,7 @@
         <i class="bi bi-calculator me-1"></i>Laporan Laba Rugi
     </a>
 </div>
+{{-- Pelunasan tersedia setelah konfirmasi dan sebelum pembayaran dicatat. --}}
 @if($expense->status === 'confirmed' && !$expense->paid_date)
 <section class="bg-white border p-3 mb-3">
     <h6 class="fw-bold">Catat Pelunasan</h6>
@@ -93,6 +95,7 @@
     </form>
 </section>
 @endif
+{{-- Pembatalan meminta alasan dan versi terbaru tanpa menghapus catatan. --}}
 @if($expense->status !== 'void')
 <details class="bg-white border p-3">
     <summary class="text-danger">Batalkan Beban</summary>

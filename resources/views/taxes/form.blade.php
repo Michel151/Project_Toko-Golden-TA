@@ -7,6 +7,7 @@
         <i class="bi bi-receipt me-2"></i>{{ $tax->status === 'confirmed' ? 'Koreksi Beban Pajak' : 'Draf Beban Pajak' }}
     </h5>
 </div>
+{{-- Koreksi catatan terkonfirmasi perlu alasan dan akan mengembalikan status menjadi draf. --}}
 @if($tax->status === 'confirmed')
 <div class="alert alert-warning">
     Koreksi akan mengembalikan catatan menjadi draf.
@@ -23,6 +24,7 @@
     <div class="row g-3">
         <div class="col-md-6">
             <label for="month" class="form-label">Periode Pajak</label>
+            {{-- Bulan hanya dapat dipilih saat tambah; saat edit ditampilkan sebagai teks. --}}
             @if($tax->exists)
             <div class="form-control bg-light">
                 {{ \Carbon\Carbon::createFromFormat('!Y-m',$tax->month)->locale('id')->translatedFormat('F Y') }}
@@ -34,6 +36,7 @@
         </div>
         <div class="col-md-6">
             <label for="amount" class="form-label">Beban Pajak Penghasilan (Rp)</label>
+            {{-- Nominal nol diperbolehkan, tetapi input tetap wajib diisi. --}}
             <input id="amount" name="amount" type="text" inputmode="decimal" min="0" max="999999999999.99"
                 step="0.01" class="form-control js-decimal-currency" value="{{ old('amount',$tax->amount) }}" required>
         </div>
@@ -42,6 +45,7 @@
             <textarea id="description" name="description" class="form-control" rows="3"
                 maxlength="500" required>{{ old('description',$tax->description) }}</textarea>
         </div>
+        {{-- Alasan opsional untuk draf dan wajib untuk koreksi pajak terkonfirmasi. --}}
         @if($tax->exists)
         <div class="col-12">
             <label for="reason" class="form-label">

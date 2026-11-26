@@ -31,7 +31,7 @@ class MovingAverageCostService
         catch (ValidationException) { return false; }
     }
 
-    /** Read-only eligibility for a page of products, without per-product queries. */
+    // Memeriksa kesiapan HPP beberapa produk sekaligus tanpa mengubah data.
     public function canTrackMany(\Illuminate\Database\Eloquent\Collection $products): array
     {
         $result = $products->mapWithKeys(fn (Product $product) => [$product->id => false])->all();
@@ -56,7 +56,7 @@ class MovingAverageCostService
             ->groupBy('sale_items.product_id')->get()->keyBy('product_id');
         foreach ($pending as $id) {
             $held = $reserved->get($id);
-            // Match ownedQuantity(): unknown legacy reservations cannot start automatic costing.
+            // Reservasi lama yang jumlah dasarnya belum pasti belum boleh memulai HPP otomatis.
             if ($held && $held->unknown_quantity > 0) continue;
             $result[$id] = BigDecimal::of((string) ($stocks->get($id) ?? '0'))
                 ->plus((string) ($held?->total ?? '0'))->toScale(4, RoundingMode::HalfUp)->isZero();
@@ -75,10 +75,10 @@ class MovingAverageCostService
     {
         return (string) BigDecimal::of((string) $value)->toScale(2, RoundingMode::HalfUp);
     }
-    // menghitung total jumlah stok yang masih dimiliki toko dalam satuan dasar, stok transaksi pending.
+    // Menghitung total persediaan dalam satuan dasar: stok lokasi ditambah barang penjualan pending.
     public function ownedQuantity(int $productId, ?int $locationId = null): string
     {
-        // Stok toko = jumlah pada tabel stock + jumlah barang pada penjualan pending
+        // Stok total = jumlah pada tabel stock + jumlah barang pada penjualan pending
         $stock = Stock::where('product_id', $productId);
         $reserved = DB::table('sale_item_sources')->join('sale_items', 'sale_items.id', '=', 'sale_item_sources.sale_item_id')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')->where('sale_items.product_id', $productId)->where('sales.status', 'pending');
@@ -86,6 +86,7 @@ class MovingAverageCostService
             $stock->where('location_id', $locationId);
             $reserved->where('sale_item_sources.location_id', $locationId);
         }
+        // Jumlah pending yang belum pasti tidak dianggap nol; salinan menjaga query penjumlahan tetap utuh.
         if ((clone $reserved)->whereNull('base_quantity')->exists()) $this->invalid('Nota menunggu pembayaran lama belum memiliki konversi stok yang pasti. Periksa atau selesaikan nota tersebut sebelum memulai HPP otomatis.');
         return (string) BigDecimal::of((string) $stock->sum('quantity'))->plus((string) $reserved->sum('base_quantity'))->toScale(4, RoundingMode::HalfUp);
     }
@@ -97,7 +98,7 @@ class MovingAverageCostService
         $state = InventoryCostBalance::whereKey($product->id)->lockForUpdate()->first();
         if ($state?->activated_at) return $state;
         if ($this->automatic()) {
-            // Never value unknown legacy stock at zero or ignore held stock at cutover.
+            // Aktivasi menunggu seluruh persediaan produk nol, termasuk barang pada nota pending.
             try { $quantity = $this->ownedQuantity($product->id); }
             catch (ValidationException) { return null; }
             if (!BigDecimal::of($quantity)->isZero()) return null;

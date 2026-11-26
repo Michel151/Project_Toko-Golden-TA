@@ -13,6 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class ExpenseController extends Controller
 {
+    // Menampilkan daftar beban sesuai periode pengakuan dan filter pilihan.
     public function index(Request $request)
     {
         $period = FinancialPeriod::resolve($request);
@@ -31,16 +32,19 @@ class ExpenseController extends Controller
         if (!empty($filters['q'])) $query->where('description', 'like', '%'.$filters['q'].'%');
         if (($filters['payment'] ?? '') === 'paid') $query->whereNotNull('paid_date');
         if (($filters['payment'] ?? '') === 'unpaid') $query->whereNull('paid_date');
+        // Menghitung total terkonfirmasi tanpa membatasi status pada daftar aslinya.
         $total = (clone $query)->where('status', 'confirmed')->sum('amount');
         $expenses = $query->latest('recognized_date')->latest('id')->paginate(25)->withQueryString();
         return view('expenses.index', compact('expenses', 'filters', 'total') + $period);
     }
 
+    // Membuka form beban baru dengan token untuk mencegah penyimpanan ganda.
     public function create()
     {
         return view('expenses.form', ['expense' => new Expense, 'token' => (string) str()->uuid()]);
     }
 
+    // Memvalidasi isian beban dan menyiapkan data yang akan disimpan.
     private function fields(Request $request): array
     {
         $data = $request->validate([
@@ -56,16 +60,19 @@ class ExpenseController extends Controller
             'recognized_date' => 'tanggal pengakuan', 'category' => 'kategori', 'description' => 'keterangan',
             'amount' => 'nominal', 'paid_date' => 'tanggal pembayaran', 'payment_method' => 'metode pembayaran', 'proof' => 'bukti transaksi',
         ]);
+        // Pembayaran ditandai oleh tanggalnya; file disimpan terpisah dari data kolom.
         unset($data['payment_status'], $data['proof']);
         $data['paid_date'] = $data['paid_date'] ?? null;
         $data['payment_method'] = $data['payment_method'] ?? null;
         return $data;
     }
 
+    // Menyimpan draf beban beserta bukti dan audit pembuatannya.
     public function store(Request $request)
     {
         $request->validate(['submission_token' => ['required', 'uuid']]);
         $data = $this->fields($request);
+        // Jika form yang sama sudah tersimpan, buka catatan tersebut.
         $existing = Expense::where('submission_token', $request->submission_token)->first();
         if ($existing) return redirect()->route('expenses.show', $existing);
         $path = $request->hasFile('proof') ? $request->file('proof')->store('expense-proofs', 'local') : null;
@@ -77,7 +84,7 @@ class ExpenseController extends Controller
             });
         } catch (\Throwable $error) {
             if ($path) Storage::disk('local')->delete($path);
-            // Repeated submission tokens must not create a second expense.
+            // Pengiriman bersamaan dengan token yang sama tetap memakai satu catatan beban.
             if ($existing = Expense::where('submission_token', $request->submission_token)->first()) {
                 return redirect()->route('expenses.show', $existing);
             }
@@ -86,17 +93,20 @@ class ExpenseController extends Controller
         return redirect()->route('expenses.show', $expense)->with('success', 'Draft beban berhasil disimpan.');
     }
 
+    // Menampilkan detail beban beserta pembuat dan pengonfirmasinya.
     public function show(Expense $expense)
     {
         return view('expenses.show', ['expense' => $expense->load('createdBy', 'confirmedBy')]);
     }
 
+    // Membuka form perubahan hanya untuk beban yang masih draf.
     public function edit(Expense $expense)
     {
         abort_unless($expense->status === 'draft', 409, 'Hanya draft yang dapat diubah.');
         return view('expenses.form', compact('expense'));
     }
 
+    // Mengunci data terbaru dan menolak tindakan dari halaman dengan versi lama.
     private function locked(Expense $expense, Request $request): Expense
     {
         $row = Expense::whereKey($expense->id)->lockForUpdate()->firstOrFail();
@@ -106,6 +116,7 @@ class ExpenseController extends Controller
         return $row;
     }
 
+    // Menyimpan perubahan draf, menaikkan versi, dan mencatat audit perubahan.
     public function update(Request $request, Expense $expense)
     {
         $data = $this->fields($request);
@@ -128,6 +139,7 @@ class ExpenseController extends Controller
         return redirect()->route('expenses.show', $expense)->with('success', 'Draft beban berhasil diperbarui.');
     }
 
+    // Mengonfirmasi draf agar dihitung dalam laporan tanpa mengubah pembayaran.
     public function confirm(Request $request, Expense $expense)
     {
         DB::transaction(function () use ($expense, $request) {
@@ -140,6 +152,7 @@ class ExpenseController extends Controller
         return back()->with('success', 'Beban dikonfirmasi dan sudah masuk laporan.');
     }
 
+    // Mencatat pelunasan beban terkonfirmasi yang belum dibayar tanpa membuat beban baru.
     public function pay(Request $request, Expense $expense)
     {
         $data = $request->validate([
@@ -156,6 +169,7 @@ class ExpenseController extends Controller
         return back()->with('success', 'Pelunasan dicatat tanpa menambah beban baru.');
     }
 
+    // Membatalkan beban dengan alasan; catatan dan informasi pembayaran tetap disimpan.
     public function void(Request $request, Expense $expense)
     {
         $data = $request->validate(['void_reason' => ['required', 'string', 'max:500']]);
@@ -169,6 +183,7 @@ class ExpenseController extends Controller
         return back()->with('success', 'Beban dibatalkan dan tidak dihitung dalam laporan.');
     }
 
+    // Mengunduh bukti jika path terisi dan file masih tersedia.
     public function proof(Expense $expense)
     {
         abort_unless($expense->proof_path && Storage::disk('local')->exists($expense->proof_path), 404);
