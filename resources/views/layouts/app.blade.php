@@ -182,7 +182,8 @@
                 padding-right: 0.75rem;
             }
             body.sidebar-collapsed #sidebar .nav-link i {
-                width: auto;
+                width: 20px;
+                flex-shrink: 0;
                 font-size: 1.05rem;
             }
             body.sidebar-collapsed #sidebar .nav-section-toggle {
@@ -190,8 +191,12 @@
                 padding-left: 0;
                 padding-right: 0;
             }
-            body.sidebar-collapsed #sidebar .section-label { font-size: 0; }
-            body.sidebar-collapsed #sidebar .section-label i { font-size: 1rem; }
+            body.sidebar-collapsed #sidebar .section-label { font-size: 0; gap: 0; }
+            body.sidebar-collapsed #sidebar .section-label i {
+                width: 20px;
+                flex-shrink: 0;
+                font-size: 1.05rem;
+            }
             body.sidebar-collapsed #sidebar .nav-section-toggle > .bi-chevron-down,
             body.sidebar-collapsed #sidebar .nav-submenu { display: none; }
         }
