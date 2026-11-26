@@ -12,7 +12,7 @@ class SaleTabExportTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_product_and_margin_exports_match_all_filtered_pages_and_selected_sort(): void
+    public function test_margin_exports_match_all_filtered_pages_and_selected_sort(): void
     {
         $owner = User::create(['name'=>'Owner', 'email'=>'tab-export@test.com', 'password'=>'password', 'role'=>'owner']);
         $cashier = User::create(['name'=>'Kasir Terpilih', 'email'=>'tab-export-cashier@test.com', 'password'=>'password', 'role'=>'kasir']);
@@ -45,21 +45,19 @@ class SaleTabExportTest extends TestCase
             $makeSale($user,$date,$status)->items()->create(['product_id'=>$excluded->id, 'quantity'=>1000, 'sale_type'=>'ecer', 'unit_price'=>100, 'subtotal'=>100000]);
         }
         $filters = ['from'=>'2026-11-01', 'to'=>'2026-11-05', 'category_id'=>$category->id, 'cashier_id'=>$cashier->id,
-            'page'=>9, 'products_page'=>2, 'margins_page'=>2, 'per_page'=>25];
-        foreach (['products'=>['revenue','quantity'], 'margins'=>['revenue','margin_desc','margin_asc','profit_desc','profit_asc']] as $tab=>$sorts) {
+            'page'=>9, 'margins_page'=>2, 'per_page'=>25];
+        foreach (['margins'=>['revenue','margin_desc','margin_asc','profit_desc','profit_asc']] as $tab=>$sorts) {
             foreach ($sorts as $sort) {
-                $params = $filters + ['tab'=>$tab, ($tab==='products' ? 'products_sort' : 'margins_sort')=>$sort];
-                $variable = $tab==='products' ? 'topProducts' : 'productMargins';
-                $first = $this->get(route('report.sale', array_replace($params, ['products_page'=>1, 'margins_page'=>1])))->assertOk()->viewData($variable);
+                $params = $filters + ['tab'=>$tab, 'margins_sort'=>$sort];
+                $variable = 'productMargins';
+                $first = $this->get(route('report.sale', array_replace($params, ['margins_page'=>1])))->assertOk()->viewData($variable);
                 $second = $this->get(route('report.sale', $params))->assertOk()->viewData($variable);
                 $all = $first->getCollection()->concat($second->getCollection())->values();
                 $this->assertCount(28, $all);
-                $expected = $tab==='products'
-                    ? $all->map(fn ($row,$index)=>[$index+1,$row->product->name,$row->display_quantity,(float)$row->total_amount])->all()
-                    : $all->map(fn ($row)=>[$row->name,$row->revenue,$row->cost ?? 'Belum lengkap',$row->gross_profit ?? 'Belum lengkap',
+                $expected = $all->map(fn ($row)=>[$row->name,$row->revenue,$row->cost ?? 'Belum lengkap',$row->gross_profit ?? 'Belum lengkap',
                         $row->cost === null ? 'Belum lengkap' : ($row->margin_percentage ?? '—')])->all();
                 Excel::fake();
-                $prefix = $tab==='products' ? 'Laporan-Produk-Terlaris' : 'Laporan-Margin-per-Produk';
+                $prefix = 'Laporan-Margin-per-Produk';
                 $this->get(route('report.sale.excel',$params))->assertOk();
                 Excel::assertDownloaded($prefix.'-2026-11-01-sd-2026-11-05.xlsx', function ($export) use ($expected) {
                     $rows = $export->array();
@@ -69,11 +67,11 @@ class SaleTabExportTest extends TestCase
                     return true;
                 });
                 $pdf = \Mockery::mock(\Barryvdh\DomPDF\PDF::class);
-                $pdf->shouldReceive('setPaper')->once()->with('a4',$tab==='margins' ? 'landscape' : 'portrait')->andReturnSelf();
+                $pdf->shouldReceive('setPaper')->once()->with('a4','landscape')->andReturnSelf();
                 $pdf->shouldReceive('stream')->once()->with($prefix.'-2026-11-01-sd-2026-11-05.pdf')->andReturn(response('tab-pdf'));
-                Pdf::shouldReceive('loadView')->once()->with('report.pdf.sale-products', \Mockery::on(function ($data) use ($expected) {
+                Pdf::shouldReceive('loadView')->once()->with('report.pdf.sale-margins', \Mockery::on(function ($data) use ($expected) {
                     if ($data['rows'] !== $expected) return false;
-                    $html = view('report.pdf.sale-products',$data)->render();
+                    $html = view('report.pdf.sale-margins',$data)->render();
                     return str_contains($html,'Barang 00') && str_contains($html,'Barang 27') && !str_contains($html,'Excluded');
                 }))->andReturn($pdf);
                 $this->get(route('report.sale.pdf',$params))->assertOk()->assertSee('tab-pdf');
@@ -86,16 +84,33 @@ class SaleTabExportTest extends TestCase
         $this->actingAs(User::create(['name'=>'Owner','email'=>'empty-tab-export@test.com','password'=>'password','role'=>'owner']));
         foreach (['report.sale.pdf','report.sale.excel'] as $route) {
             $this->getJson(route($route,['tab'=>'unknown']))->assertUnprocessable();
-            $this->getJson(route($route,['tab'=>'products','products_sort'=>'unknown']))->assertUnprocessable();
             $this->getJson(route($route,['tab'=>'margins','margins_sort'=>'unknown']))->assertUnprocessable();
         }
-        foreach (['products','margins'] as $tab) {
-            $this->get(route('report.sale.pdf',['tab'=>$tab,'from'=>'2026-01-01','to'=>'2026-01-31','products_page'=>99]))
+        foreach (['margins'] as $tab) {
+            $this->get(route('report.sale.pdf',['tab'=>$tab,'from'=>'2026-01-01','to'=>'2026-01-31','margins_page'=>99]))
                 ->assertOk()->assertHeader('Content-Type','application/pdf');
             Excel::fake();
-            $this->get(route('report.sale.excel',['tab'=>$tab,'from'=>'2026-01-01','to'=>'2026-01-31','products_page'=>99]))->assertOk();
-            $prefix = $tab==='products' ? 'Laporan-Produk-Terlaris' : 'Laporan-Margin-per-Produk';
+            $this->get(route('report.sale.excel',['tab'=>$tab,'from'=>'2026-01-01','to'=>'2026-01-31','margins_page'=>99]))->assertOk();
+            $prefix = 'Laporan-Margin-per-Produk';
             Excel::assertDownloaded($prefix.'-2026-01-01-sd-2026-01-31.xlsx', fn ($export)=>count($export->array())===4);
         }
+    }
+    public function test_retired_products_tab_falls_back_to_transactions_and_exports(): void
+    {
+        $this->actingAs(User::create(['name'=>'Owner','email'=>'retired-tab@test.com','password'=>'password','role'=>'owner']));
+        $filters = ['tab'=>'products', 'products_sort'=>'quantity', 'products_page'=>2,
+            'from'=>'2026-01-01', 'to'=>'2026-01-31'];
+        $page = $this->get(route('report.sale', $filters))->assertOk()
+            ->assertViewHas('activeTab', 'transactions')->assertViewMissing('topProducts')
+            ->assertSee('id="saleTransactionsTab"', false)->assertSee('id="saleMarginsTab"', false)
+            ->assertDontSee('Produk Terlaris')->assertDontSee('name="products_sort"', false);
+        $document = new \DOMDocument;
+        @$document->loadHTML($page->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(2, $xpath->query('//button[@data-report-tab]')->length);
+        Excel::fake();
+        $this->get(route('report.sale.excel', $filters))->assertOk();
+        Excel::assertDownloaded('Laporan-Penjualan-2026-01-01-sd-2026-01-31.xlsx');
+        $this->get(route('report.sale.pdf', $filters))->assertOk()->assertHeader('Content-Type','application/pdf');
     }
 }

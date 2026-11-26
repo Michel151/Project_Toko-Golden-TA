@@ -73,11 +73,9 @@ class SaleReportCashierFilterTest extends TestCase
             ->assertViewHas('grossProfit', 10800.0)
             ->assertViewHas('sales', fn ($sales) => $sales->total() === 27 && $sales->count() === 2
                 && $sales->every(fn ($sale) => $sale->created_by === $this->cashier->id))
-            ->assertViewHas('topProducts', fn ($items) => $items->total() === 1
-                && (float) $items->first()->total_amount === 26700.0 && (float) $items->first()->total_qty === 27.0)
             ->assertViewHas('productMargins', fn ($items) => $items->total() === 1 && $items->first()->cost === 15900.0)
             ->assertViewHas('cashiers', fn ($users) => $users->contains('id', $this->owner->id));
-        foreach (['sales', 'topProducts', 'productMargins'] as $name) {
+        foreach (['sales', 'productMargins'] as $name) {
             parse_str(parse_url($page->viewData($name)->url(2), PHP_URL_QUERY), $query);
             $this->assertEquals($this->cashier->id, $query['cashier_id']);
             $this->assertEquals($this->product->category_id, $query['category_id']);
@@ -85,7 +83,7 @@ class SaleReportCashierFilterTest extends TestCase
         $document = new \DOMDocument;
         @$document->loadHTML($page->getContent());
         $xpath = new \DOMXPath($document);
-        $this->assertSame(2, $xpath->query('//input[@type="hidden" and @name="cashier_id"]')->length);
+        $this->assertSame(1, $xpath->query('//input[@type="hidden" and @name="cashier_id"]')->length);
         foreach (['report.sale.pdf', 'report.sale.excel'] as $route) {
             $this->assertSame(1, $xpath->query('//a[@href="'.route($route, $this->filters).'"]')->length);
         }
@@ -141,7 +139,6 @@ class SaleReportCashierFilterTest extends TestCase
         $empty = $this->user('KasirKosong', 'kasir');
         $this->get(route('report.sale', array_replace($this->filters, ['cashier_id' => $empty->id])))
             ->assertOk()->assertViewHas('totalTrx', 0)->assertViewHas('totalAmount', 0)
-            ->assertViewHas('topProducts', fn ($items) => $items->total() === 0)
             ->assertViewHas('productMargins', fn ($items) => $items->total() === 0);
     }
 

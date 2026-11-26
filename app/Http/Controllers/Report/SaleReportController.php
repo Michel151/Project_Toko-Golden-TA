@@ -4,12 +4,10 @@ namespace App\Http\Controllers\Report;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sale;
-use App\Models\SaleItem;
 use App\Models\Category;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\ReportExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -58,14 +56,11 @@ class SaleReportController extends Controller
         $filters = $request->validate([
             'per_page'=>'nullable|integer|in:25,50,100', 
             'tab'=>'nullable|in:transactions,products,margins',
-            'products_sort'=>'nullable|in:revenue,quantity', 
-            'products_page'=>'nullable|integer|min:1',
             'margins_page'=>'nullable|integer|min:1',
             'margins_sort'=>'nullable|in:revenue,margin_desc,margin_asc,profit_desc,profit_asc',
         ]);
-        $productsSort = $filters['products_sort'] ?? 'revenue';
         $marginsSort = $filters['margins_sort'] ?? 'revenue';
-        $activeTab = $filters['tab'] ?? 'transactions';
+        $activeTab = $this->exportTab($request);
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to   = $request->get('to', now()->toDateString());
 
@@ -83,13 +78,6 @@ class SaleReportController extends Controller
         $productMargins = $this->productMargins($sales, $marginsSort);
 
         $perPage = (int) ($filters['per_page'] ?? 25);
-        $topProducts = $this->topProducts($from, $to, $categoryId, $cashierId, $productsSort);
-        $productsPage = min((int) ($filters['products_page'] ?? 1), max(1, (int) ceil($topProducts->count() / $perPage)));
-        $topProducts = (new LengthAwarePaginator($topProducts->forPage($productsPage, $perPage)->values(),
-            $topProducts->count(), $perPage, $productsPage,
-            ['path'=>LengthAwarePaginator::resolveCurrentPath(), 'pageName'=>'products_page']))
-            ->withQueryString()->appends(['tab'=>'products'])->fragment('saleReportTabs');
-
         $page = LengthAwarePaginator::resolveCurrentPage();
         $sales = (new LengthAwarePaginator(
             $sales->forPage($page, $perPage)->values(), $sales->count(), $perPage, $page,
@@ -106,7 +94,7 @@ class SaleReportController extends Controller
             'sales', 'from', 'to',
             'totalAmount', 'totalTunai', 'totalTransfer', 'totalTrx',
             'grossProfit', 'incompleteCostCount', 'productMargins',
-            'topProducts', 'activeTab', 'productsSort', 'marginsSort', 'categories', 'category', 'categoryId',
+            'activeTab', 'marginsSort', 'categories', 'category', 'categoryId',
             'cashier', 'cashierId', 'cashiers'
         ));
     }
@@ -145,57 +133,16 @@ class SaleReportController extends Controller
         return $productMargins;
     }
 
-    private function topProducts(string $from, string $to, ?int $categoryId, ?int $cashierId, string $productsSort)
-    {
-        // Prefer the historical quantity snapshot; legacy rows fall back to their unit conversion.
-        $baseQuantity = \App\Support\SaleQuantity::baseQuantitySql();
-        $topProducts = SaleItem::select('sale_items.product_id', DB::raw("SUM({$baseQuantity}) as total_qty"), DB::raw('SUM(sale_items.subtotal) as total_amount'))
-            ->leftJoin('product_units', 'product_units.id', '=', 'sale_items.product_unit_id')
-            ->leftJoin('products', 'products.id', '=', 'sale_items.product_id')
-            ->when($categoryId, fn ($query) => $query->where('products.category_id', $categoryId))
-            ->whereHas('sale', fn($q) => $q->paid()->whereDate('sale_date', '>=', $from)->whereDate('sale_date', '<=', $to)
-                ->when($cashierId, fn ($query) => $query->where('created_by', $cashierId)))
-            ->with(['product.productUnits.unit', 'product.buyUnit', 'product.retailUnit'])
-            ->groupBy('sale_items.product_id')
-            ->get();
-        $topProducts->each(function ($item) {
-            $product = $item->product;
-            $units = $product?->productUnits ?? collect();
-            $mainUnit = $units->firstWhere('is_default_sale', true)
-                ?? $units->firstWhere('unit_id', $product?->buy_unit_id)
-                ?? $units->firstWhere('is_base_unit', true);
-            $conversion = (float) ($mainUnit?->conversion_to_base ?? 0);
-            $item->package_quantity = $conversion > 0 ? (float) $item->total_qty / $conversion : null;
-            $item->package_unit_id = $mainUnit?->unit_id;
-            $item->package_unit = $mainUnit?->unit?->name;
-            $item->display_quantity = 'Satuan jual belum tersedia';
-            if ($conversion > 0) {
-                // Format from the main sale unit down without changing the shared product's units.
-                $displayProduct = clone $product;
-                $displayProduct->setRelation('productUnits', $units->filter(fn ($unit) => $unit->id === $mainUnit->id
-                    || ((float) $unit->conversion_to_base > 0 && (float) $unit->conversion_to_base < $conversion)));
-                $item->display_quantity = $displayProduct->displayStock((float) $item->total_qty);
-            }
-        });
-        $topProducts = $topProducts->sort(function ($a, $b) use ($productsSort) {
-            if ($productsSort === 'quantity') {
-                $comparison = ($b->package_quantity ?? -1) <=> ($a->package_quantity ?? -1);
-                if ($comparison) return $comparison;
-            }
-            return ($b->total_amount <=> $a->total_amount) ?: ($a->product_id <=> $b->product_id);
-        })->values();
-        return $topProducts;
-    }
-
     private function exportTab(Request $request): string
     {
-        return $request->validate(['tab'=>'nullable|in:transactions,products,margins'])['tab'] ?? 'transactions';
+        $tab = $request->validate(['tab'=>'nullable|in:transactions,products,margins'])['tab'] ?? 'transactions';
+        // Old bookmarks for the retired tab open the transaction report.
+        return $tab === 'products' ? 'transactions' : $tab;
     }
 
-    private function exportTabData(Request $request, string $tab): array
+    private function exportMarginsData(Request $request): array
     {
-        $filters = $request->validate(['products_sort'=>'nullable|in:revenue,quantity',
-            'margins_sort'=>'nullable|in:revenue,margin_desc,margin_asc,profit_desc,profit_asc']);
+        $filters = $request->validate(['margins_sort'=>'nullable|in:revenue,margin_desc,margin_asc,profit_desc,profit_asc']);
         $categoryId = $this->categoryId($request);
         $cashier = $this->cashier($request);
         $category = $categoryId ? Category::find($categoryId) : null;
@@ -203,32 +150,19 @@ class SaleReportController extends Controller
         $to = $request->get('to', now()->toDateString());
         $metadata = $category ? ['Kategori: '.$category->name] : [];
         if ($cashier) $metadata[] = 'Kasir: '.$cashier->name;
-        $decimalColumns = [];
-        if ($tab === 'products') {
-            $sort = $filters['products_sort'] ?? 'revenue';
-            $sortLabel = $sort === 'quantity' ? 'Jumlah Kemasan' : 'Omzet Tertinggi';
-            $title = 'Laporan Produk Terlaris';
-            $filePrefix = 'Laporan-Produk-Terlaris';
-            $sheetTitle = 'Produk Terlaris';
-            $headings = ['Peringkat', 'Barang', 'Jumlah Terjual', 'Total Penjualan'];
-            $currencyColumns = [4];
-            $rows = $this->topProducts($from, $to, $categoryId, $cashier?->id, $sort)
-                ->map(fn ($item, $index) => [$index + 1, $item->product?->name ?? '-', $item->display_quantity, (float) $item->total_amount])->all();
-        } else {
-            $sort = $filters['margins_sort'] ?? 'revenue';
-            $sortLabel = ['revenue'=>'Omzet Tertinggi', 'margin_desc'=>'Margin Tertinggi (%)', 'margin_asc'=>'Margin Terendah (%)',
-                'profit_desc'=>'Laba Kotor Tertinggi (Rp)', 'profit_asc'=>'Laba Kotor Terendah (Rp)'][$sort];
-            $title = 'Laporan Margin per Produk';
-            $filePrefix = 'Laporan-Margin-per-Produk';
-            $sheetTitle = 'Margin per Produk';
-            $headings = ['Barang', 'Omzet', 'HPP', 'Laba Kotor', 'Margin (%)'];
-            $currencyColumns = [2, 3, 4];
-            $decimalColumns = [5];
-            $rows = $this->productMargins($this->periodSales($from, $to, $categoryId, $cashier?->id), $sort)
-                ->map(fn ($item) => [$item->name, $item->revenue, $item->cost ?? 'Belum lengkap',
-                    $item->gross_profit ?? 'Belum lengkap', $item->cost === null ? 'Belum lengkap' : ($item->margin_percentage ?? '—')])->all();
-            $metadata[] = 'Margin = laba kotor ÷ omzet × 100%, sebelum biaya operasional.';
-        }
+        $sort = $filters['margins_sort'] ?? 'revenue';
+        $sortLabel = ['revenue'=>'Omzet Tertinggi', 'margin_desc'=>'Margin Tertinggi (%)', 'margin_asc'=>'Margin Terendah (%)',
+            'profit_desc'=>'Laba Kotor Tertinggi (Rp)', 'profit_asc'=>'Laba Kotor Terendah (Rp)'][$sort];
+        $title = 'Laporan Margin per Produk';
+        $filePrefix = 'Laporan-Margin-per-Produk';
+        $sheetTitle = 'Margin per Produk';
+        $headings = ['Barang', 'Omzet', 'HPP', 'Laba Kotor', 'Margin (%)'];
+        $currencyColumns = [2, 3, 4];
+        $decimalColumns = [5];
+        $rows = $this->productMargins($this->periodSales($from, $to, $categoryId, $cashier?->id), $sort)
+            ->map(fn ($item) => [$item->name, $item->revenue, $item->cost ?? 'Belum lengkap',
+                $item->gross_profit ?? 'Belum lengkap', $item->cost === null ? 'Belum lengkap' : ($item->margin_percentage ?? '—')])->all();
+        $metadata[] = 'Margin = laba kotor ÷ omzet × 100%, sebelum biaya operasional.';
         $metadata[] = 'Urutan: '.$sortLabel;
         return compact('title', 'filePrefix', 'sheetTitle', 'headings', 'rows', 'currencyColumns', 'decimalColumns', 'metadata', 'from', 'to');
     }
@@ -237,8 +171,8 @@ class SaleReportController extends Controller
     {
         $tab = $this->exportTab($request);
         if ($tab !== 'transactions') {
-            $data = $this->exportTabData($request, $tab);
-            return Pdf::loadView('report.pdf.sale-products', $data)->setPaper('a4', $tab === 'margins' ? 'landscape' : 'portrait')
+            $data = $this->exportMarginsData($request);
+            return Pdf::loadView('report.pdf.sale-margins', $data)->setPaper('a4', 'landscape')
                 ->stream($data['filePrefix'].'-'.$data['from'].'-sd-'.$data['to'].'.pdf');
         }
         $categoryId = $this->categoryId($request);
@@ -257,10 +191,10 @@ class SaleReportController extends Controller
     {
         $tab = $this->exportTab($request);
         if ($tab !== 'transactions') {
-            $data = $this->exportTabData($request, $tab);
+            $data = $this->exportMarginsData($request);
             return Excel::download(new ReportExport($data['title'], $data['headings'], $data['rows'], $data['currencyColumns'],
                 $data['decimalColumns'], $data['sheetTitle'], $data['metadata'], showGridlines: true,
-                reportPeriod: 'Periode: '.$data['from'].' s.d. '.$data['to'], includeTotal: $tab === 'products'),
+                reportPeriod: 'Periode: '.$data['from'].' s.d. '.$data['to'], includeTotal: false),
                 $data['filePrefix'].'-'.$data['from'].'-sd-'.$data['to'].'.xlsx');
         }
         $categoryId = $this->categoryId($request);

@@ -11,11 +11,10 @@
 
 @section('content')
 <div class="report-page">
-<div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-graph-up-arrow"></i></div><div><h5 class="fw-bold mb-1">Laporan Penjualan</h5><div class="text-white-50 small">Analisis transaksi, pembayaran, dan produk terlaris</div></div></div><span class="badge bg-success">{{ $totalTrx }} Transaksi</span></div>
+<div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-graph-up-arrow"></i></div><div><h5 class="fw-bold mb-1">Laporan Penjualan</h5><div class="text-white-50 small">Analisis transaksi, pembayaran, dan margin per produk</div></div></div><span class="badge bg-success">{{ $totalTrx }} Transaksi</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
     <form class="app-unified-filter d-flex flex-wrap gap-2 align-items-end" method="GET">
         <input type="hidden" name="tab" id="saleReportActiveTab" value="{{ $activeTab }}">
-        <input type="hidden" name="products_sort" value="{{ $productsSort }}">
         <input type="hidden" name="margins_sort" value="{{ $marginsSort }}">
         @include('components.date-range',['prefix'=>'saleReport','fromValue'=>$from,'toValue'=>$to])
         <div><label for="saleReportCategory" class="d-block">Kategori</label><select id="saleReportCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $option)<option value="{{ $option->id }}" @selected($categoryId === $option->id)>{{ $option->name }}</option>@endforeach</select></div>
@@ -76,7 +75,6 @@
 
 <div class="nav nav-pills sale-report-tabs mb-3" id="saleReportTabs" role="tablist" aria-label="Rincian laporan penjualan">
     <button class="nav-link {{ $activeTab === 'transactions' ? 'active' : '' }}" id="saleTransactionsTab" data-bs-toggle="pill" data-bs-target="#saleTransactionsPane" data-report-tab="transactions" type="button" role="tab" aria-controls="saleTransactionsPane" aria-selected="{{ $activeTab === 'transactions' ? 'true' : 'false' }}"><i class="bi bi-receipt me-1" aria-hidden="true"></i>Daftar Transaksi</button>
-    <button class="nav-link {{ $activeTab === 'products' ? 'active' : '' }}" id="saleProductsTab" data-bs-toggle="pill" data-bs-target="#saleProductsPane" data-report-tab="products" type="button" role="tab" aria-controls="saleProductsPane" aria-selected="{{ $activeTab === 'products' ? 'true' : 'false' }}"><i class="bi bi-trophy me-1" aria-hidden="true"></i>Produk Terlaris</button>
     <button class="nav-link {{ $activeTab === 'margins' ? 'active' : '' }}" id="saleMarginsTab" data-bs-toggle="pill" data-bs-target="#saleMarginsPane" data-report-tab="margins" type="button" role="tab" aria-controls="saleMarginsPane" aria-selected="{{ $activeTab === 'margins' ? 'true' : 'false' }}"><i class="bi bi-calculator me-1" aria-hidden="true"></i>Margin per Produk</button>
 </div>
 <div class="tab-content sale-report-overview">
@@ -104,41 +102,6 @@
             <div class="card-footer bg-white">{{ $sales->links() }}</div>
         </div>
     </div>
-    <div class="tab-pane {{ $activeTab === 'products' ? 'show active' : '' }}" id="saleProductsPane" role="tabpanel" aria-labelledby="saleProductsTab" tabindex="0">
-        <div class="card table-card">
-            <div class="card-header bg-white border-0 pt-3 d-flex flex-wrap align-items-end justify-content-between gap-3">
-                <div><h6 class="fw-bold mb-1">Produk Terlaris</h6><div class="small text-muted">Semua barang terjual pada periode terpilih. Jumlah ditampilkan dalam multi satuan masing-masing barang.</div></div>
-                <form method="GET" action="{{ route('report.sale') }}" class="app-unified-filter d-flex flex-wrap align-items-end gap-2">
-                    <input type="hidden" name="from" value="{{ $from }}"><input type="hidden" name="to" value="{{ $to }}">
-                    <input type="hidden" name="per_page" value="{{ $sales->perPage() }}"><input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="tab" value="products">
-                    <input type="hidden" name="margins_page" value="{{ $productMargins->currentPage() }}">
-                    <input type="hidden" name="margins_sort" value="{{ $marginsSort }}">
-                    @if($cashierId)<input type="hidden" name="cashier_id" value="{{ $cashierId }}">@endif
-                    <div><label for="saleProductsSort" class="form-label small mb-1">Urutkan Berdasarkan</label><select id="saleProductsSort" name="products_sort" class="form-select form-select-sm"><option value="revenue" @selected($productsSort === 'revenue')>Omzet Tertinggi</option><option value="quantity" @selected($productsSort === 'quantity')>Jumlah Kemasan</option></select></div>
-                    <div><label for="saleProductsCategory" class="form-label small mb-1">Kategori</label><select id="saleProductsCategory" name="category_id" class="form-select form-select-sm"><option value="">Semua Kategori</option>@foreach($categories as $option)<option value="{{ $option->id }}" @selected($categoryId === $option->id)>{{ $option->name }}</option>@endforeach</select></div>
-                    <button class="btn btn-sm btn-primary">Terapkan</button>
-                <a href="{{ route('report.sale', ['from'=>$from,'to'=>$to,'tab'=>'products','per_page'=>$sales->perPage(),'margins_sort'=>$marginsSort,'cashier_id'=>$cashierId]) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Reset</a></form>
-            </div>
-            <div class="card-body p-0 table-responsive" tabindex="0" role="region" aria-label="Produk terlaris">
-                <table id="saleTopProductsTable" class="table table-hover report-table app-mobile-records mb-0" data-mobile-records>
-                    <thead><tr><th>Peringkat</th><th>Barang</th><th class="text-end">Jumlah Terjual</th><th class="text-end">Total Penjualan</th></tr></thead>
-                    <tbody>
-                        @forelse($topProducts as $i => $tp)
-                        <tr>
-                            <td class="text-muted">{{ $topProducts->firstItem() + $loop->index }}</td>
-                            <td class="small">{{ $tp->product->name ?? '-' }}</td>
-                            <td class="text-end small">{{ $tp->display_quantity }}</td>
-                            <td class="text-end small">Rp {{ number_format($tp->total_amount, 0, ',', '.') }}</td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="4" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada penjualan produk pada periode ini.'])</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <div class="card-footer bg-white">{{ $topProducts->links() }}</div>
-        </div>
-    </div>
     <div class="tab-pane {{ $activeTab === 'margins' ? 'show active' : '' }}" id="saleMarginsPane" role="tabpanel" aria-labelledby="saleMarginsTab" tabindex="0">
 <section class="card table-card" aria-labelledby="productMarginHeading">
     <div class="card-header bg-white border-0 pt-3">
@@ -149,8 +112,7 @@
             @if($cashierId)<input type="hidden" name="cashier_id" value="{{ $cashierId }}">@endif
             <input type="hidden" name="from" value="{{ $from }}"><input type="hidden" name="to" value="{{ $to }}">
             <input type="hidden" name="category_id" value="{{ $categoryId }}"><input type="hidden" name="per_page" value="{{ $sales->perPage() }}">
-            <input type="hidden" name="page" value="{{ $sales->currentPage() }}"><input type="hidden" name="products_page" value="{{ $topProducts->currentPage() }}">
-            <input type="hidden" name="products_sort" value="{{ $productsSort }}">
+            <input type="hidden" name="page" value="{{ $sales->currentPage() }}">
             <div><label for="saleMarginsSort">Urutkan Berdasarkan</label><select id="saleMarginsSort" name="margins_sort" class="form-select form-select-sm">
                 @foreach(['revenue'=>'Omzet Tertinggi','margin_desc'=>'Margin Tertinggi (%)','margin_asc'=>'Margin Terendah (%)','profit_desc'=>'Laba Kotor Tertinggi (Rp)','profit_asc'=>'Laba Kotor Terendah (Rp)'] as $value=>$label)
                     <option value="{{ $value }}" @selected($marginsSort === $value)>{{ $label }}</option>

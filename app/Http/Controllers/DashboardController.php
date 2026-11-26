@@ -121,46 +121,22 @@ class DashboardController extends Controller
             return $product->inventoryValue();
         });
 
-        $topProductQuery = DB::table('sale_items')
+        $categorySales = DB::table('sale_items')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->join('products', 'products.id', '=', 'sale_items.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
             ->where('sales.status', 'paid')
             ->whereDate('sales.sale_date', '>=', $today->copy()->subDays(29))
             ->whereDate('sales.sale_date', '<=', $today)
-            ->groupBy('products.id', 'products.name', 'products.category_id');
-        $topProducts = (clone $topProductQuery)->orderByDesc(DB::raw('SUM(sale_items.subtotal)'))->orderBy('products.id')->get([
-                'products.name', 'products.category_id',
-                DB::raw('SUM(sale_items.subtotal) as revenue'),
-                DB::raw('SUM(sale_items.quantity) as quantity'),
-            ]);
-        $baseQuantity = \App\Support\SaleQuantity::baseQuantitySql();
-        $topQuantityProducts = (clone $topProductQuery)
-            ->join('product_units', 'product_units.id', '=', 'sale_items.product_unit_id')
-            ->get(['products.id','products.name','products.category_id',DB::raw("SUM({$baseQuantity}) as base_quantity"), DB::raw('SUM(sale_items.subtotal) as revenue')]);
-        $rankedProducts = Product::with(['productUnits.unit', 'buyUnit', 'retailUnit'])->whereIn('id', $topQuantityProducts->pluck('id'))->get()->keyBy('id');
-        $topQuantityProducts->each(function ($item) use ($rankedProducts) {
-            $product = $rankedProducts->get($item->id);
-            $units = $product?->productUnits ?? collect();
-            $mainUnit = $units->firstWhere('is_default_sale', true)
-                ?? $units->firstWhere('unit_id', $product?->buy_unit_id)
-                ?? $units->firstWhere('is_base_unit', true);
-            $conversion = (float) ($mainUnit?->conversion_to_base ?? 0);
-            $item->package_quantity = $conversion > 0 ? (float) $item->base_quantity / $conversion : null;
-            $item->package_unit_id = $mainUnit?->unit_id;
-            $item->package_unit = $mainUnit?->unit?->name;
-            $item->display_quantity = 'Satuan jual belum tersedia';
-            if ($conversion > 0) {
-                // Menampilkan jumlah dari satuan jual utama ke satuan lebih kecil tanpa mengubah satuan produk.
-                $displayProduct = clone $product;
-                $displayProduct->setRelation('productUnits', $units->filter(fn ($unit) => $unit->id === $mainUnit->id
-                    || ((float) $unit->conversion_to_base > 0 && (float) $unit->conversion_to_base < $conversion)));
-                $item->display_quantity = $displayProduct->displayStock((float) $item->base_quantity);
-            }
+            ->groupBy('categories.id', 'categories.name')
+            ->orderByDesc(DB::raw('SUM(sale_items.subtotal)'))
+            ->orderBy('categories.name')->orderBy('categories.id')
+            ->get(['categories.id as category_id', 'categories.name', DB::raw('SUM(sale_items.subtotal) as revenue')]);
+        $categorySalesTotal = (float) $categorySales->sum('revenue');
+        $categorySales->each(function ($category) use ($categorySalesTotal) {
+            $category->name ??= 'Tanpa Kategori';
+            $category->contribution = $categorySalesTotal > 0 ? (float) $category->revenue / $categorySalesTotal * 100 : 0;
         });
-        $topQuantityProducts = $topQuantityProducts->filter(fn ($item) => $item->package_quantity !== null)
-            ->sort(fn ($a, $b) => ($b->package_quantity <=> $a->package_quantity) ?: (($b->revenue <=> $a->revenue) ?: ($a->id <=> $b->id)))
-            ->values();
-        $rankingCategories = \App\Models\Category::whereIn('id', $topProducts->pluck('category_id')->filter())->orderBy('name')->get(['id', 'name']);
 
         $paymentMethods = (clone $monthSalesQuery)
             ->select('payment_method', DB::raw('SUM(total_amount) as total'))
@@ -188,7 +164,7 @@ class DashboardController extends Controller
             'expiringSoonCount', 'expiredBatchCount', 'expiringBatches',
             'salesChart', 'lowStockProducts', 'outOfStockCount', 'inventoryValue', 'sellableStock',
             'grossProfit', 'missingCostCount', 'salesWithoutItemsCount', 'pendingSalesCount', 'pendingSalesAmount',
-            'topProducts', 'topQuantityProducts', 'rankingCategories', 'paymentMethods', 'locationValues', 'recentSales'
+            'categorySales', 'categorySalesTotal', 'paymentMethods', 'locationValues', 'recentSales'
         ));
     }
 

@@ -53,7 +53,7 @@ class SaleReportGrossProfitTest extends TestCase
         }
         $unknown = $this->sale('paid', '2026-10-21', 20000, 0);
         $filters = ['from'=>'2026-10-20', 'to'=>'2026-10-25', 'tab'=>'margins',
-            'category_id'=>$this->product->category_id, 'products_sort'=>'quantity'];
+            'category_id'=>$this->product->category_id];
         foreach (['margin_desc', 'profit_desc', 'margin_asc', 'profit_asc'] as $sort) {
             $expected = str_ends_with($sort, '_desc') ? array_reverse($ids) : $ids;
             $response = $this->get(route('report.sale', $filters + ['margins_sort'=>$sort]))->assertOk()
@@ -86,11 +86,10 @@ class SaleReportGrossProfitTest extends TestCase
         $transfer=$this->sale('paid','2026-10-22',5000,2000,'moving_average'); $transfer->update(['payment_method'=>'transfer']);
         $foodSale=$this->sale('paid','2026-10-23',4000,1000); $foodSale->items()->update(['product_id'=>$food->id]);
         $this->sale('pending','2026-10-23',90000,1);
-        $filters=['from'=>'2026-10-20','to'=>'2026-10-25','category_id'=>$this->product->category_id,'tab'=>'products'];
+        $filters=['from'=>'2026-10-20','to'=>'2026-10-25','category_id'=>$this->product->category_id,'tab'=>'margins'];
         $response=$this->get(route('report.sale',$filters))->assertOk()
             ->assertViewHas('totalTrx',2)->assertViewHas('totalAmount',15000)->assertViewHas('totalTunai',10000)
             ->assertViewHas('totalTransfer',5000)->assertViewHas('grossProfit',7000.0)->assertViewHas('incompleteCostCount',0)
-            ->assertViewHas('topProducts',fn($rows)=>$rows->total()===1&&(float)$rows->first()->total_amount===15000.0)
             ->assertViewHas('productMargins',fn($rows)=>$rows->total()===1&&$rows->first()->cost===8000.0)
             ->assertSee('Total Kategori')->assertSee('nota campuran');
         $mixedReport=$response->viewData('sales')->firstWhere('id',$mixed->id);
@@ -99,7 +98,7 @@ class SaleReportGrossProfitTest extends TestCase
         $this->assertCount(1,$mixedReport->items);
         $this->assertEquals(13000,$mixed->fresh()->total_amount);
         $this->assertSame(2,$mixed->items()->count());
-        foreach (['sales','topProducts','productMargins'] as $variable) {
+        foreach (['sales','productMargins'] as $variable) {
             parse_str(parse_url($response->viewData($variable)->url(2),PHP_URL_QUERY),$query);
             $this->assertEquals($this->product->category_id,$query['category_id']);
         }
@@ -134,7 +133,6 @@ class SaleReportGrossProfitTest extends TestCase
         $empty=Category::create(['name'=>'Belum Terjual']);
         $this->get(route('report.sale',['category_id'=>$empty->id]))->assertOk()
             ->assertViewHas('totalTrx',0)->assertViewHas('totalAmount',0)->assertViewHas('grossProfit',0.0)
-            ->assertViewHas('topProducts',fn($rows)=>$rows->total()===0)
             ->assertViewHas('productMargins',fn($rows)=>$rows->total()===0);
         foreach (['report.sale','report.sale.pdf','report.sale.excel'] as $name) {
             $this->getJson(route($name,['category_id'=>999999]))->assertUnprocessable()->assertJsonValidationErrors('category_id');
@@ -186,12 +184,13 @@ class SaleReportGrossProfitTest extends TestCase
     {
         for ($i = 0; $i < 30; $i++) $this->sale('paid','2026-10-21',10000,6000);
         $page = $this->report()->assertViewHas('sales', fn ($rows) => $rows->count() === 25 && $rows->total() === 30)
-            ->assertSee('id="saleTransactionsTable"', false)->assertDontSee('height:640px', false)->assertDontSee('max-height:600px', false)
+            ->assertSee('id="saleTransactionsTable"', false)
             ->assertDontSee('Daftar transaksi penjualan, gulir untuk melihat transaksi lainnya');
         $document = new \DOMDocument;
         @$document->loadHTML($page->getContent());
         $xpath = new \DOMXPath($document);
         $this->assertSame(25, $xpath->query('//table[@id="saleTransactionsTable"]/tbody/tr')->length);
+        $this->assertSame(0, $xpath->query('//table[@id="saleTransactionsTable"]/ancestor::*[contains(@style,"height:")]')->length);
         $this->assertGreaterThan(0, $xpath->query('//div[contains(@class,"card-footer")]//a[contains(@href,"page=2")]')->length);
     }
 
@@ -229,34 +228,4 @@ class SaleReportGrossProfitTest extends TestCase
         $this->report()->assertViewHas('productMargins',fn ($rows) => $rows->first()->gross_profit === -500.0
             && $rows->first()->margin_percentage === null)->assertSee('Rp -500');
     }
-    public function test_package_sort_and_category_filter_preserve_multi_units_before_pagination(): void
-    {
-        $box = Unit::create(['name'=>'Dus']);
-        ProductUnit::create(['product_id'=>$this->product->id, 'unit_id'=>$box->id, 'conversion_to_base'=>12, 'is_default_sale'=>true]);
-        $sale = $this->sale('paid','2026-10-21',100000,500);
-        // Historical quantity remains usable even when a legacy item has no unit reference.
-        $sale->items()->update(['product_unit_id'=>null, 'quantity'=>999, 'cost_base_quantity'=>27]);
-        $otherCategory = Category::create(['name'=>'Kategori Botol']);
-        for ($i=0; $i<26; $i++) {
-            $product=$this->product->replicate(); $product->name='Botol '.$i; $product->category_id=$otherCategory->id; $product->save();
-            $unit=$this->unit->replicate(); $unit->product_id=$product->id; $unit->is_default_sale=true; $unit->save();
-            $other=$this->sale('paid','2026-10-21',1000,500);
-            $other->items()->update(['product_id'=>$product->id,'product_unit_id'=>$unit->id,'quantity'=>10]);
-        }
-        $params=['from'=>'2026-10-20','to'=>'2026-10-25','tab'=>'products'];
-        $this->get(route('report.sale',$params))->assertOk()->assertViewHas('productsSort','revenue')
-            ->assertViewHas('topProducts',fn($rows)=>$rows->first()->product_id===$this->product->id);
-        $this->get(route('report.sale',$params+['products_sort'=>'quantity']))->assertOk()
-            ->assertViewHas('topProducts',fn($rows)=>$rows->total()===27 && $rows->first()->package_quantity===10.0);
-        $this->get(route('report.sale',$params+['products_sort'=>'quantity','category_id'=>$this->product->category_id]))->assertOk()
-            ->assertViewHas('topProducts',fn($rows)=>$rows->total()===1 && $rows->first()->package_quantity===2.25
-                && $rows->first()->display_quantity==='2 Dus 3 Botol')
-            ->assertSee('2 Dus 3 Botol')->assertSee('saleProductsCategory')->assertDontSee('saleProductsUnit');
-        $this->get(route('report.sale',$params+['category_id'=>$otherCategory->id]))->assertOk()
-            ->assertViewHas('productsSort','revenue')->assertViewHas('topProducts',fn($rows)=>$rows->total()===26);
-        $this->get(route('report.sale',$params+['products_sort'=>'quantity','category_id'=>$otherCategory->id,'products_page'=>2]))->assertOk()
-            ->assertViewHas('topProducts',fn($rows)=>$rows->total()===26 && $rows->count()===1 && str_contains($rows->url(1),'category_id='));
-        $this->getJson(route('report.sale',$params+['category_id'=>999999]))->assertUnprocessable();
-    }
-
 }

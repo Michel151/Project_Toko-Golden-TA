@@ -13,8 +13,6 @@
 @endforeach</tr>
 @empty<tr><td colspan="{{ count($headings) }}" class="center">Tidak ada penjualan produk sesuai filter.</td></tr>@endforelse
 </tbody>
-@if($filePrefix === 'Laporan-Produk-Terlaris')
-<tfoot><tr><td colspan="3">TOTAL</td><td class="right">Rp {{ number_format(array_sum(array_column($rows,3)),0,',','.') }}</td></tr></tfoot>
-@endif
+
 </table>
 @endsection
