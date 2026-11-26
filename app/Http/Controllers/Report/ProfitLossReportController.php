@@ -15,14 +15,17 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ProfitLossReportController extends Controller
 {
+    // Menyiapkan data yang sama untuk halaman, PDF, dan Excel dalam transaksi database.
     private function data(Request $request): array
     {
         return DB::transaction(fn () => $this->buildData($request));
     }
 
+    // Menghitung pendapatan, HPP, beban, pajak, dan laba untuk periode pilihan.
     private function buildData(Request $request): array
     {
         $filters = FinancialPeriod::resolve($request);
+        // Meringkas HPP per nota agar pendapatan tidak terhitung berulang saat digabung.
         $costs = DB::table('sale_items')->select('sale_id')
             ->selectRaw("SUM(cost_subtotal) AS cost, COUNT(*) AS item_count, SUM(CASE WHEN cost_subtotal IS NULL OR cost_subtotal < 0 OR (cost_subtotal = 0 AND cost_method != 'moving_average') THEN 1 ELSE 0 END) AS missing_count")
             ->selectRaw("SUM(CASE WHEN cost_method = 'moving_average' THEN cost_subtotal ELSE 0 END) AS moving_cost,
@@ -30,6 +33,7 @@ class ProfitLossReportController extends Controller
                 SUM(CASE WHEN cost_method != 'moving_average' THEN 1 ELSE 0 END) AS legacy_count,
                 SUM(CASE WHEN cost_method = 'moving_average' AND (cost_subtotal IS NULL OR cost_subtotal < 0) THEN 1 ELSE 0 END) AS moving_missing_count")
             ->groupBy('sale_id');
+        // Menghitung penjualan lunas sesuai tanggal transaksi dan memeriksa kelengkapan HPP.
         $summary = Sale::paid()->leftJoinSub($costs, 'item_costs', 'item_costs.sale_id', '=', 'sales.id')
             ->whereDate('sale_date', '>=', $filters['from'])->whereDate('sale_date', '<=', $filters['to'])
             ->toBase()->selectRaw('COUNT(*) AS transaction_count, COALESCE(SUM(total_amount),0) AS revenue, COALESCE(SUM(item_costs.cost),0) AS cost,
@@ -39,21 +43,26 @@ class ProfitLossReportController extends Controller
         $revenue = (float) $summary->revenue;
         $cost = (float) $summary->cost;
         $incompleteCount = (int) $summary->incomplete_count;
+        // Laba kotor belum ditentukan jika ada nota dengan HPP belum lengkap.
         $grossProfit = $incompleteCount ? null : round($revenue - $cost, 2);
         $query = Expense::where('status', 'confirmed')->whereDate('recognized_date', '>=', $filters['from'])->whereDate('recognized_date', '<=', $filters['to']);
         $grouped = (clone $query)->select('category')->selectRaw('SUM(amount) AS total')->groupBy('category')->pluck('total', 'category');
         $expenseTotal = round((float) $grouped->sum(), 2);
+        // Mengambil selisih nilai persediaan; pengurangan sudah bertanda negatif.
         $adjustments = DB::table('inventory_cost_entries')->whereBetween('event_date', [$filters['from'], $filters['to']])
             ->selectRaw("COALESCE(SUM(CASE WHEN kind = 'stock_gain' THEN value_change ELSE 0 END),0) AS gains,
                 COALESCE(SUM(CASE WHEN kind = 'stock_loss' THEN value_change ELSE 0 END),0) AS losses")->first();
         $stockGain = (float) $adjustments->gains;
         $stockLoss = (float) $adjustments->losses;
         $stockAdjustment = round($stockGain + $stockLoss, 2);
+        // Laba operasional belum memasukkan selisih persediaan; laba sebelum pajak sudah memasukkannya.
         $operatingProfit = $grossProfit === null ? null : round($grossProfit - $expenseTotal, 2);
         $profitBeforeTax = $grossProfit === null ? null : round($grossProfit - $expenseTotal + $stockAdjustment, 2);
         $taxSummary = app(\App\Services\TaxSummaryService::class)->build($filters['from'], $filters['to']);
+        // Laba bersih hanya dihitung jika HPP dan pajak seluruh periode sudah lengkap.
         $netProfit = $profitBeforeTax === null || !$taxSummary['complete'] ? null
             : (float) (string) \Brick\Math\BigDecimal::of((string) $profitBeforeTax)->minus($taxSummary['amount'])->toScale(2, \Brick\Math\RoundingMode::HalfUp);
+        // Menyusun baris laporan: uraian, nilai, penanda tebal, dan jenis baris.
         $lines = [
             ['PENDAPATAN', null, true, 'section'],
             ['Penjualan Barang Dagang', $revenue, false, 'detail'],
@@ -62,6 +71,7 @@ class ProfitLossReportController extends Controller
         ];
         $lines[] = ['Laba Kotor', $grossProfit, true, 'result'];
         $lines[] = ['BEBAN OPERASIONAL', null, true, 'section'];
+        // Menampilkan kategori yang memiliki beban sebagai pengurang pada laporan.
         foreach (Expense::CATEGORIES as $key => $label) {
             if ($grouped->has($key)) $lines[] = [str_starts_with($label, 'Beban ') ? $label : 'Beban '.$label, -(float) $grouped[$key], false, 'detail'];
         }
@@ -76,12 +86,15 @@ class ProfitLossReportController extends Controller
         $lines[] = ['Beban Pajak Penghasilan', $taxSummary['complete'] ? -(float) $taxSummary['amount'] : null, false, 'detail'];
         $lines[] = ['Laba (Rugi) Bersih', $netProfit, true, 'result'];
         $notice = 'Penjualan dan HPP: invoice lunas sesuai tanggal transaksi. HPP historis tetap; moving average mengikuti biaya tersimpan. Beban operasional sesuai tanggal pengakuan. Selisih opname tercatat pada pendapatan/beban lainnya dan perlu diverifikasi owner. Beban pajak diinput manual owner, bukan nominal pembayaran; bukan perhitungan pajak otomatis atau pajak tangguhan. '.$taxSummary['status'];
+        // Memeriksa saldo persediaan tanpa menambahkan hasil rekonsiliasi ke laba lagi.
         $reconciliation = app(InventoryReconciliationService::class)->build($filters['from'], $filters['to'],
             (string) $summary->moving_cost, (string) $summary->legacy_cost, (int) $summary->moving_missing_count);
+        // Menghitung draf yang belum masuk beban untuk ditampilkan sebagai peringatan.
         $draftCount = Expense::where('status', 'draft')->whereDate('recognized_date', '>=', $filters['from'])->whereDate('recognized_date', '<=', $filters['to'])->count();
         return $filters + compact('revenue', 'cost', 'incompleteCount', 'grossProfit', 'expenseTotal', 'operatingProfit', 'profitBeforeTax', 'netProfit', 'taxSummary', 'lines', 'notice', 'draftCount', 'reconciliation');
     }
 
+    // Menampilkan laporan seluruh periode beserta rincian beban yang dibagi per halaman.
     public function index(Request $request)
     {
         $data = $this->data($request);
@@ -90,6 +103,7 @@ class ProfitLossReportController extends Controller
         return view('report.profit-loss', $data + compact('expenses'));
     }
 
+    // Menyusun data periode pilihan dan mengirim laporan PDF berukuran A4.
     public function pdf(Request $request)
     {
         $data = $this->data($request);
@@ -97,6 +111,7 @@ class ProfitLossReportController extends Controller
             ->stream('Laporan-Laba-Rugi-'.$data['from'].'-sd-'.$data['to'].'.pdf');
     }
 
+    // Mengunduh Excel berisi sheet laba rugi dan rekonsiliasi persediaan.
     public function excel(Request $request)
     {
         $data = $this->data($request);

@@ -1,6 +1,8 @@
+{{-- Menampilkan uraian, nilai, dan jenis baris yang sudah disusun perhitungan laporan. --}}
 @foreach($lines as $line)
     @php [$label, $value, $bold] = $line; $kind = $line[3] ?? 'detail'; @endphp
     <tr class="pl-{{ $kind }} {{ $bold ? 'fw-bold' : '' }}">
+        {{-- Judul kelompok memakai dua kolom; nilai negatif memakai kurung dan null memakai keterangan. --}}
         @if($kind === 'section')
             <th colspan="2">{{ $label }}</th>
         @else
