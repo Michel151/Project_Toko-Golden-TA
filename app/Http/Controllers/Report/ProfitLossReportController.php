@@ -66,7 +66,7 @@ class ProfitLossReportController extends Controller
         }
         if ($grouped->isEmpty()) $lines[] = ['Tidak ada beban terkonfirmasi', 0.0, false, 'detail'];
         $lines[] = ['Total Beban Operasional', -$expenseTotal, true, 'total'];
-        $lines[] = ['Laba (Rugi) Usaha', $grossProfit === null ? null : round($grossProfit - $expenseTotal, 2), true, 'result'];
+        $lines[] = ['Laba (Rugi) Operasional', $grossProfit === null ? null : round($grossProfit - $expenseTotal, 2), true, 'result'];
         $lines[] = ['PENDAPATAN DAN BEBAN LAINNYA', null, true, 'section'];
         $lines[] = ['Pendapatan Selisih Lebih Persediaan', $stockGain, false, 'detail'];
         $lines[] = ['Beban Selisih Kurang Persediaan', $stockLoss, false, 'detail'];

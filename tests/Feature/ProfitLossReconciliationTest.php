@@ -101,7 +101,7 @@ class ProfitLossReconciliationTest extends TestCase
         $this->expense();
         $response = $this->report()->assertViewHas('revenue', 195000.0)->assertViewHas('cost', 150000.0)
             ->assertViewHas('grossProfit', 45000.0)->assertViewHas('operatingProfit', 35000.0)
-            ->assertSeeInOrder(['PENDAPATAN', 'Harga Pokok Penjualan', 'BEBAN OPERASIONAL', 'Laba (Rugi) Usaha', 'PENDAPATAN DAN BEBAN LAINNYA', 'Pendapatan dan Beban Lainnya Neto', 'Laba (Rugi) Sebelum Pajak', 'Beban Pajak Penghasilan', 'Laba (Rugi) Bersih', 'Rekonsiliasi Persediaan']);
+            ->assertSeeInOrder(['PENDAPATAN', 'Harga Pokok Penjualan', 'BEBAN OPERASIONAL', 'Laba (Rugi) Operasional', 'PENDAPATAN DAN BEBAN LAINNYA', 'Pendapatan dan Beban Lainnya Neto', 'Laba (Rugi) Sebelum Pajak', 'Beban Pajak Penghasilan', 'Laba (Rugi) Bersih', 'Rekonsiliasi Persediaan']);
         $recon = $response->viewData('reconciliation');
         $this->assertSame('matched', $recon['status']);
         $this->assertSame(0.0, $recon['opening']);
@@ -149,7 +149,7 @@ class ProfitLossReconciliationTest extends TestCase
         $this->expense('salary', '20000');
         $response = $this->report()->assertViewHas('cost', 305000.0)->assertViewHas('grossProfit', 85000.0)
             ->assertViewHas('operatingProfit', 145000.0);
-        $expected = ['Harga Pokok Penjualan' => -305000.0, 'Laba (Rugi) Usaha' => 65000.0,
+        $expected = ['Harga Pokok Penjualan' => -305000.0, 'Laba (Rugi) Operasional' => 65000.0,
             'Pendapatan Selisih Lebih Persediaan' => 180000.0, 'Beban Selisih Kurang Persediaan' => -100000.0,
             'Pendapatan dan Beban Lainnya Neto' => 80000.0, 'Laba (Rugi) Sebelum Pajak' => 145000.0];
         foreach ($expected as $label => $value) $this->assertSame($value, $this->line(['lines' => $response->viewData('lines')], $label));
