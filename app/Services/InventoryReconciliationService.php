@@ -41,9 +41,9 @@ class InventoryReconciliationService
         $losses = $amount($changes->losses);
         $other = $amount($changes->other_value);
         $cost = $amount($invoiceCost);
-        // Menghitung saldo yang seharusnya; pengurangan stok sudah negatif dan HPP hanya bagian moving average.
+        // Menghitung saldo yang seharusnya;
         $expected = $opening->plus($receipts)->plus($imports)->plus($openings)->plus($gains)->plus($losses)->plus($other)->minus($cost);
-        // Memeriksa selisih saldo akhir serta selisih HPP riwayat biaya terhadap invoice.
+        // Memeriksa selisih saldo akhir 
         $difference = $expected->minus($closing);
         $costDifference = $amount($changes->sale_cost)->minus($cost);
 

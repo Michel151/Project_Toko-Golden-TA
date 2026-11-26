@@ -6,6 +6,7 @@
 <div class="report-page">
 <div class="report-heading d-flex justify-content-between align-items-center mb-3"><div class="d-flex align-items-center gap-3"><div class="report-icon"><i class="bi bi-box-seam"></i></div><div><h5 class="fw-bold mb-1">Laporan Stok</h5><div class="text-white-50 small">Pantau ketersediaan dan nilai persediaan seluruh lokasi</div></div></div><span class="badge bg-warning text-dark">{{ $products->total() }} Barang</span></div>
 <div class="report-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+    {{-- Mengirim pilihan kategori, lokasi, kedaluwarsa, dan jumlah baris melalui URL. --}}
     <form class="app-unified-filter d-flex flex-wrap gap-2 align-items-end" method="GET">
         <div><label class="d-block">Kategori</label><select name="category_id" class="form-select form-select-sm" style="width:170px">
             <option value="">Semua Kategori</option>
@@ -36,6 +37,7 @@
         <a href="{{ route('report.stock.excel', request()->all()) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
     </div>
 </div>
+{{-- Ringkasan menghitung seluruh produk sesuai filter, bukan hanya halaman yang terlihat. --}}
 @include('components.report-kpis',['metrics'=>[
     ['label'=>'Jenis Barang','value'=>number_format($stockSummary['products'],0,',','.'),'hint'=>'Barang sesuai filter','icon'=>'box-seam','tone'=>'primary'],
     ['label'=>'Nilai Persediaan','value'=>'Rp '.number_format($stockSummary['value'],0,',','.'),'hint'=>'Seluruh lokasi; termasuk reservasi setelah moving average aktif','icon'=>'cash-stack','tone'=>'success'],
@@ -57,6 +59,7 @@
                     <tr>
                         <th>Barang</th>
                         <th>Kategori</th>
+                        {{-- Membuat kolom untuk seluruh lokasi meskipun filter lokasi tertentu dipilih. --}}
                         @foreach($locations as $loc)
                         <th class="text-end">{{ $loc->name }}</th>
                         @endforeach
@@ -72,6 +75,7 @@
                     @php
                         $fmtRpt = static fn ($qty, $product) => $product->displayStock((float) $qty);
                     @endphp
+                    {{-- Menghitung fisik, layak jual, dan kedaluwarsa untuk produk pada halaman aktif. --}}
                     @forelse($products as $product)
                     @php
                         $total = (float) $product->stocks->sum('quantity');
@@ -94,6 +98,7 @@
                     <tr>
                         <td class="fw-semibold">{{ $product->name }}</td>
                         <td class="text-muted small">{{ $product->category->name ?? '-' }}</td>
+                        {{-- Setiap kolom lokasi menampilkan stok layak jual, termasuk batch tanpa tanggal. --}}
                         @foreach($locations as $loc)
                         @php
                             $qty = $product->is_expirable
@@ -122,6 +127,7 @@
                     <tr><td colspan="{{ 8 + $locations->count() }}" class="report-empty">@include('components.report-empty', ['message'=>'Tidak ada data stok'])</td></tr>
                     @endforelse
                 </tbody>
+                {{-- Total nilai tetap seluruh hasil filter; status barang memakai jumlah layak jual. --}}
                 <tfoot class="table-light fw-bold">
                     <tr>
                         <td colspan="{{ 6 + $locations->count() }}">TOTAL NILAI STOK SESUAI FILTER</td>

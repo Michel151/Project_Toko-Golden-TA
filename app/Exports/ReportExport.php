@@ -71,10 +71,12 @@ class ReportExport implements FromArray, WithCustomValueBinder, WithEvents, With
                 $dataLastRow = count($this->rows) + 4;
                 $hasTotal = $this->rows && ($this->rows[array_key_last($this->rows)][0] ?? null) === 'TOTAL';
                 $lastRow = max(5, $dataLastRow);
+                // Menambahkan TOTAL dari kolom uang jika baris total belum disediakan oleh pemanggil.
                 if ($this->includeTotal && ! $hasTotal && $this->currencyColumns) {
                     $lastRow++;
                     $sheet->setCellValue("A{$lastRow}", 'TOTAL');
                     foreach ($this->currencyColumns as $columnIndex) {
+                        // Total dihitung di PHP dan ditulis sebagai angka, bukan rumus Excel.
                         $total = array_sum(array_map(fn ($row) => is_numeric($row[$columnIndex - 1] ?? null) ? (float) $row[$columnIndex - 1] : 0, $this->rows));
                         $sheet->setCellValue(Coordinate::stringFromColumnIndex($columnIndex).$lastRow, $total);
                     }

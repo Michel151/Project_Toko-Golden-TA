@@ -43,7 +43,6 @@ class ProfitLossReportController extends Controller
         $revenue = (float) $summary->revenue;
         $cost = (float) $summary->cost;
         $incompleteCount = (int) $summary->incomplete_count;
-        // Laba kotor belum ditentukan jika ada nota dengan HPP belum lengkap.
         $grossProfit = $incompleteCount ? null : round($revenue - $cost, 2);
         $query = Expense::where('status', 'confirmed')->whereDate('recognized_date', '>=', $filters['from'])->whereDate('recognized_date', '<=', $filters['to']);
         $grouped = (clone $query)->select('category')->selectRaw('SUM(amount) AS total')->groupBy('category')->pluck('total', 'category');

@@ -81,19 +81,24 @@ class Product extends Model
     // Mengambil saldo jumlah, nilai persediaan, dan biaya rata-rata produk.
     public function costBalance() { return $this->hasOne(InventoryCostBalance::class); }
 
+    // Mengambil biaya per satuan dasar dari moving average aktif atau harga beli yang tersedia.
     public function inventoryBaseCost(): float
     {
         if ($this->costBalance?->activated_at) return (float) $this->costBalance->average_cost;
+        // Jika belum aktif, harga satuan beli bawaan dibagi konversinya; jika tidak tersedia, gunakan harga produk.
         $unit = $this->productUnits->firstWhere('is_default_purchase', true);
         return $unit && (float) $unit->conversion_to_base > 0 ? (float) $unit->buy_price / (float) $unit->conversion_to_base : (float) $this->buy_price;
     }
 
+    // Mengambil nilai persediaan seluruh lokasi atau menghitung nilai untuk lokasi tertentu.
     public function inventoryValue(?int $locationId = null): float
     {
         if ($this->costBalance?->activated_at) {
+            // Total memakai saldo nilai tersimpan; per lokasi memakai jumlah milik toko termasuk nota pending.
             if ($locationId === null) return (float) $this->costBalance->inventory_value;
             return round((float) app(\App\Services\MovingAverageCostService::class)->ownedQuantity($this->id, $locationId) * $this->inventoryBaseCost(), 2);
         }
+        // Sebelum moving average aktif, nilai dihitung dari saldo stok dikali biaya dasar.
         $quantity = $locationId === null ? $this->stocks->sum('quantity') : ($this->stocks->firstWhere('location_id', $locationId)?->quantity ?? 0);
         return (float) $quantity * $this->inventoryBaseCost();
     }

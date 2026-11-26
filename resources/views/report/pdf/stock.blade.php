@@ -1,3 +1,4 @@
+{{-- Membuat PDF posisi stok saat ekspor dengan judul dan filter dari controller. --}}
 @extends('report.pdf.layout')
 @section('report-header-centered', '1')
 @section('report-title'){{ $reportTitle ?? 'Laporan Stok' }}
@@ -13,6 +14,7 @@
 @php
     $grandValue = 0;
     $locationCount = $locations->count();
+    // Menyesuaikan lebar kolom ketika jumlah lokasi bertambah.
     $widthFactor = 100 / (100 + 8 * $locationCount);
 @endphp
 <table class="data compact stock-report">
@@ -31,6 +33,7 @@
         <th class="center" style="width:{{ 7 * $widthFactor }}%">Status</th>
     </tr></thead>
     <tbody>
+{{-- Mengulang seluruh produk ekspor dan mengumpulkan total nilainya. --}}
 @forelse($products as $product)
 @php
 $total=(float)$product->stocks->sum('quantity');
@@ -39,10 +42,12 @@ $expired=$product->is_expirable ? (float)$product->stockBatches->filter(fn($batc
 $min=(float)$product->min_stock_total;
 $baseUnitName=$product->productUnits->firstWhere('is_base_unit', true)?->unit?->name ?? ($product->can_retail ? ($product->retailUnit->name ?? $product->buyUnit->name) : $product->buyUnit->name);
 $value=$product->inventoryValue();
+// Menambahkan nilai produk ke total; status PDF hanya membedakan Rendah dan Aman.
 $grandValue+=$value; $low=$sellable<=$min;
 @endphp
 <tr>
     <td><strong>{{ $product->name }}</strong></td><td>{{ $product->category->name ?? '-' }}</td><td>{{ $baseUnitName }}</td>
+    {{-- Kolom lokasi berisi stok layak jual yang diformat sesuai satuan produk. --}}
     @foreach($locations as $location)
         <td class="right">{{ $product->displayStock($product->stockAvailability($location->id)['sellable']) }}</td>
     @endforeach

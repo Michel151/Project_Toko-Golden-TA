@@ -56,8 +56,10 @@ class SaleReportController extends Controller
         $categories = Category::orderBy('name')->get(['id', 'name']);
         $category = $categories->firstWhere('id', $categoryId);
         $filters = $request->validate([
-            'per_page'=>'nullable|integer|in:25,50,100', 'tab'=>'nullable|in:transactions,products,margins',
-            'products_sort'=>'nullable|in:revenue,quantity', 'products_page'=>'nullable|integer|min:1',
+            'per_page'=>'nullable|integer|in:25,50,100', 
+            'tab'=>'nullable|in:transactions,products,margins',
+            'products_sort'=>'nullable|in:revenue,quantity', 
+            'products_page'=>'nullable|integer|min:1',
             'margins_page'=>'nullable|integer|min:1',
             'margins_sort'=>'nullable|in:revenue,margin_desc,margin_asc,profit_desc,profit_asc',
         ]);
