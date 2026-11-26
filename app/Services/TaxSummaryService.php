@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 
 class TaxSummaryService
 {
+    // menjumlahkan beban pajak selama periode laporan dan memastikan pajak setiap bulan sudah dikonfirmasi.
     public function build(string $from, string $to): array
     {
         $months = [];

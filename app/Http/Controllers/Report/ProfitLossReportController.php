@@ -49,10 +49,11 @@ class ProfitLossReportController extends Controller
         $stockGain = (float) $adjustments->gains;
         $stockLoss = (float) $adjustments->losses;
         $stockAdjustment = round($stockGain + $stockLoss, 2);
-        $operatingProfit = $grossProfit === null ? null : round($grossProfit - $expenseTotal + $stockAdjustment, 2);
+        $operatingProfit = $grossProfit === null ? null : round($grossProfit - $expenseTotal, 2);
+        $profitBeforeTax = $grossProfit === null ? null : round($grossProfit - $expenseTotal + $stockAdjustment, 2);
         $taxSummary = app(\App\Services\TaxSummaryService::class)->build($filters['from'], $filters['to']);
-        $netProfit = $operatingProfit === null || !$taxSummary['complete'] ? null
-            : (float) (string) \Brick\Math\BigDecimal::of((string) $operatingProfit)->minus($taxSummary['amount'])->toScale(2, \Brick\Math\RoundingMode::HalfUp);
+        $netProfit = $profitBeforeTax === null || !$taxSummary['complete'] ? null
+            : (float) (string) \Brick\Math\BigDecimal::of((string) $profitBeforeTax)->minus($taxSummary['amount'])->toScale(2, \Brick\Math\RoundingMode::HalfUp);
         $lines = [
             ['PENDAPATAN', null, true, 'section'],
             ['Penjualan Barang Dagang', $revenue, false, 'detail'],
@@ -66,19 +67,19 @@ class ProfitLossReportController extends Controller
         }
         if ($grouped->isEmpty()) $lines[] = ['Tidak ada beban terkonfirmasi', 0.0, false, 'detail'];
         $lines[] = ['Total Beban Operasional', -$expenseTotal, true, 'total'];
-        $lines[] = ['Laba (Rugi) Operasional', $grossProfit === null ? null : round($grossProfit - $expenseTotal, 2), true, 'result'];
+        $lines[] = ['Laba (Rugi) Operasional', $operatingProfit, true, 'result'];
         $lines[] = ['PENDAPATAN DAN BEBAN LAINNYA', null, true, 'section'];
         $lines[] = ['Pendapatan Selisih Lebih Persediaan', $stockGain, false, 'detail'];
         $lines[] = ['Beban Selisih Kurang Persediaan', $stockLoss, false, 'detail'];
         $lines[] = ['Pendapatan dan Beban Lainnya Neto', $stockAdjustment, true, 'total'];
-        $lines[] = ['Laba (Rugi) Sebelum Pajak', $operatingProfit, true, 'result'];
+        $lines[] = ['Laba (Rugi) Sebelum Pajak', $profitBeforeTax, true, 'result'];
         $lines[] = ['Beban Pajak Penghasilan', $taxSummary['complete'] ? -(float) $taxSummary['amount'] : null, false, 'detail'];
         $lines[] = ['Laba (Rugi) Bersih', $netProfit, true, 'result'];
         $notice = 'Penjualan dan HPP: invoice lunas sesuai tanggal transaksi. HPP historis tetap; moving average mengikuti biaya tersimpan. Beban operasional sesuai tanggal pengakuan. Selisih opname tercatat pada pendapatan/beban lainnya dan perlu diverifikasi owner. Beban pajak diinput manual owner, bukan nominal pembayaran; bukan perhitungan pajak otomatis atau pajak tangguhan. '.$taxSummary['status'];
         $reconciliation = app(InventoryReconciliationService::class)->build($filters['from'], $filters['to'],
             (string) $summary->moving_cost, (string) $summary->legacy_cost, (int) $summary->moving_missing_count);
         $draftCount = Expense::where('status', 'draft')->whereDate('recognized_date', '>=', $filters['from'])->whereDate('recognized_date', '<=', $filters['to'])->count();
-        return $filters + compact('revenue', 'cost', 'incompleteCount', 'grossProfit', 'expenseTotal', 'operatingProfit', 'netProfit', 'taxSummary', 'lines', 'notice', 'draftCount', 'reconciliation');
+        return $filters + compact('revenue', 'cost', 'incompleteCount', 'grossProfit', 'expenseTotal', 'operatingProfit', 'profitBeforeTax', 'netProfit', 'taxSummary', 'lines', 'notice', 'draftCount', 'reconciliation');
     }
 
     public function index(Request $request)

@@ -148,7 +148,7 @@ class ProfitLossReconciliationTest extends TestCase
         $this->sell(3, '2026-10-05');
         $this->expense('salary', '20000');
         $response = $this->report()->assertViewHas('cost', 305000.0)->assertViewHas('grossProfit', 85000.0)
-            ->assertViewHas('operatingProfit', 145000.0);
+            ->assertViewHas('operatingProfit', 65000.0)->assertViewHas('profitBeforeTax', 145000.0);
         $expected = ['Harga Pokok Penjualan' => -305000.0, 'Laba (Rugi) Operasional' => 65000.0,
             'Pendapatan Selisih Lebih Persediaan' => 180000.0, 'Beban Selisih Kurang Persediaan' => -100000.0,
             'Pendapatan dan Beban Lainnya Neto' => 80000.0, 'Laba (Rugi) Sebelum Pajak' => 145000.0];
@@ -257,7 +257,7 @@ class ProfitLossReconciliationTest extends TestCase
         $this->receive(10, 10000);
         $sale = $this->sell(3);
         $sale->items()->update(['cost_subtotal' => -1]);
-        $response = $this->report()->assertViewHas('grossProfit', null)->assertViewHas('operatingProfit', null);
+        $response = $this->report()->assertViewHas('grossProfit', null)->assertViewHas('operatingProfit', null)->assertViewHas('profitBeforeTax', null);
         $recon = $response->viewData('reconciliation');
         $this->assertSame('mismatch', $recon['status']);
         $this->assertNull($recon['calculatedClosing']);
@@ -372,7 +372,7 @@ class ProfitLossReconciliationTest extends TestCase
         $book = IOFactory::load($excel->baseResponse->getFile()->getPathname());
         $this->assertSame(['Laba Rugi', 'Rekonsiliasi Persediaan'], $book->getSheetNames());
         $main = $book->getSheet(0);
-        $this->assertEquals($response->viewData('operatingProfit'), $main->getCell('B'.($main->getHighestDataRow()-2))->getValue());
+        $this->assertEquals($response->viewData('profitBeforeTax'), $main->getCell('B'.($main->getHighestDataRow()-2))->getValue());
         $this->assertSame('Belum lengkap', $main->getCell('B'.$main->getHighestDataRow())->getValue());
         $reconRows = $book->getSheet(1)->toArray(null, false, false, false);
         $rows = collect($reconRows)->mapWithKeys(fn ($row) => [$row[0] ?? '' => $row[1] ?? null]);

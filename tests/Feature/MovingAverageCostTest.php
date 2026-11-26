@@ -382,7 +382,7 @@ class MovingAverageCostTest extends TestCase
         $this->balance(3, 30000, 10000);
         app(StockService::class)->adjustStock($this->product, $this->location, 0, movementDate: '2026-10-21');
         $this->balance(0, 0, 0);
-        $this->get(route('report.profit-loss'))->assertOk()->assertViewHas('operatingProfit', 40000)
+        $this->get(route('report.profit-loss'))->assertOk()->assertViewHas('operatingProfit', 70000)->assertViewHas('profitBeforeTax', 40000)
             ->assertSee('Pendapatan dan Beban Lainnya Neto');
     }
 
