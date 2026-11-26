@@ -23,10 +23,27 @@ class InventoryCostController extends Controller
         return view('inventory.costing', compact('products', 'owned', 'issues'));
     }
 
-    public function show(Product $product)
+    public function show(Request $request, Product $product)
     {
+        $kinds = [
+            'opening' => 'Verifikasi saldo awal lama',
+            'automatic_start' => 'Mulai otomatis dari nol',
+            'receipt' => 'Penerimaan',
+            'sale' => 'HPP penjualan',
+            'stock_loss' => 'Selisih stok berkurang',
+            'stock_gain' => 'Selisih stok bertambah',
+        ];
+        $filters = $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => array_filter(['nullable', 'date_format:Y-m-d', $request->filled('from') ? 'after_or_equal:from' : null]),
+            'kind' => ['nullable', 'string', \Illuminate\Validation\Rule::in(array_keys($kinds))],
+        ]);
         $product->load('costBalance', 'baseProductUnit.unit', 'buyUnit');
-        $entries = DB::table('inventory_cost_entries')->where('product_id', $product->id)->orderByDesc('id')->paginate(25)->withQueryString();
+        $entries = DB::table('inventory_cost_entries')->where('product_id', $product->id)
+            ->when($filters['from'] ?? null, fn ($query, $from) => $query->where('event_date', '>=', $from))
+            ->when($filters['to'] ?? null, fn ($query, $to) => $query->where('event_date', '<=', $to))
+            ->when($filters['kind'] ?? null, fn ($query, $kind) => $query->where('kind', $kind))
+            ->orderByDesc('id')->paginate(25)->withQueryString();
         $receiptTypes = array_unique([PurchaseReceipt::class, (new PurchaseReceipt)->getMorphClass()]);
         $saleTypes = array_unique([Sale::class, (new Sale)->getMorphClass()]);
         $receiptDocuments = PurchaseReceipt::query()
@@ -49,6 +66,6 @@ class InventoryCostController extends Controller
                     ? class_basename($entry->reference_type).' #'.$entry->reference_id : '-';
             }
         }
-        return view('inventory.costing-history', compact('product', 'entries'));
+        return view('inventory.costing-history', compact('product', 'entries', 'kinds'));
     }
 }

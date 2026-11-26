@@ -21,7 +21,7 @@
     <thead>
         <tr>
             <th style="min-width:180px">Barang</th>
-            <th class="text-end">Total Persediaan<span class="d-block small fw-normal text-muted">Seluruh lokasi, termasuk reservasi penjualan</span></th>
+            <th class="text-end">Total Persediaan</th>
             <th class="text-end">Nilai Moving Average (Rp)</th>
             <th class="text-end">Rata-rata / Satuan Dasar (Rp)</th>
             <th>Status HPP</th>

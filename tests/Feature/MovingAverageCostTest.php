@@ -36,6 +36,48 @@ class MovingAverageCostTest extends TestCase
             'is_default_purchase' => true, 'is_default_sale' => true]);
     }
 
+    public function test_costing_history_filters_only_displayed_entries_and_preserves_pagination(): void
+    {
+        $this->activate();
+        foreach (range(1, 30) as $index) {
+            DB::table('inventory_cost_entries')->insert([
+                'product_id' => $this->product->id, 'event_key' => 'filter-test:'.$index,
+                'kind' => 'sale', 'event_date' => '2026-10-22',
+                'quantity_change' => -1, 'value_change' => -10000,
+                'quantity_after' => 100 - $index, 'value_after' => (100 - $index) * 10000,
+                'average_after' => 10000, 'notes' => 'Filtered sale '.$index, 'created_at' => now(),
+            ]);
+        }
+        $before = DB::table('inventory_cost_entries')->orderBy('id')->get()->toJson();
+        $balance = $this->product->costBalance->getAttributes();
+        $url = route('inventory.costing.show', $this->product);
+        $query = ['from' => '2026-10-22', 'to' => '2026-10-22', 'kind' => 'sale'];
+        $response = $this->get($url.'?'.http_build_query($query))->assertOk();
+        $entries = $response->viewData('entries');
+        $this->assertSame(30, $entries->total());
+        $this->assertCount(25, $entries);
+        $this->assertSame('Filtered sale 30', $entries->first()->notes);
+        $this->assertEquals(70, $entries->first()->quantity_after);
+        $this->assertEquals(700000, $entries->first()->value_after);
+        parse_str(parse_url($entries->nextPageUrl(), PHP_URL_QUERY), $nextQuery);
+        $this->assertSame($query, array_intersect_key($nextQuery, $query));
+        $this->get($entries->nextPageUrl())->assertOk()->assertViewHas('entries', fn ($rows) => $rows->count() === 5);
+        $this->get($url.'?from=2026-10-23')->assertOk()->assertSee('Tidak ada riwayat biaya yang sesuai filter.');
+        $this->get($url.'?to=2026-10-21')->assertOk()->assertViewHas('entries', fn ($rows) => $rows->total() === 1);
+        $this->get($url.'?kind=receipt')->assertOk()->assertViewHas('entries', fn ($rows) => $rows->total() === 0);
+        $this->get($url)->assertOk()->assertViewHas('entries', fn ($rows) => $rows->total() === 31);
+        $this->assertSame($before, DB::table('inventory_cost_entries')->orderBy('id')->get()->toJson());
+        $this->assertSame($balance, $this->product->costBalance->fresh()->getAttributes());
+    }
+
+    public function test_costing_history_rejects_invalid_filters(): void
+    {
+        $url = route('inventory.costing.show', $this->product);
+        $this->get($url.'?from=22/10/2026')->assertSessionHasErrors('from');
+        $this->get($url.'?from=2026-10-23&to=2026-10-22')->assertSessionHasErrors('to');
+        $this->get($url.'?kind=invalid')->assertSessionHasErrors('kind');
+    }
+
     private function activate(float $quantity = 100, string $value = '1000000'): void
     {
         if ($quantity > 0) Stock::create(['product_id' => $this->product->id, 'location_id' => $this->location->id, 'quantity' => $quantity]);
