@@ -25,7 +25,7 @@
         .text-expiry-urgent { color: #a84300 !important; }
         .bg-expiry-urgent-subtle { background-color: #fff0e3 !important; }
 
-        /* Sidebar */
+        /* Menu samping */
         #sidebar {
             width: var(--sidebar-width);
             height: 100vh;
@@ -162,7 +162,7 @@
             font-size: 0.84rem;
         }
 
-        /* Main content */
+        /* Konten utama */
         #main-content {
             margin-left: var(--sidebar-width);
             min-height: 100vh;
@@ -196,7 +196,7 @@
             body.sidebar-collapsed #sidebar .nav-submenu { display: none; }
         }
 
-        /* Topbar */
+        /* Bilah atas */
         #topbar {
             background: #fff;
             border-bottom: 1px solid #e9ecef;
@@ -250,7 +250,7 @@
 
         .page-content { padding: 1.5rem; }
 
-        /* Cards */
+        /* Tampilan kartu */
         .stat-card {
             border: none;
             border-radius: 12px;
@@ -266,7 +266,7 @@
             font-size: 1.4rem;
         }
 
-        /* Report pages */
+        /* Halaman laporan */
         .report-heading {
             padding: 1.25rem 1.4rem;
             border-radius: 14px;
@@ -285,7 +285,7 @@
         .report-empty { padding:3rem 1rem !important; text-align:center; color:#8b93a5; }
         @media (max-width:768px) { .report-toolbar form { width:100%; } }
 
-        /* Purchase order and receipt pages */
+        /* Halaman pesanan dan penerimaan barang */
         .procurement-heading { background:var(--app-header);color:#fff;border-radius:14px;padding:1.15rem 1.3rem;box-shadow:0 4px 16px rgba(23,32,57,.14); }
         .procurement-heading .heading-icon { width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:rgba(200,150,12,.18);color:#ffc107;font-size:1.2rem; }
         .procurement-stat { border:0;border-radius:13px;box-shadow:0 3px 14px rgba(25,35,55,.06);overflow:hidden; }
@@ -294,7 +294,7 @@
         .procurement-filter label { display:block;font-size:.68rem;color:#7b8498;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.2rem; }
         .procurement-table th { white-space:nowrap;padding:.75rem .7rem; }.procurement-table td { vertical-align:middle;padding:.72rem .7rem; }
 
-        /* Tables */
+        /* Tampilan tabel */
         .table-card {
             border: none;
             border-radius: 12px;
@@ -312,12 +312,12 @@
             font-weight: 600;
         }
 
-        /* Badges role */
+        /* Penanda peran pengguna */
         .badge-owner     { background: #6f42c1; }
         .badge-kasir     { background: #0d6efd; }
         .badge-staf      { background: #20c997; }
 
-        /* Responsive */
+        /* Menyesuaikan tampilan dengan ukuran layar */
         @media (max-width: 768px) {
             #sidebar { left: -250px; }
             #sidebar.show { left: 0; }
@@ -397,7 +397,7 @@
             backdrop-filter: blur(10px);
         }
         .page-content { padding: 1.35rem; }
-        /* Shared reading hierarchy and table actions. */
+        /* Mengatur judul, teks, dan tombol tindakan pada tabel. */
         .page-content { line-height:1.5; }
         .page-content .small,.page-content small { font-size:.8125rem; }
         .page-content .badge { font-size:.75rem!important;line-height:1.35;padding:.3em .55em; }
@@ -675,7 +675,7 @@
 </head>
 <body>
 
-{{-- SIDEBAR --}}
+{{-- Menu samping --}}
 <nav id="sidebar">
     <div class="sidebar-brand">
         <i class="bi bi-shop fs-4" style="color: var(--golden)"></i>
@@ -684,7 +684,7 @@
 
     <ul class="nav flex-column mt-2 pb-4">
 
-        {{-- Dashboard (semua role) --}}
+        {{-- Dasbor untuk semua peran pengguna --}}
         <li class="nav-item">
             <a href="{{ route('dashboard') }}"
                class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
@@ -697,10 +697,10 @@
 </nav>
 <div id="sidebarBackdrop" aria-hidden="true"></div>
 
-{{-- MAIN CONTENT --}}
+{{-- Konten utama --}}
 <div id="main-content">
 
-    {{-- TOPBAR --}}
+    {{-- Bilah atas --}}
     <div id="topbar">
         <div class="topbar-title-group d-flex align-items-center gap-3">
             <button class="btn btn-sm btn-outline-secondary" id="sidebarToggle"
@@ -710,7 +710,7 @@
             <h6 class="topbar-title mb-0 fw-semibold text-muted">@yield('page-title', 'Dashboard')</h6>
         </div>
         <div class="topbar-actions d-flex align-items-center gap-3">
-            {{-- Notifikasi persediaan: snapshot yang sama dengan dashboard dan daftar lengkap. --}}
+            {{-- Mengambil notifikasi yang sama dengan halaman daftar dan menghitung produknya untuk lonceng. --}}
             @if(!auth()->user()->must_change_password && auth()->user()->hasPermission('inventory.stock.view'))
             @php
                 $topbarNotifications = app(\App\Services\NotificationService::class)->forRequest();
@@ -726,6 +726,7 @@
                 <div class="notification-preview dropdown-menu dropdown-menu-end p-0" id="notificationPreview" aria-labelledby="notificationToggle">
                     <div class="notification-preview-header"><strong>Perlu Perhatian</strong><div class="small text-muted">{{ $notifCount }} produk perlu perhatian</div></div>
                     <div class="notification-preview-list">
+                        {{-- Menampilkan lima produk pertama; klik produk untuk melihat rinciannya. --}}
                         @forelse(array_slice($topbarNotifications, 0, 5) as $notif)
                         <a class="notification-preview-item dropdown-item text-wrap" href="{{ route('notifications.index', ['product_id'=>$notif['product_id']]) }}#product-{{ $notif['product_id'] }}">
                             <div class="fw-semibold text-break mb-1">{{ $notif['product_name'] }}</div>
@@ -741,7 +742,7 @@
             </div>
             @endif
 
-            {{-- User dropdown --}}
+            {{-- Menu akun pengguna --}}
             <div class="dropdown">
                 <button class="topbar-profile btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-label="Akun: {{ auth()->user()->name }}" title="{{ auth()->user()->name }}">
                     <i class="bi bi-person-circle me-1"></i>
@@ -772,10 +773,10 @@
         </div>
     </div>
 
-    {{-- PAGE CONTENT --}}
+    {{-- Isi halaman --}}
     <div class="page-content">
 
-        {{-- Flash messages --}}
+        {{-- Pesan hasil tindakan dan kesalahan validasi --}}
         @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="bi bi-check-circle me-2"></i>{{ session('success') }}

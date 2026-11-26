@@ -7,6 +7,7 @@ use Illuminate\Validation\ValidationException;
 
 class ExpenseNumberService
 {
+    // Menghasilkan nomor beban baru berdasarkan periode saat ini.
     public function next(): string
     {
         $period = now('Asia/Jakarta')->format('Y/m');

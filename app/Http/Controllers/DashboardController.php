@@ -64,7 +64,7 @@ class DashboardController extends Controller
         $pendingSalesCount = (clone $pendingSalesQuery)->count();
         $pendingSalesAmount = (float) (clone $pendingSalesQuery)->sum('total_amount');
 
-        // PO pending
+        // Pesanan pembelian yang masih menunggu penerimaan
         $pendingPO = PurchaseOrder::whereIn('status', ['pending', 'partial'])
             ->whereHas('items', fn ($query) => $query->whereRaw('quantity_received + quantity_reserved < quantity_ordered'))->count();
 
@@ -150,7 +150,7 @@ class DashboardController extends Controller
             $item->package_unit = $mainUnit?->unit?->name;
             $item->display_quantity = 'Satuan jual belum tersedia';
             if ($conversion > 0) {
-                // Format from the main sale unit down without changing the shared product's units.
+                // Menampilkan jumlah dari satuan jual utama ke satuan lebih kecil tanpa mengubah satuan produk.
                 $displayProduct = clone $product;
                 $displayProduct->setRelation('productUnits', $units->filter(fn ($unit) => $unit->id === $mainUnit->id
                     || ((float) $unit->conversion_to_base > 0 && (float) $unit->conversion_to_base < $conversion)));
@@ -238,7 +238,7 @@ class DashboardController extends Controller
         $todayDate = $today->toDateString();
         $products = Product::active()->with(['stocks', 'stockBatches' => fn ($q) => $q->where('quantity_remaining', '>', 0), 'stockBatches.location', 'buyUnit', 'retailUnit', 'productUnits.unit'])->orderBy('name')->get();
         $availability = $products->mapWithKeys(function ($product) use ($todayDate) {
-            // Match the sale screen: expired batches cannot contribute to sellable stock.
+            // Menghitung stok layak jual tanpa batch yang sudah kedaluwarsa.
             $byLocation = collect($this->notificationService->sellableByLocation($product, $todayDate));
             return [$product->id => ['total' => (float) $byLocation->sum(), 'locations' => $byLocation]];
         });
@@ -246,6 +246,7 @@ class DashboardController extends Controller
         $lowStockProducts = $products->filter(fn ($product) => $availability[$product->id]['total'] > 0 && $availability[$product->id]['total'] <= (float) $product->min_stock_total);
         $safeStockCount = $products->count() - $outOfStockProducts->count() - $lowStockProducts->count();
 
+        // Memakai produk yang sudah diambil untuk menghitung notifikasi dashboard.
         $priorities = collect($this->notificationService->forRequest($products));
         $conditions = $priorities->flatMap(fn ($item) => $item['conditions']);
         $expiredBatchCount = $conditions->where('kind', 'expired')->count();

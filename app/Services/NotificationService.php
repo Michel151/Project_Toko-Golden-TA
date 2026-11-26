@@ -6,9 +6,10 @@ use App\Models\Product;
 
 class NotificationService
 {
+    // Daftar kondisi yang bisa dipilih pada filter notifikasi.
     public const FILTERS = ['expired' => 'Sudah kedaluwarsa', 'out_of_stock' => 'Stok habis', 'expiry_today' => 'Kedaluwarsa hari ini', 'expiry_urgent' => 'Segera kedaluwarsa', 'expiring' => 'Mendekati kedaluwarsa', 'low_stock' => 'Stok rendah', 'return_pending' => 'Perlu Retur/Klaim', 'return_approval'=>'Retur/Klaim Menunggu Persetujuan'];
 
-    // Share a snapshot within this request only, never across requests.
+    // Menghitung notifikasi sekali agar hasilnya bisa dipakai ulang dalam satu request.
     public function forRequest(?\Illuminate\Database\Eloquent\Collection $products = null): array
     {
         if (! request()->attributes->has('inventory.notifications')) {
@@ -18,14 +19,17 @@ class NotificationService
         return request()->attributes->get('inventory.notifications');
     }
 
+    // Mengumpulkan notifikasi produk dan mengurutkan kondisi paling mendesak.
     public function checkAllProducts(?\Illuminate\Database\Eloquent\Collection $products = null): array
     {
         $notifications = [];
+        // Menggabungkan masalah yang belum diajukan dan pengajuan yang menunggu persetujuan.
         $issues = $this->returnIssues();
         foreach ($this->returnApprovals() as $id => $approval) {
             $issues[$id]['product'] = $approval['product'];
             $issues[$id]['conditions'] = [...($issues[$id]['conditions'] ?? []), ...$approval['conditions']];
         }
+        // Menandai produk yang sudah diperiksa agar tidak diproses dua kali.
         $seen = [];
         $relations = [
             'productLocations.location', 'stocks.location', 'stockBatches' => fn ($q) => $q->where('quantity_remaining', '>', 0), 'stockBatches.location', 'buyUnit', 'retailUnit', 'productUnits.unit',
@@ -43,16 +47,18 @@ class NotificationService
         } else {
             Product::active()->with($relations)->each($consume);
         }
-        // Receiving issues remain actionable even if the product was later deactivated.
+        // Produk nonaktif tetap diperiksa jika masih memiliki masalah retur atau klaim.
         $remaining = new \Illuminate\Database\Eloquent\Collection(collect($issues)->reject(fn ($issue, $id) => isset($seen[$id]))->pluck('product')->all());
         $remaining->loadMissing($relations)->each($consume);
 
         return collect($notifications)->sortBy(fn ($item) => [$item['rank'], $item['expired_date'] ?? '9999', mb_strtolower($item['product_name']), $item['product_id']])->values()->all();
     }
 
+    // Membuat satu notifikasi produk dari kondisi stok, kedaluwarsa, dan retur.
     public function checkProduct(Product $product, array $returnConditions = []): array
     {
         $today = today();
+        // Memakai ulang hasil penulisan jumlah jika angkanya sama.
         $formatted = [];
         $display = function (float $quantity) use ($product, &$formatted): string {
             $key = (string) $quantity;
@@ -64,6 +70,7 @@ class NotificationService
         if ($conditions->isEmpty()) {
             return [];
         }
+        // Memakai kondisi paling mendesak sebagai ringkasan utama produk.
         $primary = $conditions->first();
         $locations = $conditions->flatMap(fn ($item) => $item['location_names'])->unique()->values()->all();
         $badges = $conditions->map(fn ($item) => ['label' => $item['badge_label'], 'class' => $item['badge_class']])->unique('label')->values()->all();
@@ -74,7 +81,7 @@ class NotificationService
                 if (! in_array($item->purchaseOrder?->status, ['pending', 'partial'], true)) {
                     continue;
                 }
-                // Reserved quantities are represented by replacement POs: do not count twice.
+                // Menghitung sisa yang bisa diterima dalam satuan dasar, tanpa menghitung ulang jatah PO pengganti.
                 $quantity = $item->receivableQuantity() * (float) ($item->productUnit?->conversion_to_base ?? ($product->can_retail ? $product->conversion_factor : 1));
                 if ($quantity <= 0) {
                     continue;
@@ -83,6 +90,7 @@ class NotificationService
                 $orders[] = ['id' => $item->purchase_order_id, 'number' => $item->purchaseOrder->po_number, 'quantity' => $display($quantity)];
             }
         }
+        // Mengurangi kekurangan stok dengan jumlah yang masih ditunggu dari PO.
         $shortfall = max(0, round($stock['shortfall'] - $incoming, 4));
         $advice = '';
         if ($stock['conditions'] !== []) {
@@ -112,6 +120,7 @@ class NotificationService
         ])];
     }
 
+    // Mengambil pengajuan retur yang menunggu persetujuan untuk pengguna yang boleh menyetujui.
     private function returnApprovals(): array
     {
         if (! auth()->user()?->canAccessRoute('purchase.returns.approve')) return [];
@@ -127,6 +136,7 @@ class NotificationService
                 $line = $inspection?->purchaseOrderItem;
                 $product = $line?->product;
                 if (! $product) continue;
+                // Barang yang belum dikirim tidak memiliki lokasi penyimpanan.
                 $location = $item->kind === 'missing' ? null : $inspection->quarantineLocation;
                 $storage = $item->kind === 'missing' ? 'Barang belum diterima; tidak memiliki lokasi penyimpanan.'
                     : ($location ? 'Lokasi penyimpanan retur: '.$location->name.'.' : 'Lokasi penyimpanan retur belum tercatat.');
@@ -149,6 +159,7 @@ class NotificationService
         return $issues;
     }
 
+    // Mencari sisa barang bermasalah yang belum diajukan retur atau klaim.
     private function returnIssues(): array
     {
         $user = auth()->user();
@@ -166,11 +177,12 @@ class NotificationService
             $receipt = $inspection->purchaseReceipt;
             $order = $receipt->purchaseOrder;
             foreach (\App\Models\PurchaseReturnItem::KINDS as $kind => $label) {
+                // Pengajuan draf dan disetujui mengurangi sisa klaim; pengajuan ditolak tidak dihitung.
                 $claimed = $inspection->returnItems->filter(fn ($item) => $item->kind === $kind
                     && in_array($item->purchaseReturn?->status, ['draft', 'approved'], true))->sum('quantity');
                 $quantity = max(0, round((float) $inspection->{'quantity_'.$kind} - (float) $claimed, 4));
                 if ($quantity <= 0) continue;
-                // Inspection quantities use the PO line's unit, not the product's current sale unit.
+                // Menampilkan jumlah pemeriksaan memakai satuan pada item PO.
                 $unit = $inspection->purchaseOrderItem->productUnit?->unit?->name;
                 $amount = \App\Support\DisplayNumber::quantity($quantity).($unit ? ' '.$unit : ' (satuan penerimaan belum tersedia)');
                 $location = $kind === 'missing' ? null : $inspection->quarantineLocation;
@@ -192,8 +204,10 @@ class NotificationService
         return $issues;
     }
 
+    // Mengecek stok habis atau rendah serta menyiapkan saran transfer dan pembelian.
     private function stockConditions(Product $product, string $today, callable $display): array
     {
+        // Memeriksa semua lokasi dari pengaturan produk, stok, dan batch.
         $ids = $product->productLocations->pluck('location_id')->merge($product->stocks->pluck('location_id'))
             ->merge($product->stockBatches->pluck('location_id'))->unique()->sort()->values();
         $settings = $product->productLocations->keyBy('location_id');
@@ -211,10 +225,12 @@ class NotificationService
         $total = array_sum(array_column($locations, 'quantity'));
         $minimum = (float) $product->min_stock_total;
         $conditions = [];
+        // Menyimpan perkiraan stok setelah saran transfer, tanpa mengubah stok asli.
         $planned = [];
         $targets = [];
         foreach ($locations as $id => $location) {
             $planned[$id] = $location['quantity'];
+            // Toko yang kosong ditargetkan minimal satu satuan dasar atau batas minimumnya.
             $targets[$id] = ! $location['can_supply'] && $location['quantity'] <= 0
                 ? max(1, $location['minimum']) : $location['minimum'];
             if (($location['monitored'] || ! $location['can_supply']) && $location['quantity'] <= $location['minimum']) {
@@ -225,7 +241,7 @@ class NotificationService
             }
         }
         $transfers = [];
-        // Cover Toko's deficit before supplying warehouses, using warehouse surplus first.
+        // Memenuhi kekurangan Toko lebih dahulu; gunakan kelebihan gudang sebelum stok minimumnya.
         foreach ($locations as $id => $location) {
             if (! $location['can_supply']) {
                 $this->planTransfersTo($id, $targets[$id], $locations, $planned, $transfers);
@@ -237,8 +253,7 @@ class NotificationService
                 $this->planTransfersTo($id, $targets[$id], $locations, $planned, $transfers);
             }
         }
-        // A store at its minimum can use surplus left after covering actual shortages.
-        // This is a route suggestion only, so it does not create additional demand.
+        // Menyarankan asal transfer untuk Toko yang tepat di batas minimum jika masih ada kelebihan stok.
         $sourceId = null;
         $largestSurplus = 0.0;
         foreach ($locations as $id => $location) {
@@ -256,6 +271,7 @@ class NotificationService
                 }
             }
         }
+        // Menghitung kekurangan yang masih tersisa setelah rencana transfer.
         $locationShortfall = 0.0;
         foreach ($locations as $id => $location) {
             if ($location['monitored'] || ! $location['can_supply']) {
@@ -272,6 +288,7 @@ class NotificationService
             'shortfall' => max($locationShortfall, $minimum - $total, 0)];
     }
 
+    // Menyusun saran transfer untuk satu lokasi tanpa memindahkan stok di database.
     private function planTransfersTo(int $destinationId, float $target, array $locations, array &$planned, array &$transfers, bool $useMinimumStock = false): void
     {
         $needed = round($target - $planned[$destinationId], 4);
@@ -282,12 +299,14 @@ class NotificationService
         $sources = [];
         foreach ($locations as $id => $location) {
             if ($id !== $destinationId && $location['can_supply']) {
+                // Biasanya menyisakan stok minimum; jika diizinkan, seluruh stok sumber boleh dipakai.
                 $available = round($planned[$id] - ($useMinimumStock ? 0 : $location['minimum']), 4);
                 if ($available > 0) {
                     $sources[$id] = $available;
                 }
             }
         }
+        // Mendahulukan sumber dengan jumlah tersedia paling banyak.
         arsort($sources, SORT_NUMERIC);
 
         foreach ($sources as $sourceId => $available) {
@@ -296,6 +315,7 @@ class NotificationService
             $transfers[$route] ??= ['source_id' => $sourceId, 'destination_id' => $destinationId, 'quantity' => 0.0,
                 'message' => 'Direkomendasikan transfer stok dari '.$locations[$sourceId]['name'].' ke '.$locations[$destinationId]['name'].'.'];
             $transfers[$route]['quantity'] = round($transfers[$route]['quantity'] + $quantity, 4);
+            // Memperbarui perkiraan agar stok yang sama tidak disarankan dua kali.
             $planned[$sourceId] = round($planned[$sourceId] - $quantity, 4);
             $planned[$destinationId] = round($planned[$destinationId] + $quantity, 4);
             $needed = round($needed - $quantity, 4);
@@ -305,6 +325,7 @@ class NotificationService
         }
     }
 
+    // Membuat peringatan untuk batch yang kedaluwarsa atau tersisa hingga 90 hari.
     private function expiryConditions(Product $product, \Carbon\CarbonInterface $today, callable $display): array
     {
         if (! $product->is_expirable) {
@@ -320,6 +341,7 @@ class NotificationService
                 continue;
             }
             $dateKey = substr($rawDate, 0, 10);
+            // Memakai ulang status dan teks jika tanggal kedaluwarsanya sama.
             if (! isset($dates[$dateKey])) {
                 $expiry = \Carbon\Carbon::parse($dateKey);
                 $days = (int) $today->diffInDays($expiry, false);
@@ -336,6 +358,7 @@ class NotificationService
         return $conditions;
     }
 
+    // Menyiapkan pesan, lokasi, urutan prioritas, dan warna untuk satu kondisi.
     private function condition(string $kind, string $message, array $ids, array $names): array
     {
         $rank = match ($kind) {
@@ -352,16 +375,19 @@ class NotificationService
             'location_ids' => $ids, 'location_names' => $names, 'location_name' => count($names) === 1 ? $names[0] : 'Semua lokasi', 'message' => $message];
     }
 
+    // Menghitung produk yang perlu perhatian, bukan jumlah rincian kondisinya.
     public function countNotifications(): int
     {
         return count($this->forRequest());
     }
 
+    // Menghitung stok layak jual per lokasi dalam satuan dasar.
     public function sellableByLocation(Product $product, ?string $today = null): array
     {
         if (! $product->is_expirable) {
             return $product->stocks->pluck('quantity', 'location_id')->map(fn ($quantity) => (float) $quantity)->all();
         }
+        // Batch tanpa tanggal atau belum lewat tanggal kedaluwarsa masih dihitung.
         $today ??= today()->toDateString();
         $quantities = [];
         foreach ($product->stockBatches as $batch) {

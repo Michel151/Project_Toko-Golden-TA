@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 
 class FinancialPeriod
 {
+    // Mengubah input periode menjadi tanggal awal dan akhir.
     public static function resolve(Request $request): array
     {
         $now = CarbonImmutable::now('Asia/Jakarta');
