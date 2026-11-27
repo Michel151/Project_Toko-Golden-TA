@@ -20,6 +20,7 @@ class StockService
     // Menjalankan perubahan stok dan nilai persediaan dalam satu transaksi dengan kunci bersama.
     private function atomic(callable $work): mixed
     {
+        // work berisi fungsi yang akan dijalankan dalam transaksi bukan data barang. Jika satu proses gagal maka seluruh perubahan dibatalkan.
         return DB::transaction(function () use ($work) {
             $this->costs->lock();
             return $work();
@@ -286,7 +287,7 @@ class StockService
             'product_id' => $product->id,
             'location_id' => $location->id,
             'movement_type' => $type,
-            'quantity' => $quantity,
+            'quantity' => $quntity,
             'balance_before' => $balanceBefore,
             'balance_after' => $balanceBefore + $quantity,
             'movement_date' => $movementDate ?? today(),

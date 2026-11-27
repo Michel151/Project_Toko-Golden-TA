@@ -229,13 +229,13 @@ class SaleController extends Controller
                         'cost_subtotal' => $itemData['quantity'] * $costPrice,
                     ]);
 
+                    // Mengurangi stok sesuai lokasi dan batch yang dipilih; jika barang kadaluarsa, catat sumber per batch.
                     foreach ($itemData['sources'] as $source) {
                         if (empty($source['quantity']) || $source['quantity'] <= 0) {
                             continue;
                         }
 
                         $location = Location::find($source['location_id']);
-
                         $batchDeductions = $this->stockService->deductStock(
                             $product,
                             $location,

@@ -190,7 +190,7 @@ class PurchaseFulfillmentService
             if ($return->status !== 'draft' || ! $return->items()->exists()) {
                 $this->invalid('return', 'Hanya draf retur/klaim yang dapat disetujui.');
             }
-            // Menghubungkan seluruh pesanan pengganti ke PO induk yang sama.
+            // Menghubungkan seluruh pesanan RETUR ke PO ASAL yang sama.
             $root = $order->rootOrder ?? $order;
             $sequence = $root->replacementOrders()->count() + 1;
             $number = preg_replace('/^PO(?=[\/-])/', 'PO/R', $root->po_number);
