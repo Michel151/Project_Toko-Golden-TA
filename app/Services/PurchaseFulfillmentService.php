@@ -41,6 +41,7 @@ class PurchaseFulfillmentService
                 'receipt_date' => $data['receipt_date'], 'received_by' => $userId, 'notes' => $data['notes'] ?? null,
                 'submission_token' => $data['submission_token'] ?? null,
             ]);
+            // belum ada item dengan jumlah pemeriksaan diatas 0
             $processed = false;
             foreach ($data['items'] as $index => $row) {
                 $item = $order->items()->lockForUpdate()->find($row['purchase_order_item_id']);
@@ -88,7 +89,7 @@ class PurchaseFulfillmentService
                         'product_id' => $product->id, 'product_unit_id' => $item->product_unit_id,
                         'location_id' => $location->id, 'quantity_received' => $allocation['quantity'], 'expired_date' => $expiry,
                     ]);
-                    // Menambah stok dasar dan nilai persediaan satu kali untuk alokasi barang baik ini.
+                    // Menambah stok dalam satuan dasar dan nilai persediaan satu kali untuk alokasi barang baik.
                     $this->stockService->receiveStockUsingUnit($product, $item->productUnit, $location,
                         (float) $allocation['quantity'], $receipt, $receipt->receipt_date, $order->po_number, $expiry, $receiptItem);
                     if ($allocation['batch_code'] !== null) {
@@ -143,7 +144,7 @@ class PurchaseFulfillmentService
             $return = PurchaseReturn::create([
                 'return_number' => PurchaseReturn::generateReturnNumber(), 'purchase_receipt_id' => $receipt->id,
                 'created_by' => $userId, 'notes' => $data['notes'] ?? null,
-                'submission_token' => $data['submissi   on_token'] ?? null,
+                'submission_token' => $data['submission_token'] ?? null,
             ]);
             // Mencatat pasangan pemeriksaan dan jenis masalah agar tidak berulang dalam satu pengajuan.
             $seen = [];

@@ -113,6 +113,7 @@ class PurchaseReceiptController extends Controller
                         $batch['location_id'] = $data['receipt_location_id'];
                     }
                     unset($batch);
+                // barang tidak memiliki rincian batch    
                 } else {
                     $row['allocations'] = [[
                         'location_id' => $data['receipt_location_id'],

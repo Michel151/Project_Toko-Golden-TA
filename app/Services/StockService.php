@@ -54,28 +54,6 @@ class StockService
         }
     }
 
-    /**
-     * Tambah stok saat penerimaan barang.
-     * quantity dalam satuan BELI.
-     */
-    public function receiveStock(Product $product, Location $location, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $expiredDate = null, ?PurchaseReceiptItem $receiptItem = null): void
-    {
-        $this->atomic(fn () => $this->receiveStockInternal($product, $location, $quantity, $reference, $movementDate, $referenceNumber, $expiredDate, $receiptItem));
-    }
-
-    // Mengubah jumlah satuan beli ke stok dasar, lalu mencatat stok, batch, mutasi, dan nilainya.
-    private function receiveStockInternal(Product $product, Location $location, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $expiredDate = null, ?PurchaseReceiptItem $receiptItem = null): void
-    {
-        $this->costs->prepare($product);
-        $stockQty = $this->toBaseQuantity($product, $quantity, $product->defaultPurchaseUnit);
-
-        $balanceBefore = $this->increaseAggregateStock($product, $location, $stockQty);
-        $this->createBatch($product, $location, $stockQty, $movementDate, $expiredDate, $receiptItem);
-
-        $this->recordMovement($product, $location, 'purchase', $stockQty, $balanceBefore, $reference, $movementDate, $referenceNumber);
-        $this->receiveValuation($product, $product->defaultPurchaseUnit, $quantity, $stockQty, $reference, $movementDate, $receiptItem);
-    }
-
     // Menjalankan penerimaan dengan satuan produk pilihan dalam transaksi stok.
     public function receiveStockUsingUnit(Product $product, ProductUnit $productUnit, Location $location, float $quantity, ?Model $reference = null, $movementDate = null, ?string $referenceNumber = null, ?string $expiredDate = null, ?PurchaseReceiptItem $receiptItem = null): void
     {

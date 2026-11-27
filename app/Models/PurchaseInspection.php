@@ -77,6 +77,7 @@ class PurchaseInspection extends Model
         if (! array_key_exists($kind, PurchaseReturnItem::KINDS)) {
             return 0;
         }
+        // Jumlah yang sudah diajukan dalam retur draft atau approved.
         $claimed = $this->attributes['claimed_'.$kind] ?? $this->returnItems()->where('kind', $kind)
             ->whereHas('purchaseReturn', fn ($query) => $query->whereIn('status', ['draft', 'approved']))->sum('quantity');
 

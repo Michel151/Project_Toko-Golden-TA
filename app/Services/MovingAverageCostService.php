@@ -164,9 +164,10 @@ class MovingAverageCostService
         return (float) $quantity > 0 ? (string) BigDecimal::of($value)->dividedBy($quantity, 10, RoundingMode::HalfUp) : '0.0000000000';
     }
 
-    // Menambahkan jumlah dan nilai barang masuk ke perhitungan biaya rata-rata.
+    // menambahkan jumlah dan nilai barang masuk ke saldo biaya moving average produk.
     public function receive(Product $product, float $quantity, string $value, ?Model $reference, mixed $date, string $key): void
     {
+        // Jika fitur pencatatan biaya tidak aktif, keluar dari fungsi.
         if (!$this->enabled()) return;
         $state = $this->prepare($product);
         if (!$state) return;
