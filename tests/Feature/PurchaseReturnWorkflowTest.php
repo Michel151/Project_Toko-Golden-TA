@@ -200,7 +200,10 @@ class PurchaseReturnWorkflowTest extends TestCase
             ->assertSee('href="'.route('purchase.orders.show', $this->order).'"', false)
             ->assertSee('href="'.route('purchase.orders.show', $other).'"', false);
         $this->capturePage('stock-card-batch-po', $response);
-        $this->assertMatchesRegularExpression('/<tr><td>\s*<span class="text-muted">-<\/span>\s*<\/td><td>/', $response->getContent());
+        $document = new \DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(1, $xpath->query('//tr[td[1]/span[@class="text-muted" and normalize-space(.)="-"]]')->length);
         foreach (['PO-ORIGIN-A', 'PO-ORIGIN-B', 'IMPORT-NO-PO'] as $code) {
             $this->assertDatabaseHas('stock_batches', ['batch_code' => $code]);
         }

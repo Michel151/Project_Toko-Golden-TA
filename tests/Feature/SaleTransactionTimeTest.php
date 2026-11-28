@@ -27,7 +27,7 @@ class SaleTransactionTimeTest extends TestCase
         $this->assertSame('10:04:05',$sale->sale_time);
         $this->assertSame('2026-10-10',$sale->sale_date->toDateString());
         $this->assertSame('2026-10-14 03:04:05',$sale->getRawOriginal('updated_at'));
-        $this->actingAs($user)->get(route('sale.sales.index'))->assertOk()->assertSee('10:04:05 WIB');
+        $this->actingAs($user)->get(route('sale.sales.index', ['from'=>'2026-10-01', 'to'=>'2026-10-31']))->assertOk()->assertSee('10:04:05 WIB');
         $this->get(route('sale.sales.show',$sale))->assertOk()->assertSee('10:04:05 WIB');
         $this->get(route('sale.sales.print',['sale'=>$sale,'popup'=>1]))->assertOk()->assertSee('10:04:05 WIB');
     }

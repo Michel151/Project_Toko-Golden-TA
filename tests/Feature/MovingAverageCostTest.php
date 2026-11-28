@@ -592,10 +592,15 @@ class MovingAverageCostTest extends TestCase
         $this->unit = $cartonUnit;
         $this->receipt(2, 550000);
         $before = InventoryCostBalance::first()->toArray();
-        $this->get(route('inventory.costing.show', $this->product))->assertOk()
-            ->assertSee('>20</td>', false)->assertSee('>-3</td>', false)->assertSee('>37</td>', false)
+        $page = $this->get(route('inventory.costing.show', $this->product))->assertOk()
             ->assertSee('1.950.000,00')->assertSee('52.702,70')->assertSee('Rata-rata (Rp)')
             ->assertDontSee('37,0000')->assertDontSee('52.702,702703')->assertDontSee('50.000,000000');
+        $document = new \DOMDocument;
+        @$document->loadHTML($page->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertGreaterThan(0, $xpath->query('//tbody/tr/td[normalize-space(.)="20"]')->length);
+        $this->assertGreaterThan(0, $xpath->query('//tbody/tr/td[normalize-space(.)="-3"]')->length);
+        $this->assertGreaterThan(0, $xpath->query('//tbody/tr/td[normalize-space(.)="37"]')->length);
         $this->get(route('inventory.costing.index'))->assertOk()->assertSee('37 Botol')->assertSee('52.702,70')->assertDontSee('37,0000');
         $this->assertSame($before, InventoryCostBalance::first()->toArray());
         $this->assertEqualsWithDelta(52702.7027027027, (float) InventoryCostBalance::first()->average_cost, .000000001);
@@ -611,7 +616,7 @@ class MovingAverageCostTest extends TestCase
         $this->activate(25, '250000');
         $before = InventoryCostBalance::first()->toArray();
         $this->get(route('inventory.costing.index'))->assertOk()->assertSeeInOrder(['25 Botol', '2 Dus 1 Botol'])
-            ->assertSee('Total Persediaan')->assertSee('Seluruh lokasi, termasuk reservasi penjualan')
+            ->assertSee('Total Persediaan')->assertSee('seluruh persediaan barang tersebut di semua lokasi habis')->assertSee('termasuk reservasi penjualan')
             ->assertDontSee('Stok Milik Toko');
         $this->assertSame($before, InventoryCostBalance::first()->toArray());
         Stock::where('product_id', $this->product->id)->update(['quantity' => 1]);
@@ -624,9 +629,14 @@ class MovingAverageCostTest extends TestCase
         $this->automatic();
         $this->receipt(1.25, 10000);
         $this->sale(.25);
-        $this->get(route('inventory.costing.show', $this->product))->assertOk()
-            ->assertSee('>1,25</td>', false)->assertSee('>-0,25</td>', false)->assertSee('>1</td>', false)
+        $page = $this->get(route('inventory.costing.show', $this->product))->assertOk()
             ->assertDontSee('1,2500')->assertDontSee('-0,2500');
+        $document = new \DOMDocument;
+        @$document->loadHTML($page->getContent());
+        $xpath = new \DOMXPath($document);
+        $this->assertGreaterThan(0, $xpath->query('//tbody/tr/td[normalize-space(.)="1,25"]')->length);
+        $this->assertGreaterThan(0, $xpath->query('//tbody/tr/td[normalize-space(.)="-0,25"]')->length);
+        $this->assertGreaterThan(0, $xpath->query('//tbody/tr/td[normalize-space(.)="1"]')->length);
         $this->balance(1, 10000, 10000);
     }
 

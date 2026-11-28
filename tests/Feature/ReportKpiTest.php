@@ -259,7 +259,7 @@ class ReportKpiTest extends TestCase
 
     public function test_inventory_transfer_pagination_preserves_combined_location_and_existing_filters(): void
     {
-        for ($i = 1; $i <= 22; $i++) {
+        for ($i = 1; $i <= 27; $i++) {
             $transfer = StockTransfer::create(['transfer_number'=>'TRF-PAGE-'.$i,'product_id'=>$this->normal->id,'quantity'=>1,
                 'from_location_id'=>$this->a->id,'to_location_id'=>$this->b->id,'transfer_date'=>'2026-10-17','created_by'=>auth()->id()]);
             $transfer->items()->create(['product_id'=>$this->normal->id,'quantity'=>1]);
@@ -268,10 +268,11 @@ class ReportKpiTest extends TestCase
             'search'=>'TRF-PAGE','from'=>'2026-10-17','to'=>'2026-10-17'];
         $page = $this->get(route('inventory.transfers.index', $filters))->assertOk();
         $rows = $page->viewData('transfers');
-        $this->assertSame(22, $rows->total());
+        $this->assertSame(27, $rows->total());
+        $this->assertSame(25, $rows->count());
         parse_str(parse_url($rows->url(2), PHP_URL_QUERY), $query);
         $this->assertEquals($filters + ['page'=>2], $query);
         $this->get(route('inventory.transfers.index', $filters + ['page'=>2]), ['X-Requested-With'=>'XMLHttpRequest'])->assertOk()
-            ->assertViewHas('transfers', fn ($rows) => $rows->count() === 2 && $rows->total() === 22);
+            ->assertViewHas('transfers', fn ($rows) => $rows->count() === 2 && $rows->total() === 27);
     }
 }

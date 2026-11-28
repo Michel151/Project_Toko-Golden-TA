@@ -63,7 +63,7 @@ class UiConsistencyTest extends TestCase
     public function test_alphabetical_product_pagination_preserves_search_category_and_status_filters(): void
     {
         $expected = [];
-        for ($i = 22; $i >= 1; $i--) {
+        for ($i = 27; $i >= 1; $i--) {
             $product = $this->product->replicate();
             $product->name = 'Produk Uji '.str_pad((string) $i, 2, '0', STR_PAD_LEFT);
             $product->is_active = true;
@@ -81,9 +81,9 @@ class UiConsistencyTest extends TestCase
         $other->save();
         $filters = ['search'=>'Produk Uji','category_id'=>$this->product->category_id,'status'=>'active'];
         $page = $this->get(route('master.products.index', $filters))->assertOk()
-            ->assertViewHas('products', fn ($rows) => $rows->total() === 22 && $rows->pluck('id')->all() === array_slice($expected, 0, 20));
+            ->assertViewHas('products', fn ($rows) => $rows->total() === 27 && $rows->pluck('id')->all() === array_slice($expected, 0, 25));
         $this->get(route('master.products.index', $filters + ['page'=>2]))->assertOk()
-            ->assertViewHas('products', fn ($rows) => $rows->pluck('id')->all() === array_slice($expected, 20));
+            ->assertViewHas('products', fn ($rows) => $rows->pluck('id')->all() === array_slice($expected, 25));
         parse_str(parse_url($page->viewData('products')->url(2), PHP_URL_QUERY), $query);
         $this->assertEquals($filters + ['page'=>2], $query);
     }
@@ -108,7 +108,7 @@ class UiConsistencyTest extends TestCase
     {
         $order = $this->order('PO-RIWAYAT');
         $ids = [];
-        for ($i = 0; $i < 18; $i++) {
+        for ($i = 0; $i < 28; $i++) {
             $receipt = \App\Models\PurchaseReceipt::create(['purchase_order_id'=>$order->id,'receipt_date'=>'2026-10-17','received_by'=>auth()->id()]);
             $receipt->forceFill(['created_at'=>'2026-10-17 10:00:00'])->save();
             $ids[] = $receipt->id;
@@ -120,11 +120,11 @@ class UiConsistencyTest extends TestCase
         $expected = [...array_reverse($ids), $early->id];
         $filters = ['from'=>'2026-10-17','to'=>'2026-10-17'];
         $page = $this->get(route('purchase.receipts.index', $filters))->assertOk()
-            ->assertViewHas('receipts', fn ($rows) => $rows->total() === 19 && $rows->pluck('id')->all() === array_slice($expected, 0, 15));
+            ->assertViewHas('receipts', fn ($rows) => $rows->total() === 29 && $rows->pluck('id')->all() === array_slice($expected, 0, 25));
         $this->get(route('purchase.receipts.index', $filters + ['page'=>2]))->assertOk()
-            ->assertViewHas('receipts', fn ($rows) => $rows->pluck('id')->all() === array_slice($expected, 15));
+            ->assertViewHas('receipts', fn ($rows) => $rows->pluck('id')->all() === array_slice($expected, 25));
         $this->get(route('purchase.receipts.index'))->assertOk()
-            ->assertViewHas('receipts', fn ($rows) => $rows->total() === 20 && $rows->pluck('id')->all() === array_slice($expected, 0, 15));
+            ->assertViewHas('receipts', fn ($rows) => $rows->total() === 30 && $rows->pluck('id')->all() === array_slice($expected, 0, 25));
         parse_str(parse_url($page->viewData('receipts')->url(2), PHP_URL_QUERY), $query);
         $this->assertEquals($filters + ['page'=>2], $query);
     }
@@ -132,7 +132,7 @@ class UiConsistencyTest extends TestCase
     public function test_purchase_order_sorting_stays_stable_across_pages_and_combined_filters(): void
     {
         $ids = [];
-        for ($i = 1; $i <= 18; $i++) {
+        for ($i = 1; $i <= 28; $i++) {
             $ids[] = $this->order('PO-HALAMAN-'.$i, ['order_date'=>'2026-10-17','created_at'=>'2026-10-17 10:00:00'])->id;
         }
         $this->order('PO-STATUS-LAIN', ['order_date'=>'2026-10-17','status'=>'completed']);
@@ -142,9 +142,9 @@ class UiConsistencyTest extends TestCase
         $filters = ['supplier_id'=>$this->supplier->id,'status'=>'pending','from'=>'2026-10-17','to'=>'2026-10-17'];
         $expected = array_reverse($ids);
         $firstPage = $this->get(route('purchase.orders.index', $filters))->assertOk()
-            ->assertViewHas('orders', fn ($rows) => $rows->total() === 18 && $rows->pluck('id')->all() === array_slice($expected, 0, 15));
+            ->assertViewHas('orders', fn ($rows) => $rows->total() === 28 && $rows->pluck('id')->all() === array_slice($expected, 0, 25));
         $this->get(route('purchase.orders.index', $filters + ['page'=>2]))->assertOk()
-            ->assertViewHas('orders', fn ($rows) => $rows->pluck('id')->all() === array_slice($expected, 15));
+            ->assertViewHas('orders', fn ($rows) => $rows->pluck('id')->all() === array_slice($expected, 25));
         parse_str(parse_url($firstPage->viewData('orders')->url(2), PHP_URL_QUERY), $query);
         $this->assertEquals($filters + ['page'=>2], $query);
     }
@@ -321,7 +321,7 @@ class UiConsistencyTest extends TestCase
         $this->assertSame(25,$ready->count());
         $this->assertSame(array_slice(array_reverse($ids),25,25),$ready->pluck('id')->all());
         $this->assertSame(35,$history->total());
-        $this->assertSame(15,$history->count());
+        $this->assertSame(10,$history->count());
         $this->assertSame(35,$response->viewData('receiptCount'));
         parse_str(parse_url($ready->url(3),PHP_URL_QUERY),$readyQuery);
         $this->assertEquals(array_replace($filters,['orders_page'=>3]),$readyQuery);
@@ -396,7 +396,7 @@ class UiConsistencyTest extends TestCase
         $document = new \DOMDocument;
         @$document->loadHTML($page->getContent());
         $xpath = new \DOMXPath($document);
-        $this->assertSame(1, $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " sale-list-toolbar ")]//a[@href="'.route('sale.sales.create').'"]')->length);
+        $this->assertSame(1, $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " inventory-heading ")]//a[@href="'.route('sale.sales.create').'"]')->length);
     }
 
     public function test_stock_card_uses_the_shared_header_and_active_tab_colors(): void
@@ -464,7 +464,8 @@ class UiConsistencyTest extends TestCase
         $this->get(route('inventory.transfers.show',[$transfer,'page'=>2]))->assertOk()->assertViewHas('items',fn($items)=>$items->count()===6);
         $this->get(route('inventory.transfers.show',[$transfer,'q'=>'031']))->assertOk()->assertViewHas('items',fn($items)=>$items->total()===1)->assertSee('Barang Transfer 031');
         $this->get(route('inventory.transfers.show',[$transfer,'q'=>'Tidak Ada']))->assertOk()->assertSee('Tidak ada barang yang sesuai pencarian.');
-        $this->get(route('inventory.transfers.show',[$transfer,'per_page'=>500]))->assertSessionHasErrors('per_page');
+        $this->get(route('inventory.transfers.show',[$transfer,'per_page'=>500]))->assertOk()
+            ->assertViewHas('items', fn ($items) => $items->perPage() === 25 && $items->count() === 25 && $items->total() === 31);
         $this->assertDatabaseCount('stock_transfer_items',31);
         $this->assertDatabaseCount('stock_movements',0);
     }
@@ -544,7 +545,7 @@ class UiConsistencyTest extends TestCase
             $xpath=new \DOMXPath($document);
             $headings=$xpath->query('//*[contains(concat(" ",normalize-space(@class)," ")," inventory-heading ")]');
             $this->assertSame(1,$headings->length);
-            $this->assertSame('Stock Opname',trim($headings->item(0)->textContent));
+            $this->assertSame('Stock Opname',trim($xpath->query('.//h5', $headings->item(0))->item(0)->textContent));
             $active=$xpath->query('//a[@aria-current="page" and @href="'.route($route).'"]');
             $this->assertSame(1,$active->length);
         }

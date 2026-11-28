@@ -57,7 +57,7 @@ class MonthlyTaxTest extends TestCase
         Sale::create(['sale_number'=>'INV/INCOMPLETE', 'sale_date'=>'2026-10-01', 'status'=>'paid', 'payment_method'=>'tunai', 'total_amount'=>100000, 'created_by'=>$this->owner->id]);
         $data = $this->report()->original->getData();
         $html = view('report.pdf.profit-loss', $data)->render();
-        $this->assertStringContainsString('Disajikan dalam Rupiah (Rp)', $html);
+        $this->assertStringContainsString('Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.', $html);
         $this->assertStringContainsString('HPP pada 1 transaksi penjualan belum lengkap', $html);
         $this->assertStringContainsString('Beban pajak belum dikonfirmasi untuk Oktober 2026', $html);
         $this->assertStringNotContainsString($data['notice'], $html);
@@ -65,8 +65,8 @@ class MonthlyTaxTest extends TestCase
         $excel = $this->get(route('report.profit-loss.excel', ['month'=>'2026-10']))->assertOk();
         $book = IOFactory::load($excel->baseResponse->getFile()->getPathname());
         $header = $book->getSheet(0)->getCell('A3')->getValue();
-        $this->assertStringContainsString('Periode: 01/10/2026 s.d. 31/10/2026', $header);
-        $this->assertStringContainsString('Disajikan dalam Rupiah (Rp)', $header);
+        $this->assertSame('Oktober 2026 | Periode: 01/10/2026 s.d. 31/10/2026', $book->getSheet(0)->getCell('A2')->getValue());
+        $this->assertStringContainsString('Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.', $header);
         $this->assertStringContainsString('HPP pada 1 transaksi penjualan belum lengkap', $header);
         $this->assertStringContainsString('Beban pajak belum dikonfirmasi untuk Oktober 2026', $header);
         foreach (['moving average', 'owner', 'Draft belum dihitung', 'HPP historis'] as $technicalText) {
@@ -89,15 +89,16 @@ class MonthlyTaxTest extends TestCase
         $pdf = $this->get(route('report.profit-loss.pdf', ['month'=>'2026-10']))->assertOk()->assertHeader('Content-Type','application/pdf');
         $html = view('report.pdf.profit-loss', $response->original->getData())->render();
         $this->assertStringContainsString('Laba (Rugi) Bersih', $html);
-        $this->assertStringContainsString('49.999,75', $html);
-        $this->assertStringContainsString('Disajikan dalam Rupiah (Rp)', $html);
+        $this->assertStringContainsString('50.000', $html);
+        $this->assertStringContainsString('Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.', $html);
         $this->assertStringNotContainsString($response->viewData('notice'), $html);
         $this->assertStringNotContainsString('Catatan: Beban pajak belum dikonfirmasi', $html);
         $this->assertStringNotContainsString('Catatan: HPP pada', $html);
         $excel = $this->get(route('report.profit-loss.excel', ['month'=>'2026-10']))->assertOk();
         $book = IOFactory::load($excel->baseResponse->getFile()->getPathname());
         $sheet = $book->getSheet(0); $last = $sheet->getHighestDataRow();
-        $this->assertSame('Periode: 01/10/2026 s.d. 31/10/2026 | Disajikan dalam Rupiah (Rp)', $sheet->getCell('A3')->getValue());
+        $this->assertSame('Oktober 2026 | Periode: 01/10/2026 s.d. 31/10/2026', $sheet->getCell('A2')->getValue());
+        $this->assertStringContainsString('Nominal disajikan dalam rupiah penuh, dibulatkan ke rupiah terdekat.', $sheet->getCell('A3')->getValue());
         $this->assertSame('Laba (Rugi) Bersih', $sheet->getCell('A'.$last)->getValue());
         $this->assertEquals(49999.75, $sheet->getCell('B'.$last)->getValue());
         $this->assertEquals(-50000.25, $sheet->getCell('B'.($last-1))->getValue());

@@ -69,7 +69,7 @@ class SaleNumberFormatTest extends TestCase
         $legacy=$this->sale('INV-2026-000006');
         $sale=$this->sale('INV/2026/10/000007');
         $this->actingAs($sale->createdBy);
-        $this->get(route('sale.sales.index'))->assertOk()->assertSee($legacy->sale_number)->assertSee($sale->sale_number);
+        $this->get(route('sale.sales.index', ['from'=>'2026-10-01', 'to'=>'2026-10-31']))->assertOk()->assertSee($legacy->sale_number)->assertSee($sale->sale_number);
         $this->get(route('sale.sales.show',$sale))->assertOk()->assertSee($sale->sale_number);
         $this->get(route('sale.sales.print',['sale'=>$sale,'popup'=>1]))->assertOk()->assertSee($sale->sale_number);
         $pdf=$this->get(route('sale.sales.print',$sale))->assertOk()->assertHeader('Content-Type','application/pdf');

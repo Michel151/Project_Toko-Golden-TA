@@ -191,9 +191,11 @@ class ExpenseTest extends TestCase
 
     public function test_profit_loss_defaults_to_current_jakarta_month_and_uses_complete_calendar_periods(): void
     {
-        $this->get(route('report.profit-loss'))->assertOk()->assertViewHas('periodType', 'monthly')
-            ->assertViewHas('month', '2026-11')->assertViewHas('from', '2026-11-01')->assertViewHas('to', '2026-11-30')
-            ->assertDontSee('type="date"', false);
+        $page = $this->get(route('report.profit-loss'))->assertOk()->assertViewHas('periodType', 'monthly')
+            ->assertViewHas('month', '2026-11')->assertViewHas('from', '2026-11-01')->assertViewHas('to', '2026-11-30');
+        $document = new \DOMDocument;
+        @$document->loadHTML($page->getContent());
+        $this->assertSame(0, (new \DOMXPath($document))->query('//form//input[@type="date"]')->length);
         $this->get(route('report.profit-loss', ['month' => '2024-02']))->assertViewHas('from', '2024-02-01')->assertViewHas('to', '2024-02-29');
         foreach ([1 => ['2024-01-01', '2024-03-31'], 2 => ['2024-04-01', '2024-06-30'], 3 => ['2024-07-01', '2024-09-30'], 4 => ['2024-10-01', '2024-12-31']] as $quarter => [$from, $to]) {
             $this->get(route('report.profit-loss', ['period_type' => 'quarterly', 'year' => 2024, 'quarter' => $quarter]))
