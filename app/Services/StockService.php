@@ -287,7 +287,7 @@ class StockService
             'product_id' => $product->id,
             'location_id' => $location->id,
             'movement_type' => $type,
-            'quantity' => $quntity,
+            'quantity' => $quantity,
             'balance_before' => $balanceBefore,
             'balance_after' => $balanceBefore + $quantity,
             'movement_date' => $movementDate ?? today(),
