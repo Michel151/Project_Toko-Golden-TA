@@ -302,7 +302,6 @@ class OpnameController extends Controller
                 }
             }
             if ($errors) throw ValidationException::withMessages($errors);
-
             foreach ($opname->items as $item) {
                 // jika barang memiliki rincian kedaluwarsa, gunakan service untuk menyesuaikan batch dan persediaan. Jika tidak, sesuaikan stok secara langsung.
                 if ($item->tracks_expiry) {

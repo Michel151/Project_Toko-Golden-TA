@@ -50,7 +50,13 @@
                     <td class="fw-semibold">{{ $product->name }}</td>
                     <td>{{ $movement->location->name }}</td>
                     <td><span class="badge bg-{{ $quantity > 0 ? 'success' : 'danger' }} bg-opacity-10 text-{{ $quantity > 0 ? 'success' : 'danger' }}">{{ $movement->type_label }}</span>@if($movement->notes)<div class="text-muted mt-1" style="font-size:.7rem">{{ $movement->notes }}</div>@endif</td>
-                    <td><span class="font-monospace small">{{ $movement->reference_number ?? '-' }}</span></td>
+                    <td class="font-monospace small">
+                        @if($movement->card_reference_url ?? null)
+                            <a href="{{ $movement->card_reference_url }}">{{ $movement->reference_number }}</a>
+                        @else
+                            {{ $movement->reference_number ?? '-' }}
+                        @endif
+                    </td>
                     <td class="text-end fw-bold {{ $quantity > 0 ? 'text-success' : 'text-danger' }}">{{ $quantity > 0 ? '+' : '-' }}{{ $qtyDisplay }}</td>
                     <td class="text-end small text-muted">{{ $product->displayStock((float)$movement->balance_before) }}</td>
                     <td class="text-end small fw-semibold">{{ $product->displayStock((float)$movement->balance_after) }}</td>

@@ -99,7 +99,7 @@ class InventoryStockAccessTest extends TestCase
         }
     }
 
-    public function test_stock_card_links_only_available_documents_the_user_can_open(): void
+    public function test_stock_card_and_movement_links_only_available_documents_the_user_can_open(): void
     {
         $cashier = User::create(['name' => 'Kasir', 'email' => 'references-cashier@test.com', 'password' => 'password', 'role' => 'kasir']);
         $owner = User::create(['name' => 'Owner', 'email' => 'references-owner@test.com', 'password' => 'password', 'role' => 'owner']);
@@ -143,6 +143,26 @@ class InventoryStockAccessTest extends TestCase
             ->assertDontSee('href="'.e(route('sale.sales.show', 999999)).'"', false);
         foreach ([$ownSaleUrl, $otherSaleUrl, $transferUrl, $opnameUrl] as $visible) {
             $ownerCard->assertSee('href="'.e($visible).'"', false);
+        }
+
+        // Kasir dapat diberi akses Mutasi Barang, tetapi tetap hanya membuka nota sendiri.
+        \Illuminate\Support\Facades\DB::table('role_permissions')->insert([
+            'role' => 'kasir', 'permission' => 'inventory.opnames.view',
+        ]);
+        $movementUrl = route('inventory.opnames.movements');
+        foreach ([$owner, $cashier] as $viewer) {
+            $response = $this->actingAs($viewer)->get($movementUrl)->assertOk()
+                ->assertSee('href="'.e($ownSaleUrl).'"', false)
+                ->assertSee('href="'.e($opnameUrl).'"', false)
+                ->assertSee('INV-LAMA')
+                ->assertDontSee('href="'.e(route('sale.sales.show', 999999)).'"', false);
+            foreach ([$otherSaleUrl, $transferUrl] as $referenceUrl) {
+                if ($viewer->isOwner()) {
+                    $response->assertSee('href="'.e($referenceUrl).'"', false);
+                } else {
+                    $response->assertDontSee('href="'.e($referenceUrl).'"', false);
+                }
+            }
         }
     }
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Support\StockMovementReferenceLinks;
 use Illuminate\Http\Request;
 
 class StockMovementController extends Controller
@@ -31,6 +32,7 @@ class StockMovementController extends Controller
         // Menampilkan 25 catatan terbaru dan mempertahankan filter saat pindah halaman.
         $movements = $query->latest('movement_date')->latest('id')->paginate(25)->withQueryString()
             ->appends(['from'=>$from ?? '', 'to'=>$to ?? '']);
+        StockMovementReferenceLinks::attach($movements->getCollection(), $request->user());
 
         $products = Product::orderBy('name')->get(['id', 'name']);
         $locations = Location::orderBy('name')->get(['id', 'name']);
