@@ -174,7 +174,7 @@
                 </option>
                 <option value="safe" @selected(request('expiry_status')==='safe')>Aman</option>
                 <option value="without_date" @selected(request('expiry_status')==='without_date')>Tanpa Tanggal</option>
-                <option value="untracked" @selected(request('expiry_status')==='untracked')>Tidak Dilacak</option>
+                <option value="untracked" @selected(request('expiry_status')==='untracked')>Tidak Memiliki Kedaluwarsa</option>
             </select>
         </div>
         <div class="app-filter-actions"><button class="btn btn-sm btn-primary px-3"><i class="bi bi-funnel me-1"></i>Terapkan</button>
@@ -314,7 +314,7 @@
                     @elseif($product->is_expirable)
                         <span class="text-muted small">Tidak ada rincian kedaluwarsa</span>
                     @else
-                        <span class="text-muted small">Tidak dilacak</span>
+                        <span class="text-muted small">Tidak Memiliki Kedaluwarsa</span>
                     @endif
                 </td>
                 <td class="text-end">
